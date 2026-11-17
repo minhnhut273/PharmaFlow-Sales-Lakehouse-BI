@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PharmaFlow Medallion Design — bản Kiro</title><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"><style>
+:root{--bg:#fbfaf7;--fg:#1d2330;--mut:#5b6474;--line:#e3e0d8;--card:#fff;--acc:#0f6e5c;--acc2:#e9f4f1;--code:#f3f1ec;--th:#f1efe9}
+@media (prefers-color-scheme:dark){:root{--bg:#14171c;--fg:#e6e8ec;--mut:#9aa3b2;--line:#2a2f38;--card:#1b1f26;--acc:#4fc3a6;--acc2:#1d2b29;--code:#232831;--th:#222831}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+header{padding:28px 40px 18px;border-bottom:1px solid var(--line);background:var(--card)}
+header h1{margin:0 0 6px;font-size:26px}header p{margin:0;color:var(--mut)}
+.badge{display:inline-block;padding:2px 10px;border-radius:99px;background:var(--acc2);color:var(--acc);font-size:12px;font-weight:600;margin-right:6px}
+.wrap{display:grid;grid-template-columns:290px 1fr;gap:0}
+nav{position:sticky;top:0;height:100vh;overflow:auto;padding:20px 16px;border-right:1px solid var(--line);background:var(--card);font-size:13.5px}
+nav ul{list-style:none;margin:0;padding:0}nav ul ul{padding-left:12px;margin:4px 0 10px}
+nav li.d>a{font-weight:600;color:var(--fg)}nav a{color:var(--mut);text-decoration:none;display:block;padding:2px 0}nav a:hover{color:var(--acc)}
+main{padding:24px 44px 80px;max-width:1180px}
+.doc{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 32px 28px;margin:0 0 28px}
+.src{font-size:12px;color:var(--mut);margin-top:14px}
+h2{font-size:23px;margin:18px 0 12px;padding-bottom:8px;border-bottom:2px solid var(--acc)}
+h3{font-size:18.5px;margin:26px 0 10px;color:var(--acc)}h4{font-size:16px;margin:20px 0 8px}h5{font-size:15px;margin:16px 0 6px}
+a{color:var(--acc)}code{background:var(--code);padding:1px 5px;border-radius:4px;font:13px Consolas,"Cascadia Code",monospace}
+pre{background:var(--code);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow:auto;line-height:1.45}
+pre code{background:none;padding:0;font-size:12.8px}
+.tw{overflow-x:auto;margin:12px 0}table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}th{background:var(--th);font-weight:600}
+tbody tr:nth-child(even){background:color-mix(in srgb,var(--th) 45%,transparent)}
+li{margin:3px 0}li.sub{margin-left:22px}li.cb{list-style:none;margin-left:-20px}
+footer{color:var(--mut);font-size:12.5px;padding:0 44px 40px}
+@media (max-width:900px){.wrap{grid-template-columns:1fr}nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}main{padding:16px}.doc{padding:6px 16px 20px}}
+.dg-doc{background:#f7f8fc;color:#1e1b4b}.dg-doc h2{color:#1e1b4b}.dg-fig{margin:10px 0 26px}.dg-fig figcaption{font-size:17px;font-weight:600;margin-bottom:4px}
+.dg-eyebrow{display:block;color:#475569;font:500 11px Consolas,monospace;letter-spacing:.16em}.dg-note{color:#475569;font-size:13.5px}
+@media print{nav{display:none}.wrap{display:block}.doc{break-inside:auto;border:0}}
+
+.dg-wrap{overflow-x:auto;margin:12px 0 4px}
+svg.dg{display:block;width:100%}
+.dg-tier{fill:#1e1b4b;font:600 13px 'Geist',system-ui,sans-serif;text-anchor:middle}
+.dg-bucket{font:400 9px 'Geist Mono',ui-monospace,monospace;text-anchor:middle}
+.dg-flabel{fill:#1e1b4b;font:600 11px 'Geist',system-ui,sans-serif}
+.dg-fvalue{color:#475569;font:400 9px/1.25 'Geist Mono',ui-monospace,monospace}
+.dg-exlabel{fill:#64748b;font:500 8px 'Geist Mono',ui-monospace,monospace;letter-spacing:.08em}
+.dg-exval{font:400 9px 'Geist Mono',ui-monospace,monospace}
+.dg-arc{font:500 10px 'Geist Mono',ui-monospace,monospace;letter-spacing:.08em;text-anchor:middle}
+.dg-ptag{fill:#1e1b4b;font:500 7px 'Geist Mono',ui-monospace,monospace;letter-spacing:.08em}
+.dg-ptitle{fill:#1e1b4b;font:600 11px 'Geist',system-ui,sans-serif}
+.dg-psub{fill:#475569;font:400 9px 'Geist Mono',ui-monospace,monospace}
+.dg-ztitle{fill:#1e1b4b;font:600 14px 'Geist',system-ui,sans-serif}
+.dg-zsub{fill:#64748b;font:400 9.5px 'Geist Mono',ui-monospace,monospace}
+.dg-btitle{fill:#1e1b4b;font:600 12px 'Geist',system-ui,sans-serif}
+.dg-bline{fill:#475569;font:400 9.5px 'Geist Mono',ui-monospace,monospace}
+.dg-legend{fill:#475569;font:400 11px 'Geist',system-ui,sans-serif}
+</style></head>
+<body><header><h1>PharmaFlow Medallion Design — Databricks</h1>
+<p><span class="badge">Bản Kiro · 14/11/2026</span><span class="badge">Đề xuất, chưa triển khai</span>Gộp từ 5 file Markdown trong <code>jobs/W9.11/MDD_vKiro/</code>.</p></header>
+<div class="wrap"><nav><ul><li class="d"><a href="#doc-readme">PharmaFlow Medallion Design — bản Kiro (14/11/2026, cập nhật theo issue #7, #8)</a><ul><li><a href="#đọc-theo-thứ-tự">Đọc theo thứ tự</a></li><li><a href="#tóm-tắt-một-trang">Tóm tắt một trang</a></li><li><a href="#nguyên-tắc-bắt-buộc">Nguyên tắc bắt buộc</a></li><li><a href="#nguồn-đã-đọc">Nguồn đã đọc</a></li></ul></li><li class="d"><a href="#doc-so-do">Sơ đồ chi tiết 3 lớp</a><ul></ul></li><li class="d"><a href="#doc-01-nguon-va-module">01 — Nguồn dữ liệu và 5 module</a><ul><li><a href="#1-hai-cách-nhìn-nguồn">1. Hai cách nhìn nguồn</a></li><li><a href="#2-nguồn-1--postgresql-pharmaflow_source_postgre_v2">2. Nguồn 1 — PostgreSQL pharmaflow_source_postgre_v2</a></li><li><a href="#3-nguồn-2--mongodb-pharmaflow_product_knowledgeproduct_snapshots">3. Nguồn 2 — MongoDB pharmaflow_product_knowledge.product_snapshots</a></li><li><a href="#4-nguồn-3--amazon-s3-weather-hồ-sơ-thầu-thuộc-platform">4. Nguồn 3 — Amazon S3 (Weather; hồ sơ thầu thuộc platform)</a></li><li><a href="#4b-hai-nguồn-phụ-do-issue-7-và-8-nêu">4b. Hai nguồn phụ do issue #7 và #8 nêu</a></li><li><a href="#5-năm-module-và-nhu-cầu-dữ-liệu">5. Năm module và nhu cầu dữ liệu</a></li><li><a href="#6-khoảng-trống-cần-nhóm-chốt">6. Khoảng trống cần nhóm chốt</a></li></ul></li><li class="d"><a href="#doc-02-thiet-ke-medallion">02 — Thiết kế 3 layer Medallion trên Databricks</a><ul><li><a href="#1-bố-cục-unity-catalog">1. Bố cục Unity Catalog</a></li><li><a href="#2-cột-kỹ-thuật-chung">2. Cột kỹ thuật chung</a></li><li><a href="#3-bronze--giữ-nguyên-trạng">3. Bronze — giữ nguyên trạng</a></li><li><a href="#4-silver--chuẩn-hóa-giữ-nghĩa">4. Silver — chuẩn hóa, giữ nghĩa</a></li><li><a href="#5-gold--data-product-theo-module">5. Gold — data product theo module</a></li><li><a href="#6-luật-chất-lượng-lakeflow-expectations">6. Luật chất lượng (Lakeflow expectations)</a></li><li><a href="#7-chống-rò-rỉ-thời-gian">7. Chống rò rỉ thời gian</a></li></ul></li><li class="d"><a href="#doc-03-quy-trinh-nghiep-vu">03 — Quy trình nghiệp vụ trên nền Databricks</a><ul><li><a href="#1-bảng-vai-trò">1. Bảng vai trò</a></li><li><a href="#2-lịch-nghiệp-vụ-hằng-ngày-đề-xuất-giờ-asiaho_chi_minh">2. Lịch nghiệp vụ hằng ngày (đề xuất, giờ Asia/Ho_Chi_Minh)</a></li><li><a href="#3-quy-trình-theo-module">3. Quy trình theo module</a></li><li><a href="#4-hai-lớp-đánh-giá">4. Hai lớp đánh giá</a></li><li><a href="#5-điều-kiện-phát-hành-một-data-product">5. Điều kiện phát hành một data product</a></li></ul></li><li class="d"><a href="#doc-04-quy-trinh-ky-thuat-databricks">04 — Quy trình kỹ thuật Databricks</a><ul><li><a href="#1-thành-phần-databricks-dùng">1. Thành phần Databricks dùng</a></li><li><a href="#2-bố-cục-code-trong-repo-đề-xuất">2. Bố cục code trong repo (đề xuất)</a></li><li><a href="#3-các-bước-dựng">3. Các bước dựng</a></li><li><a href="#4-preflight-và-readiness">4. Preflight và readiness</a></li><li><a href="#5-chạy-lại-và-sự-cố">5. Chạy lại và sự cố</a></li><li><a href="#6-bảo-mật">6. Bảo mật</a></li><li><a href="#7-lộ-trình-triển-khai">7. Lộ trình triển khai</a></li><li><a href="#8-checklist-nghiệm-thu-pilot">8. Checklist nghiệm thu pilot</a></li></ul></li></ul></nav>
+<main><section class="doc" id="doc-readme"><div class="src">Nguồn: <code>README.md</code></div><h2 id="pharmaflow-medallion-design--bản-kiro-14112026-cập-nhật-theo-issue-7-8">PharmaFlow Medallion Design — bản Kiro (14/11/2026, cập nhật theo issue #7, #8)</h2>
+<p><strong>Trạng thái:</strong> bản thiết kế đề xuất. Không có workspace, pipeline, bảng Delta hay quyền Databricks nào được tạo trong đợt này. Mọi tên catalog/schema/table là đề xuất, cần nhóm chốt.</p>
+<p>Mục tiêu: dựng lakehouse Bronze → Silver → Gold trên Databricks cho DSS PharmaFlow, phục vụ 5 module nghiệp vụ (MD-01…MD-05) và giữ chuỗi <code>DATA → FORECAST → RISK → DECISION → OPERATIONAL OUTCOME</code>.</p>
+<h3 id="đọc-theo-thứ-tự">Đọc theo thứ tự</h3>
+<div class="tw"><table><thead><tr><th>#</th><th>Tài liệu</th><th>Trả lời câu hỏi</th></tr></thead><tbody><tr><td>01</td><td><a href="#doc-01-nguon-va-module">Nguồn dữ liệu và 5 module</a></td><td>Có nguồn gì, grain gì, module nào cần gì, còn thiếu gì</td></tr><tr><td>02</td><td><a href="#doc-02-thiet-ke-medallion">Thiết kế 3 layer</a></td><td>Catalog/schema, bảng Bronze/Silver/Gold, cột kỹ thuật, luật chất lượng</td></tr><tr><td>03</td><td><a href="#doc-03-quy-trinh-nghiep-vu">Quy trình nghiệp vụ</a></td><td>Dữ liệu đi từ nguồn tới quyết định và kết quả vận hành thế nào, ai duyệt</td></tr><tr><td>04</td><td><a href="#doc-04-quy-trinh-ky-thuat-databricks">Quy trình kỹ thuật Databricks</a></td><td>Dựng workspace, kết nối 3 nguồn, Jobs/Pipelines, lịch, chạy lại, nghiệm thu</td></tr></tbody></table></div>
+<h3 id="tóm-tắt-một-trang">Tóm tắt một trang</h3>
+<div class="tw"><table><thead><tr><th>Nguồn kỹ thuật</th><th>Nhóm nghiệp vụ</th><th>Vào Bronze bằng</th><th>Ghi chú</th></tr></thead><tbody><tr><td>PostgreSQL (Neon <code>pharmaflow_source_postgre_v2</code>)</td><td>Nghiệp vụ tổng hợp: catalog, store/warehouse, POS, procurement, inventory, transfer, return/recall</td><td>JDBC full snapshot theo run (pilot) → sau đó Lakeflow Connect query-based/CDC</td><td>35 bảng, 5 schema</td></tr><tr><td>MongoDB (<code>pharmaflow_product_knowledge.product_snapshots</code>)</td><td>Nghiệp vụ tổng hợp: tri thức sản phẩm (thành phần, bảo quản)</td><td>Spark MongoDB connector, incremental theo <code>provenance.captured_at</code></td><td>Observed public page, không phải tồn/bán</td></tr><tr><td>Amazon S3 (<code>raw/open_meteo/...</code>)</td><td>Thời tiết Open-Meteo</td><td>Auto Loader, chỉ đọc theo <code>accepted.json</code></td><td>Đã chạy P1–P4; reader policy chưa gắn</td></tr><tr><td>Amazon S3 (hồ sơ thầu)</td><td>Thuộc platform MD-05</td><td>Không nạp; app xử lý PDF, lưu kết quả ở App DB</td><td>Databricks chỉ cấp tồn, hàng về, forecast, SKU cho MD-05</td></tr><tr><td>CSV sim <code>md04-transfer-transport-sim</code></td><td>Tham chiếu MD-04: ma trận đường, hồ sơ 3PL</td><td>Volume <code>bronze_sim.landing</code> + Auto Loader</td><td>Dữ liệu nghiệp vụ của sim đi qua loader vào PostgreSQL</td></tr><tr><td>App DB (khi app có)</td><td>Dữ liệu MD-03/04/05 tạo ra, sự kiện 3PL; MD-06 giữ ở đây</td><td>JDBC chỉ đọc → <code>bronze_app</code> (không đọc mật khẩu/token)</td><td>Đo KPI chấp nhận đề xuất, trúng ↔ giao, outcome</td></tr></tbody></table></div>
+<p><strong>Hiện trạng nguồn (issue #8, 13/11/2026):</strong> PostgreSQL chỉ có catalog, cửa hàng và bán hàng. 23 bảng <code>procurement.*</code>, <code>inventory.*</code>, <code>pos.customer_request*</code>, <code>pos.sales_channel</code> còn 0 dòng. MD-02/03/04 chờ loader dữ liệu sim.</p>
+<div class="tw"><table><thead><tr><th>Layer</th><th>Một câu</th></tr></thead><tbody><tr><td>Bronze</td><td>Bản sao nguyên trạng từng lần nạp + metadata run, append-only, không sửa nghĩa</td></tr><tr><td>Silver</td><td>Kiểu dữ liệu đúng, khóa chuẩn, thời gian UTC + local, khử trùng lặp, giữ grain và provenance</td></tr><tr><td>Gold</td><td>Data product theo module (mart, KPI, feature/trainset, forecast, risk, scenario input) có contract</td></tr></tbody></table></div>
+<h3 id="nguyên-tắc-bắt-buộc">Nguyên tắc bắt buộc</h3>
+<ol><li>Giữ <code>data_origin</code>/<code>source</code>/<code>provenance_class</code> (OBSERVED, SYNTHETIC, UNVERIFIED) từ Bronze tới Gold.</li><li>Không cộng <code>pos.sales_observation</code> với POS synthetic sinh ra từ chính nó.</li><li>Sales ≠ demand; ordered ≠ received; on-hand/available ≠ saleable; transfer ≠ goods receipt; tender award ≠ fulfillment.</li><li>Forecast metrics (MAE, RMSE, WAPE, Bias) và decision metrics (stockout, fill rate, tồn TB, expiry, chi phí mô phỏng) nằm ở bảng khác nhau.</li><li>Gold không ghi PO/transfer thật. Khuyến nghị đi qua Human Approval trong app.</li><li>Backtest chỉ dùng dữ liệu khả dụng tại forecast origin (as-of join).</li></ol>
+<h3 id="nguồn-đã-đọc">Nguồn đã đọc</h3>
+<ul><li><code>AGENTS.md</code>, <code>docs/architecture/pharmaflow-system-architecture.md</code>, <code>pharmaflow-domain-module-map.md</code>, <code>pharmaflow-data-products.md</code>.</li><li><code>src/synthetic_data_source/pharmaflow_source_postgre/README.md</code>, <code>schema_full.sql</code>; <code>src/synthetic_data_source/mongodb/README.md</code>.</li><li><code>src/weather/README.md</code>, <code>src/weather/SDD.md</code>, một <code>metadata.json</code>/<code>accepted.json</code> thật trong <code>.runtime/weather/raw/</code>.</li><li>Module: <code>jobs/W19.10/REQUIREMENTS_SALES_DEMAND_LANDSCAPE_V1.md</code> (MD-01), <code>jobs/W2.11/</code> (MD-02), <code>jobs/W9.11/md03-md04-usecase-v3/docs/4_sua_doi.md</code>, <code>5_sua_doi.md</code> (MD-03, MD-04), <code>jobs/W9.11/module-05-tender/</code> (MD-05), <code>jobs/W9.11/module-06-system-admin/</code> (MD-06, năng lực dùng chung).</li><li>GitHub issue <a href="https://github.com/minhnhut273/PharmaFlow/issues/8" target="_blank" rel="noopener">#8 Bổ sung dữ liệu MD-03 / MD-04</a> (MT-024) và <a href="https://github.com/minhnhut273/PharmaFlow/issues/7" target="_blank" rel="noopener">#7 Data requirements</a> (nam2312186), đọc ngày 14/11/2026. Issue #7 có tiêu đề "Module 05 &amp; 06" nhưng nội dung hiện là MD-03/MD-04. Yêu cầu dữ liệu MD-05/06 lấy từ bản người dùng gửi trong chat ngày 14/11/2026 (tham chiếu <code>jobs/module-05-tender/research/task/W05…</code>, <code>W07…</code> và tài liệu Module 06 theo PR #6). File <code>jobs/W13.11/md03-md04-data-readiness/DATA_READINESS.md</code> và <code>dataset/md04-transfer-transport-sim</code> mà issue nhắc tới chưa có trong repo.</li><li>Databricks docs: <a href="https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/postgresql" target="_blank" rel="noopener">PostgreSQL connector</a>, <a href="https://docs.databricks.com/aws/en/ingestion/lakeflow-connect/query-based-overview" target="_blank" rel="noopener">query-based connectors</a>.</li></ul>
+<p>Bản này độc lập với <code>../MDD_vCodex/</code> và <code>../MDD_vAgy/</code>; có thể đối chiếu để chọn phương án.</p></section><section class="doc dg-doc" id="doc-so-do"><div class="src">Nguồn hình: <code>MDD_vKiro_so_do_3_lop.html</code></div><h2 id="so-do-3-lop">Sơ đồ chi tiết 3 lớp</h2><figure class="dg-fig"><figcaption><span class="dg-eyebrow">HÌNH 1 · TỔNG QUAN</span>Năm tầng từ nguồn tới ứng dụng</figcaption><div class="dg-wrap"><svg class="dg" viewBox="0 0 1040 548" style="min-width:1040px" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="medallion-overview-title medallion-overview-desc">
+<title id="medallion-overview-title">Tổng quan medallion PharmaFlow trên Databricks</title>
+<desc id="medallion-overview-desc">Dữ liệu từ PostgreSQL, MongoDB và S3 đi qua Bronze, Silver, Gold rồi được backend DSS đọc qua SQL Warehouse.</desc>
+<defs>
+<marker id="mo-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#475569"/></marker>
+<marker id="mo-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6366f1"/></marker>
+<marker id="mo-arrow-slate" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5a7d9a"/></marker>
+<clipPath id="mo-clip-0"><rect x="16" y="80" width="172" height="380" rx="6"/></clipPath>
+<clipPath id="mo-clip-1"><rect x="204" y="80" width="172" height="380" rx="6"/></clipPath>
+<clipPath id="mo-clip-2"><rect x="392" y="80" width="172" height="380" rx="6"/></clipPath>
+<clipPath id="mo-clip-3"><rect x="580" y="80" width="172" height="380" rx="6"/></clipPath>
+<clipPath id="mo-clip-4"><rect x="768" y="80" width="172" height="380" rx="6"/></clipPath>
+</defs>
+<rect width="1040" height="548" fill="#f7f8fc"/>
+<path d="M102 80 C102 0 290 0 290 80" fill="none" stroke="#475569" stroke-width="1.4" marker-end="url(#mo-arrow)"/>
+<text x="196" y="50" class="dg-arc" fill="#475569">NẠP</text>
+<path d="M290 80 C290 0 478 0 478 80" fill="none" stroke="#5a7d9a" stroke-width="1.4" marker-end="url(#mo-arrow-slate)"/>
+<text x="384" y="50" class="dg-arc" fill="#5a7d9a">CHUẨN HÓA</text>
+<path d="M478 80 C478 0 666 0 666 80" fill="none" stroke="#6366f1" stroke-width="1.6" marker-end="url(#mo-arrow-accent)"/>
+<text x="572" y="50" class="dg-arc" fill="#6366f1">PHÁT HÀNH</text>
+<path d="M666 80 C666 0 854 0 854 80" fill="none" stroke="#475569" stroke-width="1.4" marker-end="url(#mo-arrow)"/>
+<text x="760" y="50" class="dg-arc" fill="#475569">PHỤC VỤ</text>
+<rect x="16" y="80" width="172" height="380" rx="6" fill="#fff"/>
+<rect x="16" y="80" width="172" height="50" fill="rgba(71,85,105,0.10)" clip-path="url(#mo-clip-0)"/>
+<rect x="16" y="80" width="172" height="380" rx="6" fill="none" stroke="#475569" stroke-width="1"/>
+<text x="102" y="106" class="dg-tier">Nguồn</text>
+<text x="102" y="144" class="dg-bucket" fill="#475569">3 nguồn kỹ thuật</text>
+<text x="32" y="180" class="dg-flabel">Công cụ</text>
+<foreignObject x="32" y="186" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Neon PG · MongoDB · S3 · CSV sim · App DB</div></foreignObject>
+<text x="32" y="228" class="dg-flabel">Định dạng</text>
+<foreignObject x="32" y="234" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">bảng · document · JSON · CSV</div></foreignObject>
+<text x="32" y="276" class="dg-flabel">Người ghi</text>
+<foreignObject x="32" y="282" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Hệ nguồn giả lập · Weather Lambda</div></foreignObject>
+<text x="32" y="360" class="dg-exlabel">VÍ DỤ PHARMAFLOW</text>
+<text x="32" y="374" class="dg-exval" fill="#475569">pos.sales_order_line</text>
+<text x="32" y="388" class="dg-exval" fill="#475569">tasks/*/accepted.json</text>
+<rect x="204" y="80" width="172" height="380" rx="6" fill="#fff"/>
+<rect x="204" y="80" width="172" height="50" fill="rgba(30,27,75,0.06)" clip-path="url(#mo-clip-1)"/>
+<rect x="204" y="80" width="172" height="380" rx="6" fill="none" stroke="#1e1b4b" stroke-width="1"/>
+<text x="290" y="106" class="dg-tier">Bronze</text>
+<text x="290" y="144" class="dg-bucket" fill="#475569">bronze_pg · mongo · weather</text>
+<text x="220" y="180" class="dg-flabel">Công cụ</text>
+<foreignObject x="220" y="186" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">JDBC snapshot · Auto Loader</div></foreignObject>
+<text x="220" y="228" class="dg-flabel">Định dạng</text>
+<foreignObject x="220" y="234" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Delta · append-only</div></foreignObject>
+<text x="220" y="276" class="dg-flabel">Người ghi</text>
+<foreignObject x="220" y="282" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Data Engineer (Job)</div></foreignObject>
+<text x="220" y="360" class="dg-exlabel">VÍ DỤ PHARMAFLOW</text>
+<text x="220" y="374" class="dg-exval" fill="#475569">pos__sales_order_line</text>
+<text x="220" y="388" class="dg-exval" fill="#475569">weather_response (raw)</text>
+<rect x="392" y="80" width="172" height="380" rx="6" fill="rgba(90,125,154,0.07)"/>
+<rect x="392" y="80" width="172" height="50" fill="rgba(90,125,154,0.14)" clip-path="url(#mo-clip-2)"/>
+<rect x="392" y="80" width="172" height="380" rx="6" fill="none" stroke="#5a7d9a" stroke-width="1.4"/>
+<text x="478" y="106" class="dg-tier">Silver</text>
+<text x="478" y="144" class="dg-bucket" fill="#5a7d9a">silver_core · _sales · …</text>
+<text x="408" y="180" class="dg-flabel">Công cụ</text>
+<foreignObject x="408" y="186" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Lakeflow Pipelines · expectations</div></foreignObject>
+<text x="408" y="228" class="dg-flabel">Định dạng</text>
+<foreignObject x="408" y="234" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Delta · dim SCD2 · fact</div></foreignObject>
+<text x="408" y="276" class="dg-flabel">Người ghi</text>
+<foreignObject x="408" y="282" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Data Engineer</div></foreignObject>
+<text x="408" y="360" class="dg-exlabel">VÍ DỤ PHARMAFLOW</text>
+<text x="408" y="374" class="dg-exval" fill="#5a7d9a">fact_sales_line</text>
+<text x="408" y="388" class="dg-exval" fill="#5a7d9a">weather_hourly</text>
+<rect x="580" y="80" width="172" height="380" rx="6" fill="rgba(99,102,241,0.07)"/>
+<rect x="580" y="80" width="172" height="50" fill="rgba(99,102,241,0.14)" clip-path="url(#mo-clip-3)"/>
+<rect x="580" y="80" width="172" height="380" rx="6" fill="none" stroke="#6366f1" stroke-width="1.6"/>
+<text x="666" y="106" class="dg-tier">Gold</text>
+<text x="666" y="144" class="dg-bucket" fill="#6366f1">gold_md01…md05 · ml</text>
+<text x="596" y="180" class="dg-flabel">Công cụ</text>
+<foreignObject x="596" y="186" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Materialized view · MLflow</div></foreignObject>
+<text x="596" y="228" class="dg-flabel">Định dạng</text>
+<foreignObject x="596" y="234" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Delta · data product</div></foreignObject>
+<text x="596" y="276" class="dg-flabel">Người ghi</text>
+<foreignObject x="596" y="282" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Data Engineer · Data Scientist</div></foreignObject>
+<text x="596" y="360" class="dg-exlabel">VÍ DỤ PHARMAFLOW</text>
+<text x="596" y="374" class="dg-exval" fill="#6366f1">mart_sales_daily</text>
+<text x="596" y="388" class="dg-exval" fill="#6366f1">forecast_sales</text>
+<rect x="768" y="80" width="172" height="380" rx="6" fill="#fff"/>
+<rect x="768" y="80" width="172" height="50" fill="rgba(30,27,75,0.06)" clip-path="url(#mo-clip-4)"/>
+<rect x="768" y="80" width="172" height="380" rx="6" fill="none" stroke="#1e1b4b" stroke-width="1"/>
+<text x="854" y="106" class="dg-tier">Phục vụ</text>
+<text x="854" y="144" class="dg-bucket" fill="#475569">SQL Warehouse → API</text>
+<text x="784" y="180" class="dg-flabel">Công cụ</text>
+<foreignObject x="784" y="186" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">SQL Warehouse · pf_app_reader</div></foreignObject>
+<text x="784" y="228" class="dg-flabel">Định dạng</text>
+<foreignObject x="784" y="234" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">SQL chỉ đọc</div></foreignObject>
+<text x="784" y="276" class="dg-flabel">Người ghi</text>
+<foreignObject x="784" y="282" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Backend DSS (chỉ đọc)</div></foreignObject>
+<text x="784" y="360" class="dg-exlabel">VÍ DỤ PHARMAFLOW</text>
+<text x="784" y="374" class="dg-exval" fill="#475569">dashboard MD-01…05</text>
+<text x="784" y="388" class="dg-exval" fill="#475569">duyệt lưu ở app DB</text>
+<rect x="16" y="476" width="460" height="56" rx="6" fill="#fff" stroke="rgba(30,27,75,0.20)"/>
+<rect x="24" y="482" width="56" height="12" rx="2" fill="none" stroke="rgba(30,27,75,0.30)" stroke-width="0.8"/>
+<text x="52.0" y="491" class="dg-ptag" text-anchor="middle">SQL PATH</text>
+<text x="112" y="506" class="dg-ptitle">Lakeflow Declarative Pipelines (SQL)</text>
+<text x="112" y="522" class="dg-psub">Silver/Gold · expectations · materialized view</text>
+<rect x="492" y="476" width="460" height="56" rx="6" fill="#fff" stroke="rgba(30,27,75,0.20)"/>
+<rect x="500" y="482" width="74" height="12" rx="2" fill="none" stroke="rgba(30,27,75,0.30)" stroke-width="0.8"/>
+<text x="537.0" y="491" class="dg-ptag" text-anchor="middle">PYTHON PATH</text>
+<text x="588" y="506" class="dg-ptitle">Notebook task trong Lakeflow Jobs</text>
+<text x="588" y="522" class="dg-psub">JDBC · Mongo connector · Auto Loader · MLflow</text>
+</svg></div><p class="dg-note">Nguồn và Phục vụ nằm ngoài lakehouse. Silver tô xanh xám vì là lớp kiểm chất lượng. Gold là lớp trọng tâm: mọi consumer đọc từ đây.</p></figure><figure class="dg-fig"><figcaption><span class="dg-eyebrow">HÌNH 2 · CHI TIẾT</span>Schema và bảng trong từng lớp</figcaption><div class="dg-wrap"><svg class="dg" viewBox="0 0 1280 896" style="min-width:1280px" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="medallion-detail-title medallion-detail-desc">
+<title id="medallion-detail-title">Chi tiết schema và bảng của ba lớp</title>
+<desc id="medallion-detail-desc">Từng nguồn được nạp vào schema Bronze riêng, chuẩn hóa thành các schema Silver theo miền, rồi phát hành thành Gold theo module MD-01 đến MD-05 cho backend DSS đọc.</desc>
+<defs>
+<marker id="md-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#475569"/></marker>
+<marker id="md-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6366f1"/></marker>
+<marker id="md-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#3157b7"/></marker>
+</defs>
+<rect width="1280" height="896" fill="#f7f8fc"/>
+<rect x="16" y="16" width="200" height="752" rx="8" fill="#eef2ff" stroke="rgba(30,27,75,0.18)" stroke-width="1"/>
+<text x="28" y="38" class="dg-ztitle">Nguồn</text>
+<text x="28" y="54" class="dg-zsub">3 nguồn + sim + app DB</text>
+<rect x="264" y="16" width="220" height="752" rx="8" fill="#eef2ff" stroke="rgba(30,27,75,0.18)" stroke-width="1"/>
+<text x="276" y="38" class="dg-ztitle">Bronze</text>
+<text x="276" y="54" class="dg-zsub">nguyên trạng · append-only</text>
+<rect x="532" y="16" width="228" height="752" rx="8" fill="#eef2ff" stroke="rgba(30,27,75,0.18)" stroke-width="1"/>
+<text x="544" y="38" class="dg-ztitle">Silver</text>
+<text x="544" y="54" class="dg-zsub">chuẩn hóa · expectations</text>
+<rect x="808" y="16" width="248" height="752" rx="8" fill="rgba(99,102,241,0.05)" stroke="#6366f1" stroke-width="1.4"/>
+<text x="820" y="38" class="dg-ztitle" fill="#6366f1">Gold</text>
+<text x="820" y="54" class="dg-zsub">data product theo module</text>
+<rect x="1104" y="16" width="160" height="752" rx="8" fill="#eef2ff" stroke="rgba(30,27,75,0.18)" stroke-width="1"/>
+<text x="1116" y="38" class="dg-ztitle">Phục vụ</text>
+<text x="1116" y="54" class="dg-zsub">đọc qua SQL</text>
+<line x1="204" y1="116" x2="276" y2="116" stroke="#475569" stroke-width="1.4" marker-end="url(#md-arrow)"/>
+<line x1="204" y1="224" x2="276" y2="224" stroke="#475569" stroke-width="1.4" marker-end="url(#md-arrow)"/>
+<line x1="204" y1="332" x2="276" y2="332" stroke="#475569" stroke-width="1.4" marker-end="url(#md-arrow)"/>
+<line x1="204" y1="440" x2="276" y2="440" stroke="#475569" stroke-width="1.4" marker-end="url(#md-arrow)"/>
+<line x1="204" y1="548" x2="276" y2="548" stroke="#475569" stroke-width="1.4" stroke-dasharray="5,4" marker-end="url(#md-arrow)"/>
+<line x1="484" y1="344" x2="532" y2="344" stroke="#475569" stroke-width="1.4" marker-end="url(#md-arrow)"/>
+<line x1="760" y1="344" x2="808" y2="344" stroke="#6366f1" stroke-width="1.6" marker-end="url(#md-arrow-accent)"/>
+<line x1="1056" y1="120" x2="1116" y2="120" stroke="#3157b7" stroke-width="1.4" marker-end="url(#md-arrow-link)"/>
+<line x1="1184" y1="176" x2="1184" y2="208" stroke="#3157b7" stroke-width="1.4" marker-end="url(#md-arrow-link)"/>
+<line x1="1184" y1="296" x2="1184" y2="328" stroke="#475569" stroke-width="1.4" marker-end="url(#md-arrow)"/>
+<rect x="28" y="64" width="176" height="104" rx="6" fill="#fff" stroke="#475569"/>
+<rect x="28" y="64" width="4" height="104" fill="#475569" opacity="0.5"/>
+<text x="40" y="86" class="dg-btitle">PostgreSQL (Neon)</text>
+<text x="40" y="104" class="dg-bline">catalog · org · pos: có data</text>
+<text x="40" y="120" class="dg-bline">procurement · inventory:</text>
+<text x="40" y="136" class="dg-bline">23 bảng còn 0 dòng</text>
+<text x="40" y="152" class="dg-bline">+ bảng giá, GDP, xác nhận PO</text>
+<rect x="28" y="180" width="176" height="88" rx="6" fill="#fff" stroke="#475569"/>
+<rect x="28" y="180" width="4" height="88" fill="#475569" opacity="0.5"/>
+<text x="40" y="202" class="dg-btitle">MongoDB</text>
+<text x="40" y="220" class="dg-bline">product_snapshots</text>
+<text x="40" y="236" class="dg-bline">2.481 snapshot · observed</text>
+<rect x="28" y="280" width="176" height="104" rx="6" fill="#fff" stroke="#475569"/>
+<rect x="28" y="280" width="4" height="104" fill="#475569" opacity="0.5"/>
+<text x="40" y="302" class="dg-btitle">S3 · Open-Meteo raw</text>
+<text x="40" y="320" class="dg-bline">daily_forecast/</text>
+<text x="40" y="336" class="dg-bline">historical_* (GFS · ERA5)</text>
+<text x="40" y="352" class="dg-bline">chỉ đọc theo accepted.json</text>
+<rect x="28" y="396" width="176" height="88" rx="6" fill="#fff" stroke="#475569"/>
+<rect x="28" y="396" width="4" height="88" fill="#475569" opacity="0.5"/>
+<text x="40" y="418" class="dg-btitle">CSV sim MD-04</text>
+<text x="40" y="436" class="dg-bline">travel_matrix · 3PL profile</text>
+<text x="40" y="452" class="dg-bline">SYNTHETIC + đường OSRM</text>
+<rect x="28" y="496" width="176" height="104" rx="6" fill="#f7f8fc" stroke="#475569" stroke-dasharray="5,3"/>
+<text x="40" y="518" class="dg-btitle">App DB (khi có app)</text>
+<text x="40" y="536" class="dg-bline">MD-03/04: đề xuất · duyệt</text>
+<text x="40" y="552" class="dg-bline">MD-05: trích xuất · trúng</text>
+<text x="40" y="568" class="dg-bline">MD-06: role-scope · audit</text>
+<rect x="28" y="612" width="176" height="44" rx="6" fill="#f7f8fc" stroke="#475569" stroke-dasharray="5,3"/>
+<text x="40" y="638" class="dg-btitle">S3 platform · PDF thầu</text>
+<rect x="276" y="64" width="196" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="288" y="86" class="dg-btitle">bronze_pg</text>
+<text x="288" y="104" class="dg-bline">&lt;schema&gt;__&lt;table&gt; × 35+</text>
+<text x="288" y="120" class="dg-bline">JDBC full snapshot mỗi run</text>
+<text x="288" y="136" class="dg-bline">+ _ingest_run_id, _row_hash</text>
+<text x="288" y="152" class="dg-bline">partition _ingest_date</text>
+<rect x="276" y="180" width="196" height="88" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="288" y="202" class="dg-btitle">bronze_mongo</text>
+<text x="288" y="220" class="dg-bline">product_snapshots</text>
+<text x="288" y="236" class="dg-bline">raw_doc JSON + khóa</text>
+<rect x="276" y="280" width="196" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="288" y="302" class="dg-btitle">bronze_weather</text>
+<text x="288" y="320" class="dg-bline">weather_accepted · _metadata</text>
+<text x="288" y="336" class="dg-bline">weather_response (raw text)</text>
+<text x="288" y="352" class="dg-bline">Auto Loader · kiểm sha256</text>
+<rect x="276" y="396" width="196" height="88" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="288" y="418" class="dg-btitle">bronze_sim</text>
+<text x="288" y="436" class="dg-bline">travel_matrix</text>
+<text x="288" y="452" class="dg-bline">service_profiles</text>
+<rect x="276" y="496" width="196" height="104" rx="6" fill="#f7f8fc" stroke="#475569" stroke-dasharray="5,3"/>
+<text x="288" y="518" class="dg-btitle">bronze_app</text>
+<text x="288" y="536" class="dg-bline">review · ops · tender</text>
+<text x="288" y="552" class="dg-bline">chuyến, GPS, nhiệt độ</text>
+<text x="288" y="568" class="dg-bline">JDBC chỉ đọc · không token</text>
+<rect x="276" y="612" width="196" height="44" rx="6" fill="#f7f8fc" stroke="#475569" stroke-dasharray="5,3"/>
+<text x="288" y="638" class="dg-btitle">không nạp PDF</text>
+<rect x="544" y="64" width="204" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="556" y="86" class="dg-btitle">silver_core</text>
+<text x="556" y="104" class="dg-bline">dim_product (+ vận chuyển)</text>
+<text x="556" y="120" class="dg-bline">dim_location (tổng/vùng/NT)</text>
+<text x="556" y="136" class="dg-bline">dim_supplier · heartbeat</text>
+<text x="556" y="152" class="dg-bline">dim_product_knowledge</text>
+<rect x="544" y="180" width="204" height="88" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="556" y="202" class="dg-btitle">silver_sales</text>
+<text x="556" y="220" class="dg-bline">fact_sales_line</text>
+<text x="556" y="236" class="dg-bline">fact_sales_observation</text>
+<text x="556" y="252" class="dg-bline">fact_customer_request_line</text>
+<rect x="544" y="280" width="204" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="556" y="302" class="dg-btitle">silver_inventory</text>
+<text x="556" y="320" class="dg-bline">snap_inventory_balance</text>
+<text x="556" y="336" class="dg-bline">dim_batch_lot · movement</text>
+<text x="556" y="352" class="dg-bline">fact_transfer_line</text>
+<text x="556" y="368" class="dg-bline">fact_quality · fact_recall_*</text>
+<rect x="544" y="396" width="204" height="88" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="556" y="418" class="dg-btitle">silver_procurement</text>
+<text x="556" y="436" class="dg-bline">fact_po_line · po_confirmation</text>
+<text x="556" y="452" class="dg-bline">fact_goods_receipt_line</text>
+<text x="556" y="468" class="dg-bline">supplier_price · certificate</text>
+<rect x="544" y="496" width="204" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="556" y="518" class="dg-btitle">silver_logistics · decision</text>
+<text x="556" y="536" class="dg-bline">ref_travel_matrix · trip</text>
+<text x="556" y="552" class="dg-bline">gps · temperature_reading</text>
+<text x="556" y="568" class="dg-bline">transfer_request · proposal</text>
+<text x="556" y="584" class="dg-bline">approval · purchase_need</text>
+<rect x="544" y="612" width="204" height="72" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="556" y="634" class="dg-btitle">silver_weather</text>
+<text x="556" y="652" class="dg-bline">weather_snapshot</text>
+<text x="556" y="668" class="dg-bline">weather_hourly · daily</text>
+<rect x="820" y="64" width="224" height="88" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="832" y="86" class="dg-btitle">gold_md01_sales</text>
+<text x="832" y="104" class="dg-bline">mart_sales_daily</text>
+<text x="832" y="120" class="dg-bline">mart_sales_observation_period</text>
+<text x="832" y="136" class="dg-bline">kpi_sales_trend</text>
+<rect x="820" y="164" width="224" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="832" y="186" class="dg-btitle">gold_md02_inventory</text>
+<text x="832" y="204" class="dg-bline">mart_inventory_position</text>
+<text x="832" y="220" class="dg-bline">mart_lot_expiry_status</text>
+<text x="832" y="236" class="dg-bline">fefo_candidate_lots</text>
+<text x="832" y="252" class="dg-bline">risk_stock_projection</text>
+<rect x="820" y="280" width="224" height="120" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="832" y="302" class="dg-btitle">gold_md03_procurement</text>
+<text x="832" y="320" class="dg-bline">mart_po_tracking (4 lượng)</text>
+<text x="832" y="336" class="dg-bline">mart_supplier_scorecard</text>
+<text x="832" y="352" class="dg-bline">supplier_certificate_expiry</text>
+<text x="832" y="368" class="dg-bline">supplier_price_compare</text>
+<text x="832" y="384" class="dg-bline">net_purchase_need_input</text>
+<rect x="820" y="412" width="224" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="832" y="434" class="dg-btitle">gold_md04_distribution</text>
+<text x="832" y="452" class="dg-bline">imbalance_signal (+ tồn cũ)</text>
+<text x="832" y="468" class="dg-bline">transfer_candidate_input</text>
+<text x="832" y="484" class="dg-bline">mart_transfer_tracking</text>
+<text x="832" y="500" class="dg-bline">mart_trip_daily · kpi</text>
+<rect x="820" y="528" width="224" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="832" y="550" class="dg-btitle">gold_md05_tender</text>
+<text x="832" y="568" class="dg-bline">tender_supply_input</text>
+<text x="832" y="584" class="dg-bline">tender_incoming_supply</text>
+<text x="832" y="600" class="dg-bline">tender_forecast_input</text>
+<text x="832" y="616" class="dg-bline">tender_sku_reference</text>
+<rect x="820" y="644" width="224" height="40" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="832" y="668" class="dg-btitle">gold_kpi · kpi_daily</text>
+<rect x="820" y="696" width="224" height="56" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="832" y="718" class="dg-btitle">ml</text>
+<text x="832" y="736" class="dg-bline">forecast · backtest · decision_eval</text>
+<rect x="1116" y="64" width="136" height="112" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="1128" y="86" class="dg-btitle">SQL Warehouse</text>
+<text x="1128" y="104" class="dg-bline">SP pf_app_reader</text>
+<text x="1128" y="120" class="dg-bline">SELECT gold + ml</text>
+<text x="1128" y="136" class="dg-bline">row filter theo kho</text>
+<rect x="1116" y="208" width="136" height="88" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="1128" y="230" class="dg-btitle">Backend + Web DSS</text>
+<text x="1128" y="248" class="dg-bline">dashboard MD-01…05</text>
+<text x="1128" y="264" class="dg-bline">Human Approval</text>
+<rect x="1116" y="328" width="136" height="120" rx="6" fill="#fff" stroke="#475569"/>
+<rect x="1116" y="328" width="4" height="120" fill="#475569" opacity="0.5"/>
+<text x="1128" y="350" class="dg-btitle">Database ứng dụng</text>
+<text x="1128" y="368" class="dg-bline">MD-05 tender</text>
+<text x="1128" y="384" class="dg-bline">MD-06 user · scope</text>
+<text x="1128" y="400" class="dg-bline">duyệt · audit</text>
+<text x="1128" y="416" class="dg-bline">→ bronze_app</text>
+<rect x="264" y="784" width="792" height="40" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="280" y="809" class="dg-btitle">ops</text>
+<text x="320" y="809" class="dg-bline">ingest_log · watermark · source_profile · dq_result · module_readiness · product_release</text>
+<line x1="16" y1="848" x2="1264" y2="848" stroke="rgba(30,27,75,0.12)"/>
+<line x1="16" y1="872" x2="48" y2="872" stroke="#475569" stroke-width="1.4" marker-end="url(#md-arrow)"/>
+<text x="60" y="876" class="dg-legend">Nạp / chuyển dữ liệu</text>
+<line x1="248" y1="872" x2="280" y2="872" stroke="#6366f1" stroke-width="1.4" marker-end="url(#md-arrow-accent)"/>
+<text x="292" y="876" class="dg-legend">Phát hành Gold</text>
+<line x1="480" y1="872" x2="512" y2="872" stroke="#3157b7" stroke-width="1.4" marker-end="url(#md-arrow-link)"/>
+<text x="524" y="876" class="dg-legend">Đọc qua SQL / API</text>
+<line x1="712" y1="872" x2="744" y2="872" stroke="#475569" stroke-width="1.4" stroke-dasharray="5,4" marker-end="url(#md-arrow)"/>
+<text x="756" y="876" class="dg-legend">Dự kiến, chưa có</text>
+<rect x="944" y="864" width="24" height="16" rx="3" fill="#fff" stroke="#475569"/><rect x="944" y="864" width="4" height="16" fill="#475569" opacity="0.5"/>
+<text x="980" y="876" class="dg-legend">Kho dữ liệu ngoài Databricks</text>
+</svg></div><p class="dg-note">Mỗi nguồn có schema Bronze riêng. Silver tách theo miền, Gold tách theo module. Ô nét đứt là phần chưa có hoặc không nạp. MD-05 và MD-06 chạy chủ yếu trong platform (App DB, S3 PDF); App MD-05 đọc 4 bảng gold_md05_tender (tồn khả dụng, hàng về, forecast, SKU) qua SQL Warehouse. Theo issue #8, 23 bảng procurement/inventory còn 0 dòng, nên Gold MD-02/03/04 chờ loader dữ liệu sim. Quyết định và duyệt lưu ở database ứng dụng, không ghi vào Gold; Databricks chỉ đọc lại qua bronze_app.</p></figure></section><section class="doc" id="doc-01-nguon-va-module"><div class="src">Nguồn: <code>01-nguon-va-module.md</code></div><h2 id="01--nguồn-dữ-liệu-và-5-module">01 — Nguồn dữ liệu và 5 module</h2>
+<h3 id="1-hai-cách-nhìn-nguồn">1. Hai cách nhìn nguồn</h3>
+<div class="tw"><table><thead><tr><th>Góc nhìn</th><th>Thành phần</th></tr></thead><tbody><tr><td><strong>Kỹ thuật</strong> (3 nguồn)</td><td>PostgreSQL (Neon), MongoDB, Amazon S3</td></tr><tr><td><strong>Nghiệp vụ</strong> (2 nhóm)</td><td>(1) Nghiệp vụ tổng hợp: POS, WMS/kho, procurement, transfer, catalog, tri thức sản phẩm. (2) Thời tiết Open-Meteo</td></tr></tbody></table></div>
+<p>PostgreSQL và MongoDB là <strong>nguồn upstream giả lập</strong> cho DSS. Chúng đóng vai POS/ERP/WMS. Dataset, crawler, generator chỉ dùng để dựng hai kho này; Databricks không đọc thẳng <code>dataset/</code> hay <code>Dataset/longchau-knowledge/</code>.</p>
+<h3 id="2-nguồn-1--postgresql-pharmaflow_source_postgre_v2">2. Nguồn 1 — PostgreSQL <code>pharmaflow_source_postgre_v2</code></h3>
+<p>Theo <code>schema_full.sql</code> (version <code>20261104_01_forecast_source_contract_v2</code>): 35 bảng, 5 schema.</p>
+<div class="tw"><table><thead><tr><th>Schema</th><th>Bảng</th><th>Module dùng chính</th><th>Grain chính</th></tr></thead><tbody><tr><td><code>catalog</code></td><td><code>manufacturer</code>, <code>unit_of_measure</code>, <code>product_category</code>, <code>product</code>, <code>product_category_assignment</code>, <code>product_source_reference</code>, <code>product_packaging</code></td><td>Tất cả</td><td>1 dòng / product, / category, / packaging</td></tr><tr><td><code>org</code></td><td><code>store</code>, <code>warehouse</code></td><td>Tất cả</td><td>1 dòng / store; 1 dòng / warehouse (có <code>warehouse_kind</code>, <code>store_id</code>)</td></tr><tr><td><code>pos</code></td><td><code>sales_channel</code>, <code>sales_order</code>, <code>sales_order_line</code>, <code>sales_observation</code>, <code>customer_request</code>, <code>customer_request_line</code></td><td>MD-01</td><td>order line; observation = aggregate theo <code>period_start/period_end</code>; request line</td></tr><tr><td><code>procurement</code></td><td><code>supplier</code>, <code>purchase_order</code>, <code>purchase_order_line</code>, <code>goods_receipt</code>, <code>goods_receipt_line</code></td><td>MD-03</td><td>PO line; GR line (accepted/rejected/received tách riêng)</td></tr><tr><td><code>inventory</code></td><td><code>batch_lot</code>, <code>inventory_balance</code>, <code>inventory_movement</code>, <code>stock_transfer(_line)</code>, <code>stock_take(_line)</code>, <code>return_case(_line/_event)</code>, <code>quality_control_event</code>, <code>recall_case</code>, <code>recall_scope_line</code>, <code>recall_action_event</code>, <code>recall_reconciliation</code></td><td>MD-02, MD-04a</td><td>balance = warehouse × lot × <code>as_of</code>; movement = event; transfer line</td></tr></tbody></table></div>
+<p>Cột provenance có sẵn: <code>source</code> (catalog, org.store, pos order/line/observation) và <code>data_origin</code> (warehouse, procurement, inventory, request). Silver phải giữ cả hai.</p>
+<p><strong>Hiện trạng số dòng (GitHub issue #8, đối chiếu ngày 13/11/2026):</strong></p>
+<div class="tw"><table><thead><tr><th>Nhóm</th><th>Số dòng</th><th>Ghi chú</th></tr></thead><tbody><tr><td><code>catalog.product</code></td><td>5.674</td><td>Long Châu 2.482, IRPD 2.972, Onyx 220</td></tr><tr><td><code>catalog.product_packaging</code></td><td>5.833</td><td><code>quantity_in_base_uom</code> phần lớn null</td></tr><tr><td><code>org.store</code></td><td>2.816</td><td>2.694 Long Châu (chỉ có tọa độ, <strong>không có dòng bán</strong>), 120 Onyx, 1 IRPD, 1 Niš</td></tr><tr><td><code>org.warehouse</code></td><td>122</td><td>Toàn bộ <code>SYNTHETIC</code> kiểu <code>SIM_STORE_WH::</code>; chưa có <code>CENTRAL</code> hay kho vùng</td></tr><tr><td><code>pos.sales_order</code> / <code>_line</code></td><td>393.942 / 714.959</td><td>IRPD (quan sát), Onyx và Pharma Sales (mô phỏng)</td></tr><tr><td><code>pos.sales_observation</code></td><td>78.884</td><td>Onyx 62.036, Pharma Sales 16.848</td></tr><tr><td>23 bảng còn lại</td><td><strong>0</strong></td><td>toàn bộ <code>procurement.*</code>, <code>inventory.*</code>, <code>pos.sales_channel</code>, <code>pos.customer_request*</code></td></tr></tbody></table></div>
+<p>Hệ quả: hiện chỉ MD-01 có dữ liệu nguồn. MD-02, MD-03, MD-04 cần loader nạp dữ liệu mô phỏng vào PostgreSQL trước. Không có dữ liệu bán nào ở TP.HCM.</p>
+<p><strong>Lưu ý schema thật (đã đọc <code>schema_full.sql</code>):</strong> <code>inventory.inventory_balance</code> có <code>on_hand_quantity</code>, <code>reserved_quantity</code>, <code>unreserved_quantity</code> (đổi tên từ <code>available_quantity</code>), <code>restricted_quantity</code>, <code>as_of</code>. <code>unreserved</code> = tồn − giữ chỗ, <strong>chưa phải</strong> lượng bán được. Có sẵn hàm <code>inventory.lot_expiry_status()</code>. <code>warehouse_kind</code> ∈ <code>CENTRAL</code>, <code>STORE</code>, <code>OTHER</code>. <code>transfer_status</code> chỉ có <code>DRAFT</code>, <code>DISPATCHED</code>, <code>PARTIALLY_RECEIVED</code>, <code>RECEIVED</code>, <code>CANCELLED</code>.</p>
+<p><strong>Bảng nguồn được đề xuất thêm (issue #8, chưa có trong schema):</strong> <code>procurement.supplier_certificate</code>, <code>procurement.supplier_product_price</code>, <code>procurement.po_confirmation</code>, <code>org.location_heartbeat</code>, bảng thuộc tính vận chuyển của product (khối lượng, thể tích, nhóm bảo quản, cờ kiểm soát đặc biệt), cột cụm / tủ lạnh / khung giờ nhận của điểm. Thiết kế Bronze/Silver dưới đây đã chừa chỗ cho chúng; khi schema đổi thì cập nhật <code>ops.source_contract</code>.</p>
+<h3 id="3-nguồn-2--mongodb-pharmaflow_product_knowledgeproduct_snapshots">3. Nguồn 2 — MongoDB <code>pharmaflow_product_knowledge.product_snapshots</code></h3>
+<ul><li>1 document = 1 capture version, khóa <code>(source, source_product_key, provenance.captured_at, provenance.content_hash)</code>.</li><li>Run đã verify <code>lc-longchau-full-20261105-02</code>: 2.481 snapshot, 2.480 product key, 2.452 SKU, 28 URL-fallback.</li><li>Nội dung: <code>composition.*</code> (thành phần), <code>storage.instructions_text</code> (bảo quản), <code>provenance.*</code>, <code>extraction.*</code>.</li><li>Join sang Postgres: <code>catalog.product_source_reference.external_product_key</code> ↔ <code>source_product_key = &#x27;SKU:&lt;sku&gt;&#x27;</code>. Không có FK xuyên database; URL-fallback không join được.</li><li>Dùng cho: MD-02 (điều kiện bảo quản, hàng lạnh), MD-05 (đối chiếu hoạt chất/thuốc), ngữ cảnh hiển thị MD-01. Không phải dữ liệu tồn, bán hay cung ứng.</li></ul>
+<h3 id="4-nguồn-3--amazon-s3-weather-hồ-sơ-thầu-thuộc-platform">4. Nguồn 3 — Amazon S3 (Weather; hồ sơ thầu thuộc platform)</h3>
+<h4 id="41-weather-đã-chạy-p1p4">4.1 Weather (đã chạy P1–P4)</h4>
+<p>Layout key (giống <code>.runtime/weather/raw/</code>):</p>
+<pre data-lang="text"><code>raw/open_meteo/&lt;prefix&gt;/ingest_date=YYYY-MM-DD/run_id=&lt;run_id&gt;/
+  plan.json, locations.json, summary/&lt;rev&gt;.json
+  tasks/&lt;task_id&gt;/attempts/&lt;attempt_id&gt;/response.json   # bytes gốc Open-Meteo
+  tasks/&lt;task_id&gt;/attempts/&lt;attempt_id&gt;/metadata.json   # 60+ trường kiểm soát
+  tasks/&lt;task_id&gt;/accepted.json                         # cổng duy nhất cho consumer</code></pre>
+<p><code>&lt;prefix&gt;</code> ∈ <code>daily_forecast</code>, <code>historical_forecast</code> (GFS, từ 2022-01-01), <code>historical_weather</code> (ERA5, trước 2022-01-01).</p>
+<p>Trường quan trọng trong <code>metadata.json</code>: <code>snapshot_id</code>, <code>source_type</code> (<code>DAILY_FORECAST</code> / <code>HISTORICAL_FORECAST_STITCHED</code> / <code>HISTORICAL_ERA5_REANALYSIS</code>), <code>store_id</code>, <code>store_code</code>, <code>timezone_returned</code>, <code>model=gfs_global</code>, <code>window</code>, <code>validation_status</code>, <code>null_report</code>, <code>coordinate_verification_status</code>, <code>retrieved_at_utc</code>, <code>raw_sha256</code>.</p>
+<p>Quy tắc consumer đã chốt trong <code>src/weather/SDD.md</code>:</p>
+<ul><li>Chỉ đọc attempt mà <code>accepted.json</code> trỏ tới.</li><li><code>null</code> là thiếu dữ liệu, không phải 0. Các giờ cuối ngày 16 có thể null.</li><li>Thời gian là <code>unixtime</code>; quy đổi local bằng <code>timezone_name</code> của location.</li><li>Policy S3 reader cho Databricks đã có nhưng <strong>chưa gắn</strong> role nào.</li><li>P5 (chưa làm): gom 2.694 store VN thành 655 ô lưới 0,13°; Silver cần <code>store_grid_mapping</code>.</li></ul>
+<h4 id="42-tender-thuộc-platform-không-phải-nguồn-của-lakehouse">4.2 Tender (thuộc platform, không phải nguồn của lakehouse)</h4>
+<p>Hồ sơ thầu gốc lưu trên S3 của <strong>platform</strong>; metadata, trích xuất và mọi bản ghi tender nằm trong App DB. Databricks không đọc PDF. Không tự tạo facts bid/award.</p>
+<h3 id="4b-hai-nguồn-phụ-do-issue-7-và-8-nêu">4b. Hai nguồn phụ do issue #7 và #8 nêu</h3>
+<div class="tw"><table><thead><tr><th>Nguồn</th><th>Nội dung</th><th>Cách vào Databricks</th><th>Provenance</th></tr></thead><tbody><tr><td><code>dataset/md04-transfer-transport-sim</code> (23 CSV)</td><td><code>products.csv</code> (42 SKU + thuộc tính vận chuyển), <code>locations.csv</code> (52 điểm), <code>time_windows.csv</code>, <code>inventory_lots_t0.csv</code> (4.043 lô), <code>demand_daily.csv</code> (120 ngày), <code>transfer_orders_log.csv</code>, <code>requests_log.csv</code>, <code>trips</code>, <code>trip_stops</code>, <code>gps_pings</code>, <code>temperature_readings</code>, <code>travel_matrix.csv</code>, <code>service_profiles.csv</code>, <code>weather_*.csv</code>, <code>policy_params.csv</code>, <code>urgency_sla.csv</code>, <code>approval_policies.csv</code></td><td><strong>Dữ liệu nghiệp vụ</strong> (lô, nhu cầu, phiếu) đi qua loader vào PostgreSQL nguồn. <strong>Dữ liệu tham chiếu</strong> (<code>travel_matrix</code>, <code>service_profiles</code>) nạp thẳng vào Databricks qua volume. <code>weather_*.csv</code> chỉ dùng thử; luồng chính vẫn là S3 Open-Meteo</td><td><code>SYNTHETIC</code>, trừ đường OSRM và thời tiết Open-Meteo là thật</td></tr><tr><td>Database ứng dụng (App DB)</td><td>Dữ liệu do MD-03/MD-04 tạo: nhu cầu mua đã xác nhận, gợi ý NCC, thẩm định NCC, yêu cầu điều chuyển, đề xuất, phản hồi đề xuất, duyệt, giữ chỗ, phiếu điều chuyển, kế hoạch chuyến, cảnh báo; cấu hình chính sách có phiên bản; sự kiện 3PL (chuyến, GPS, nhiệt độ thùng, giao lỗi) đi qua Integration Gateway vào schema <code>ops</code> của App DB</td><td>Nạp chỉ-đọc vào <code>bronze_app</code> khi app có</td><td>Theo bản ghi; dữ liệu sim giữ <code>SYNTHETIC</code></td></tr></tbody></table></div>
+<p>Bộ sim chưa có trong repo này (chưa thấy <code>dataset/md04-transfer-transport-sim</code> và <code>jobs/W13.11/md03-md04-data-readiness/DATA_READINESS.md</code>). Mô tả trên lấy từ nội dung issue.</p>
+<h3 id="5-năm-module-và-nhu-cầu-dữ-liệu">5. Năm module và nhu cầu dữ liệu</h3>
+<div class="tw"><table><thead><tr><th>Module</th><th>Phạm vi (theo tài liệu jobs + issue)</th><th>Bảng nguồn cần</th><th>Data product Gold cần</th><th>Sẵn sàng nguồn (13/11)</th></tr></thead><tbody><tr><td><strong>MD-01 Sales &amp; Demand</strong> (<code>jobs/W19.10</code>)</td><td>FR-SD-01…10: theo dõi/so sánh sales qty, xu hướng mùa vụ, xem forecast, đối soát/kiểm định forecast, điều chỉnh 1 giá trị forecast</td><td><code>pos.*</code>, <code>catalog.*</code>, <code>org.store</code>, weather</td><td>Sales mart ngày; observation mart; feature/trainset; forecast; backtest eval</td><td><strong>Có</strong>, nhưng chỉ cho nhà thuốc ID/EU/Serbia. Nhu cầu TP.HCM × SKU phải lấy từ sim (<code>pos.sales_observation</code>, <code>source = SIMULATED_MD04_DEMAND</code>), cần kéo dài 24 tháng và thêm cờ hết hàng</td></tr><tr><td><strong>MD-02 Inventory &amp; Expiry</strong> (<code>jobs/W2.11</code>)</td><td>FR-MD02-01…15: tồn theo product/location/lot, trạng thái tồn, movement, expiry status, risk theo scenario, FEFO suggestion, QA hold/release/recall, KPI</td><td><code>inventory.*</code>, <code>procurement.goods_receipt_line</code>, <code>catalog.*</code>, Mongo storage</td><td>Inventory position; lot expiry status; movement; FEFO candidate; risk scenario input; recall tracking</td><td><strong>Rỗng</strong>. Nạp <code>inventory_lots_t0.csv</code>; sinh thêm lô bị giữ QC và recall (hiện 0/4.043 lô bị giữ)</td></tr><tr><td><strong>MD-03 Mua hàng &amp; NCC</strong> (<code>4_sua_doi.md</code>, issue #7, #8)</td><td>NCC, chứng nhận (GDP, giấy phép KD dược), bảng giá × SKU (đơn giá, MOQ, bậc giá, lead time, hiệu lực, VAT), PO chỉ đọc từ ERP, xác nhận của NCC, nhận hàng + QC + nhiệt độ hàng lạnh, scorecard 12–24 tháng, nhu cầu mua sau khi trừ điều chuyển, gợi ý NCC (chấm điểm: giá 35 %, lead time 25 %, tin cậy 25 %, chất lượng 15 %; hoặc tối ưu chi phí), cảnh báo PO trễ / giao thiếu / chứng nhận sắp hết hạn</td><td><code>procurement.*</code> (+ 3 bảng đề xuất), <code>inventory_balance</code>, forecast MD-01, phần dư MD-04, App DB</td><td>PO tracking 4 lượng; incoming supply; scorecard; certificate expiry; price comparison; net purchase need</td><td><strong>Rỗng</strong>. Chưa có bộ sinh MD-03. IRPD phần kho (<code>Pembelian</code>) cần tải lại để lấy tần suất nhập, cỡ lô, số NCC</td></tr><tr><td><strong>MD-04 Phân phối</strong> (<code>5_sua_doi.md</code>, issue #7, #8)</td><td>04a: thiếu/dư/cận date, đề xuất heuristic / MILP, mức khẩn + SLA, duyệt kiểm soát đặc biệt → cấp 1 → cấp 2, giữ chỗ, phiếu gộp. 04b: gom chuyến, tuyến NN/savings và VRPTW, ETA, cảnh báo trễ / lệch nhiệt 2–8 °C / mất GPS</td><td><code>org.*</code> (+ heartbeat, cụm, tủ lạnh, khung giờ), <code>inventory.*</code>, <code>travel_matrix</code>, <code>service_profiles</code>, sự kiện 3PL, App DB</td><td>Network inventory; imbalance signal (chặn khi tồn cũ); transfer candidate input; transfer tracking; trip KPI</td><td><strong>Có dữ liệu sim</strong> đủ chạy thuật toán, nhưng chưa nạp. Thiếu: heuristic, không khẩn, hủy, chờ duyệt, phiếu gộp, kho tổng làm nguồn, mã phiếu trên <code>trip_stops</code></td></tr><tr><td><strong>MD-05 Đấu thầu</strong> (<code>module-05-tender</code>, yêu cầu MD-05/06)</td><td>FR-T01…T09: hồ sơ/version, trích xuất + xác nhận, đối chiếu SKU, phân tích cung ứng, kiến nghị nội bộ, ghi kết quả trúng theo mặt hàng, theo dõi đợt giao</td><td><strong>Từ Databricks:</strong> SKU + quy đổi, tồn khả dụng theo kho/vùng, hàng đang về, forecast. <strong>Ở platform:</strong> PDF trên S3, mọi bản ghi tender trong App DB</td><td><code>gold_md05_tender.tender_supply_input</code> (đầu vào cho app); sau này KPI trúng ↔ giao đọc lại từ <code>bronze_app</code></td><td><strong>Chưa có</strong> dữ liệu. Dữ liệu chính nằm ở App DB của platform, không ở lakehouse</td></tr><tr><td>MD-06 Quản trị hệ thống</td><td>Đơn vị/phạm vi (GLOBAL/REGION/STORE), tài khoản giả lập, role/permission, gán role-scope, chính sách cấp/thu hồi, SoD, audit</td><td>App DB của platform</td><td>Không có Gold. Databricks chỉ cấp quyền cho service principal của backend; lọc theo scope làm ở API</td><td>Ngoài lakehouse</td></tr></tbody></table></div>
+<h4 id="51-quy-tắc-nghiệp-vụ-từ-issue-phải-giữ-trong-silvergold">5.1 Quy tắc nghiệp vụ từ issue (phải giữ trong Silver/Gold)</h4>
+<ul><li>MD-03 tách <strong>4 lượng</strong>: đặt (PO line), NCC xác nhận (<code>po_confirmation</code>), nhận (GR line), đạt QC (<code>accepted_quantity</code>). Chọn NCC chưa phải PO đã phát hành.</li><li>Chỉ <strong>lượng khả dụng</strong> mới được trừ khỏi nhu cầu mua: <code>unreserved − restricted</code>, bỏ lô đang giữ QC, thu hồi hoặc hết hạn.</li><li>MD-03 chỉ trừ phần dư ở kho khác <strong>chưa</strong> giữ chỗ cho điều chuyển, để không trừ hai lần.</li><li>Ngày hết hàng phải gắn cờ; lượng bán ngày đó thấp hơn nhu cầu thật.</li><li>MD-04 chỉ lấy lô khả dụng, có hạn dùng tại ETA không dưới ngưỡng, làm nguồn. Tồn ở điểm nhận đã cũ (theo heartbeat) thì chặn đề xuất.</li><li>Duyệt: hàng kiểm soát đặc biệt do US-13 duyệt từng dòng trước cấp 1; cấp 1 là quản lý điểm nguồn; cấp 2 là US-10 hoặc US-01. Không ai tự duyệt yêu cầu mình tạo.</li><li>Các mốc khác nhau: chọn đề xuất ≠ đã duyệt ≠ đã xuất kho; đã giao ≠ đã nhận đủ.</li><li>Chi phí 3PL là ước tính để so sánh, không phải cước thật. MD-04 không quản lý xe, tài xế, không trừ tồn.</li><li>Dữ liệu sinh gắn <code>data_origin = &#x27;SYNTHETIC&#x27;</code> hoặc <code>source</code> bắt đầu bằng <code>SIMULATED_</code>; UI phải hiện nhãn.</li><li>Danh mục SKU, danh mục điểm và tồn kho dùng <strong>một bộ chung</strong> cho MD-03, MD-04, MD-05.</li></ul>
+<h4 id="52-md-05-và-md-06-nằm-ở-đâu-theo-yêu-cầu-dữ-liệu-md-0506">5.2 MD-05 và MD-06 nằm ở đâu (theo yêu cầu dữ liệu MD-05/06)</h4>
+<p>Yêu cầu dữ liệu MD-05/06 (bản người dùng gửi ngày 14/11/2026; tiêu đề issue #7 gốc) cho thấy phần lớn dữ liệu của hai module do <strong>platform tạo và giữ</strong>. Lakehouse chỉ cấp đầu vào và đọc lại để phân tích.</p>
+<div class="tw"><table><thead><tr><th>Dữ liệu</th><th>Chủ dữ liệu / nơi lưu</th><th>Databricks làm gì</th></tr></thead><tbody><tr><td>Danh mục SKU (mã ổn định, hoạt chất, hàm lượng, dạng bào chế, đơn vị, quy cách, quy đổi)</td><td>Nguồn chung (PostgreSQL <code>catalog.*</code> + Mongo)</td><td>Phát hành <code>silver_core.dim_product</code>, <code>dim_product_packaging</code>; quy đổi chưa xác nhận để <code>NULL</code></td></tr><tr><td>Tồn theo thời điểm (SKU, kho/vùng, lượng, đơn vị, khả dụng/bị giữ, lô, hạn, snapshot, nguồn)</td><td>Nguồn chung <code>inventory.*</code></td><td>Phát hành <code>available_for_decision</code> đã trừ giữ chỗ và bị giữ, có <code>as_of</code></td></tr><tr><td>Nguồn cung bổ sung (hàng đang về, đã cam kết/đặt trước)</td><td>Nguồn chung <code>procurement.*</code> + App DB (cam kết tender khác)</td><td><code>mart_incoming_supply</code>; cam kết tender đọc lại từ <code>bronze_app</code> để không trừ lặp</td></tr><tr><td>Forecast bán lẻ</td><td><code>ml.forecast_sales</code></td><td>Phát hành kèm model, phiên bản, thời điểm chạy</td></tr><tr><td>Hồ sơ mời thầu PDF (có lớp chữ và scan)</td><td><strong>S3 của platform</strong> + metadata trong App DB</td><td>Không đọc PDF</td></tr><tr><td>Kết quả trích xuất kèm trang + trạng thái xác nhận</td><td><strong>App DB</strong></td><td>Không có</td></tr><tr><td>Đầu vào, giả định, kết quả kịch bản; kiến nghị / quyết định nội bộ</td><td><strong>App DB</strong></td><td>Chỉ đọc lại (sau)</td></tr><tr><td>Kết quả trúng theo mặt hàng/số lượng có căn cứ; các đợt giao thực tế</td><td><strong>App DB</strong></td><td>Chỉ đọc lại (sau) để tính KPI trúng ↔ giao</td></tr><tr><td>Đơn vị/phạm vi, tài khoản, role/permission, gán role-scope, audit (MD-06)</td><td><strong>App DB</strong></td><td>Không có. Không chép mật khẩu/token</td></tr></tbody></table></div>
+<p>Quy tắc giữ: kịch bản được chọn ≠ đã trúng; lượng trúng ≠ lượng đã giao; liên kết thuốc ↔ SKU chưa xác nhận không dùng như đã đúng; lượng khả dụng tách lượng bị giữ để không trừ lặp. Lập/nộp hồ sơ và quản lý hợp đồng không thuộc module.</p>
+<h3 id="6-khoảng-trống-cần-nhóm-chốt">6. Khoảng trống cần nhóm chốt</h3>
+<div class="tw"><table><thead><tr><th>#</th><th>Khoảng trống</th><th>Ảnh hưởng</th><th>Đề xuất</th></tr></thead><tbody><tr><td>G1</td><td>23 bảng <code>procurement.*</code>, <code>inventory.*</code>, <code>pos.customer_request*</code> đang rỗng</td><td>Gold MD-02/03/04 rỗng</td><td>Viết loader CSV sim → PostgreSQL nguồn (issue #8, việc 1–10); readiness flag chặn Gold tới khi có dữ liệu</td></tr><tr><td>G2</td><td>Sự kiện 3PL (chuyến, GPS, nhiệt độ) không vào PostgreSQL mà qua Integration Gateway vào App DB <code>ops</code>; <code>trip_stops</code> thiếu mã phiếu</td><td>Chưa nối phiếu với chuyến</td><td>Thêm mã phiếu khi sinh chuyến; Bronze đọc từ App DB</td></tr><tr><td>G3</td><td>Chưa có <code>supplier_certificate</code>, <code>supplier_product_price</code>, <code>po_confirmation</code></td><td>Không gợi ý / cảnh báo NCC được</td><td>Thêm 3 bảng vào schema nguồn, sinh dữ liệu MD-03</td></tr><tr><td>G4</td><td>MD-05: chưa có PDF mẫu được phép dùng, chưa chốt cách đối chiếu dòng thuốc ↔ SKU, chưa có dữ liệu cam kết/đặt trước</td><td>Không kiểm thử được phân tích cung ứng</td><td>Nhóm chốt theo "Đầu ra đề nghị" của yêu cầu MD-05/06; ít nhất 4 ca: đủ hàng, thiếu hàng, cần quy đổi, thiếu/chưa xác nhận dữ liệu</td></tr><tr><td>G5</td><td>Dữ liệu MD-03/04 tạo ra (đề xuất, phản hồi, duyệt, giữ chỗ…) nằm ở App DB</td><td>Không đo được KPI "tỷ lệ chấp nhận đề xuất" và outcome</td><td>Nạp App DB chỉ-đọc vào <code>bronze_app</code></td></tr><tr><td>G6</td><td>Weather reader policy chưa gắn; P5 grid chưa làm</td><td>Databricks chưa đọc được S3</td><td>Gắn policy cho IAM role của storage credential</td></tr><tr><td>G7</td><td>Onyx/IRPD/Pharma Sales store có tọa độ <code>UNVERIFIED_PERTURBED</code>/<code>SIMULATED</code></td><td>Weather join cho các store này là giả định</td><td>Giữ <code>coordinate_verification_status</code> tới feature</td></tr><tr><td>G8</td><td>Tên SKU và tên điểm trên UI (Amoxicillin, "Kho vùng Q.12"…) không khớp <code>products.csv</code> / <code>locations.csv</code></td><td>Dashboard và dữ liệu lệch nhau</td><td>Một danh mục chung; UI lấy tên từ <code>silver_core.dim_product</code> / <code>dim_location</code></td></tr><tr><td>G9</td><td>Nhu cầu TP.HCM chỉ có 120 ngày, chưa có cờ hết hàng</td><td>Không đủ 2 chu kỳ mùa để backtest</td><td>Kéo dài 24 tháng theo mùa vụ Pharma Sales (ATC), thêm <code>pos.customer_request_line.available_quantity</code></td></tr><tr><td>G10</td><td><code>transfer_status</code> thiếu <code>IN_TRANSIT</code>, <code>FAILED_DELIVERY</code>, <code>RETURNING</code>; chưa có <code>org.location_heartbeat</code></td><td>Không theo dõi đủ trạng thái chuyến, không chặn tồn cũ</td><td>Mở rộng CHECK hoặc giữ trạng thái chuyến ở sự kiện 3PL; thêm bảng heartbeat</td></tr><tr><td>G11</td><td><code>quantity_in_base_uom</code> phần lớn null; bảng giá có thể ghi theo thùng</td><td>Không quy đổi giá và lượng mua ↔ bán</td><td>Bổ sung hệ số quy đổi cho SKU demo; Silver để <code>NULL</code> khi thiếu, không đoán</td></tr></tbody></table></div></section><section class="doc" id="doc-02-thiet-ke-medallion"><div class="src">Nguồn: <code>02-thiet-ke-medallion.md</code></div><h2 id="02--thiết-kế-3-layer-medallion-trên-databricks">02 — Thiết kế 3 layer Medallion trên Databricks</h2>
+<h3 id="1-bố-cục-unity-catalog">1. Bố cục Unity Catalog</h3>
+<p>Một catalog cho mỗi môi trường. Mỗi layer là một nhóm schema. Tách theo nguồn ở Bronze, theo miền ở Silver/Gold.</p>
+<pre data-lang="text"><code>pharmaflow_dev            (sau này: pharmaflow_prod)
+├── ops                   # control: run log, watermark, DQ result, readiness
+├── bronze_pg             # 35 bảng Neon, giữ tên &lt;schema&gt;__&lt;table&gt;
+├── bronze_mongo          # product_snapshots
+├── bronze_weather        # accepted / metadata / response
+├── bronze_sim            # CSV tham chiếu MD-04: travel_matrix, service_profiles
+├── bronze_app            # (khi app có) App DB chỉ đọc: review, ops, sự kiện 3PL, tender, role-scope
+├── silver_core           # dim dùng chung: product, category, location, supplier, calendar
+├── silver_sales          # MD-01
+├── silver_inventory      # MD-02 + transfer MD-04a
+├── silver_procurement    # MD-03
+├── silver_logistics      # MD-04b: ma trận đường, 3PL profile, chuyến, GPS, nhiệt độ
+├── silver_decision       # dữ liệu module tạo ra (từ App DB): yêu cầu, đề xuất, duyệt, nhu cầu mua
+├── silver_weather        # hourly / daily / snapshot
+├── gold_md01_sales
+├── gold_md02_inventory
+├── gold_md03_procurement
+├── gold_md04_distribution
+├── gold_md05_tender      # đầu vào cung ứng cho app MD-05
+├── gold_kpi              # KPI xuyên miền cho dashboard
+└── ml                    # feature, trainset, forecast, backtest, decision eval</code></pre>
+<p>Volumes:</p>
+<div class="tw"><table><thead><tr><th>Volume</th><th>Loại</th><th>Trỏ tới</th><th>Dùng cho</th></tr></thead><tbody><tr><td><code>bronze_weather.weather_raw</code></td><td>External volume</td><td><code>s3://pharmaflow-dev-weather-raw-.../raw/open_meteo/</code></td><td>Auto Loader đọc weather</td></tr><tr><td><code>bronze_mongo.landing</code></td><td>Managed volume</td><td>—</td><td>Phương án B: thả <code>documents.ejsonl</code> đã verify</td></tr><tr><td><code>bronze_sim.landing</code></td><td>Managed volume</td><td>—</td><td>CSV tham chiếu MD-04 (<code>travel_matrix.csv</code>, <code>service_profiles.csv</code>)</td></tr><tr><td><code>ops.checkpoints</code></td><td>Managed volume</td><td>—</td><td>Checkpoint Auto Loader/streaming</td></tr></tbody></table></div>
+<p>Tên bảng: <code>snake_case</code>, tiền tố <code>dim_</code>, <code>fact_</code>, <code>bridge_</code>, <code>snap_</code>, <code>feat_</code>, <code>mart_</code>, <code>kpi_</code>. Không đổi tên cột nguồn ở Bronze.</p>
+<h3 id="2-cột-kỹ-thuật-chung">2. Cột kỹ thuật chung</h3>
+<div class="tw"><table><thead><tr><th>Cột</th><th>Bronze</th><th>Silver</th><th>Gold</th><th>Ý nghĩa</th></tr></thead><tbody><tr><td><code>_ingest_run_id</code></td><td>✓</td><td>✓</td><td></td><td>Run nạp (Job run id + nguồn)</td></tr><tr><td><code>_ingested_at</code></td><td>✓</td><td></td><td></td><td>Thời điểm Databricks nhận</td></tr><tr><td><code>_source_system</code></td><td>✓</td><td>✓</td><td></td><td><code>neon:pharmaflow_source_postgre_v2</code>, <code>mongo:pharmaflow_product_knowledge</code>, <code>s3:open_meteo</code></td></tr><tr><td><code>_source_object</code></td><td>✓</td><td></td><td></td><td>Bảng / collection / S3 key</td></tr><tr><td><code>_row_hash</code></td><td>✓</td><td>✓</td><td></td><td>SHA-256 của cột nghiệp vụ, phát hiện đổi</td></tr><tr><td><code>_snapshot_mode</code></td><td>✓</td><td></td><td></td><td><code>FULL</code>, <code>INCREMENTAL</code>, <code>CDC</code></td></tr><tr><td><code>provenance_class</code></td><td></td><td>✓</td><td>✓</td><td><code>OBSERVED</code>, <code>SYNTHETIC</code>, <code>UNVERIFIED</code>, <code>CANDIDATE</code> (map từ <code>source</code>/<code>data_origin</code>)</td></tr><tr><td><code>source_code</code></td><td></td><td>✓</td><td>✓</td><td>Giá trị gốc <code>source</code>/<code>data_origin</code></td></tr><tr><td><code>_valid_from</code> / <code>_valid_to</code> / <code>_is_current</code></td><td></td><td>✓ (dim)</td><td></td><td>SCD2 cho dim đổi theo thời gian</td></tr><tr><td><code>as_of_date</code> / <code>published_at</code></td><td></td><td></td><td>✓</td><td>Mốc dữ liệu và thời điểm phát hành product</td></tr></tbody></table></div>
+<h3 id="3-bronze--giữ-nguyên-trạng">3. Bronze — giữ nguyên trạng</h3>
+<p>Nguyên tắc: append-only, không lọc, không ép nghĩa. Lỗi parse vào cột <code>_rescued_data</code> hoặc bảng <code>_quarantine</code>. Bronze cho phép tái xử lý Silver từ đầu.</p>
+<h4 id="31-postgresql--bronze_pg">3.1 PostgreSQL → <code>bronze_pg</code></h4>
+<div class="tw"><table><thead><tr><th>Hạng mục</th><th>Thiết kế</th></tr></thead><tbody><tr><td>Bảng</td><td><code>bronze_pg.&lt;schema&gt;__&lt;table&gt;</code>, ví dụ <code>bronze_pg.pos__sales_order_line</code> (35 bảng)</td></tr><tr><td>Cách nạp (pilot)</td><td>Job Python: <code>spark.read.format(&quot;postgresql&quot;)</code> hoặc JDBC, đọc <strong>full snapshot</strong> mỗi run, ghi append kèm <code>_ingest_run_id</code></td></tr><tr><td>Lý do full</td><td>Nhiều bảng không có <code>updated_at</code>; tổng ~1 triệu dòng, full snapshot rẻ và đơn giản</td></tr><tr><td>Nâng cấp</td><td>Lakeflow Connect query-based (cursor <code>created_at</code>/id cho bảng append-only) hoặc PostgreSQL CDC (logical replication, đang Public Preview)</td></tr><tr><td>Partition</td><td><code>_ingest_date</code></td></tr><tr><td>Giữ lịch sử</td><td>30 snapshot gần nhất; cũ hơn VACUUM sau khi Silver đã chốt</td></tr><tr><td>Quyền nguồn</td><td>Role Neon chỉ <code>SELECT</code>, khác role loader và role <code>weather_reader</code></td></tr></tbody></table></div>
+<h4 id="32-mongodb--bronze_mongoproduct_snapshots">3.2 MongoDB → <code>bronze_mongo.product_snapshots</code></h4>
+<div class="tw"><table><thead><tr><th>Hạng mục</th><th>Thiết kế</th></tr></thead><tbody><tr><td>Cột</td><td><code>_id</code>, <code>source</code>, <code>source_sku</code>, <code>source_product_key</code>, <code>captured_at</code>, <code>content_hash</code>, <code>raw_doc</code> (JSON string toàn document) + cột kỹ thuật</td></tr><tr><td>Cách A</td><td>MongoDB Spark Connector, filter <code>provenance.captured_at &gt; watermark</code> (lưu ở <code>ops.watermark</code>)</td></tr><tr><td>Cách B</td><td>Upload <code>runs/&lt;run-id&gt;/documents.ejsonl</code> + <code>manifest.json</code> vào volume <code>landing</code>, Auto Loader đọc; kiểm SHA-256 với manifest</td></tr><tr><td>Khóa dedup</td><td><code>(source, source_product_key, captured_at, content_hash)</code> — giống unique index nguồn</td></tr></tbody></table></div>
+<h4 id="33-s3-weather--bronze_weather">3.3 S3 Weather → <code>bronze_weather</code></h4>
+<div class="tw"><table><thead><tr><th>Bảng</th><th>Nguồn file</th><th>Cách đọc</th></tr></thead><tbody><tr><td><code>weather_accepted</code></td><td><code>tasks/*/accepted.json</code></td><td>Auto Loader <code>cloudFiles.format=json</code>, <code>pathGlobFilter=accepted.json</code></td></tr><tr><td><code>weather_metadata</code></td><td><code>metadata_key</code> trong accepted</td><td>Đọc theo danh sách key mới, giữ toàn JSON + cột trích</td></tr><tr><td><code>weather_response</code></td><td><code>response_key</code> trong accepted</td><td>Đọc <code>raw</code> dạng text (<code>wholetext</code>) + <code>raw_sha256</code></td></tr><tr><td><code>weather_run_summary</code></td><td><code>summary/*.json</code></td><td>Auto Loader, dùng cho giám sát</td></tr></tbody></table></div>
+<p>Kiểm <code>sha256(response) == accepted.raw_sha256</code>. Sai → quarantine, không vào Silver. Attempt không có <code>accepted.json</code> không được đọc.</p>
+<h4 id="34-hồ-sơ-thầu--không-nạp-vào-lakehouse">3.4 Hồ sơ thầu — không nạp vào lakehouse</h4>
+<p>PDF mời thầu nằm trên S3 của platform; trích xuất (OCR/AI, kèm trang và trạng thái <code>PROPOSED</code> / <code>CONFIRMED</code>) do app làm và lưu ở App DB. Databricks không đọc PDF. Không có <code>bronze_tender</code>.</p>
+<h4 id="35-csv-tham-chiếu-md-04--bronze_sim">3.5 CSV tham chiếu MD-04 → <code>bronze_sim</code></h4>
+<div class="tw"><table><thead><tr><th>Bảng</th><th>Nguồn</th><th>Ghi chú</th></tr></thead><tbody><tr><td><code>travel_matrix</code></td><td><code>travel_matrix.csv</code></td><td>Khoảng cách, thời gian theo loại xe và khung giờ. Đường OSRM là thật, hệ số mưa và xe máy là giả định</td></tr><tr><td><code>service_profiles</code></td><td><code>service_profiles.csv</code></td><td>Loại xe, tải trọng, thể tích, có lạnh, cước. Không phải báo giá thật</td></tr></tbody></table></div>
+<p>Dữ liệu nghiệp vụ của bộ sim (lô, nhu cầu, phiếu) <strong>không</strong> vào đây; nó đi qua loader vào PostgreSQL nguồn rồi vào <code>bronze_pg</code> như mọi dữ liệu nghiệp vụ khác. <code>weather_*.csv</code> của bộ sim không nạp vào luồng chính để khỏi lẫn với S3 Open-Meteo.</p>
+<h4 id="36-app-db--bronze_app-khi-app-có">3.6 App DB → <code>bronze_app</code> (khi app có)</h4>
+<p>Đọc chỉ-đọc theo JDBC như PostgreSQL nguồn, cursor theo <code>updated_at</code>/id. Gồm: <code>review.*</code> (yêu cầu, đề xuất, phản hồi, duyệt, giữ chỗ, phiếu, kế hoạch chuyến, nhu cầu mua, gợi ý NCC, thẩm định NCC, cảnh báo), cấu hình chính sách có phiên bản, và sự kiện 3PL trong <code>ops</code> (chuyến, điểm dừng, GPS, nhiệt độ thùng, giao lỗi). Tên schema App DB là theo issue #8; chưa có DDL.</p>
+<h3 id="4-silver--chuẩn-hóa-giữ-nghĩa">4. Silver — chuẩn hóa, giữ nghĩa</h3>
+<p>Luật chung:</p>
+<ol><li>Khử trùng lặp theo khóa nghiệp vụ; lấy bản từ <code>_ingest_run_id</code> mới nhất.</li><li>Ép kiểu: số lượng <code>DECIMAL(18,4)</code>, tiền <code>DECIMAL(18,2)</code>, giữ <code>currency_code</code>.</li><li>Thời gian: lưu <code>*_utc</code> (TIMESTAMP) và <code>*_local</code> + <code>local_date</code> theo <code>org.store.timezone_name</code>. IRPD là <code>Asia/Jakarta</code>.</li><li>Giữ UOM gốc. Quy đổi chỉ khi <code>catalog.product_packaging.quantity_in_base_uom</code> có giá trị; nếu null thì <code>base_qty = NULL</code>, không đoán.</li><li><code>provenance_class</code> bắt buộc NOT NULL.</li></ol>
+<h4 id="41-silver_core-dùng-chung">4.1 <code>silver_core</code> (dùng chung)</h4>
+<div class="tw"><table><thead><tr><th>Bảng</th><th>Grain</th><th>Khóa</th><th>Ghi chú</th></tr></thead><tbody><tr><td><code>dim_product</code></td><td>product (SCD2)</td><td><code>product_id</code></td><td>+ brand, manufacturer, <code>base_uom_code</code>; thuộc tính vận chuyển (khối lượng, thể tích kiện, nhóm bảo quản thường / mát / 2–8 °C, cờ kiểm soát đặc biệt, hạn dùng chuẩn) khi nguồn có; giá vốn để tính giá trị yêu cầu</td></tr><tr><td><code>dim_product_packaging</code></td><td>packaging</td><td><code>product_packaging_id</code></td><td><code>quantity_in_base_uom</code> có thể null</td></tr><tr><td><code>dim_product_category</code></td><td>category</td><td><code>category_id</code></td><td>giữ <code>taxonomy_scheme</code>, cây cha-con</td></tr><tr><td><code>bridge_product_category</code></td><td>product × category</td><td>cả hai</td><td><code>assignment_status</code> (<code>CANDIDATE</code> ≠ observed)</td></tr><tr><td><code>dim_product_knowledge</code></td><td>product key × capture</td><td><code>source_product_key, captured_at</code></td><td>từ Mongo; <code>is_latest</code>; <code>storage_text</code>, <code>composition</code></td></tr><tr><td><code>xref_product_source</code></td><td>product × external key</td><td><code>product_source_reference_id</code></td><td>nối Postgres ↔ Mongo qua <code>SKU:&lt;sku&gt;</code></td></tr><tr><td><code>dim_location</code></td><td>store hoặc warehouse</td><td><code>location_key</code> (<code>STORE:&lt;id&gt;</code>, <code>WH:&lt;id&gt;</code>)</td><td><code>location_kind</code> (<code>CENTRAL</code>, kho vùng, <code>STORE</code>), <code>parent_location_key</code>, vùng/cụm, <code>has_fridge</code>, khung giờ nhận, thời gian phục vụ, <code>timezone_name</code>, lat/lon, <code>coordinate_status</code>; tên hiển thị dùng chung cho UI</td></tr><tr><td><code>snap_location_heartbeat</code></td><td>location × thời điểm</td><td><code>location_key, reported_at</code></td><td>Thời điểm cập nhật tồn cuối của từng điểm (bảng nguồn đề xuất <code>org.location_heartbeat</code>)</td></tr><tr><td><code>dim_supplier</code>, <code>dim_manufacturer</code></td><td>1 dòng / thực thể</td><td>id</td><td>supplier ≠ manufacturer; supplier có MST, phường, trạng thái hợp tác</td></tr><tr><td><code>dim_calendar</code></td><td>ngày</td><td><code>date</code></td><td>tuần, tháng, lễ VN/ID (nếu nhóm bổ sung)</td></tr></tbody></table></div>
+<h4 id="42-silver_sales-md-01">4.2 <code>silver_sales</code> (MD-01)</h4>
+<div class="tw"><table><thead><tr><th>Bảng</th><th>Grain</th><th>Luật</th></tr></thead><tbody><tr><td><code>fact_sales_line</code></td><td>order line</td><td>Join order + line. <code>sold_quantity</code>, <code>sales_uom_code</code>, <code>base_qty</code>, <code>line_amount</code>, <code>ordered_at_utc/local</code>, <code>local_date</code>, <code>demand_location_key</code>. <code>provenance_class=SYNTHETIC</code> cho Onyx/Pharma Sales POS sinh ra</td></tr><tr><td><code>fact_sales_observation</code></td><td>store × subject × period</td><td>Aggregate nguồn. <code>subject_kind</code> (product/category). Không union với <code>fact_sales_line</code></td></tr><tr><td><code>fact_customer_request_line</code></td><td>request line</td><td><code>requested</code>, <code>available</code>, <code>fulfilled</code>, <code>unmet</code> tách riêng — bằng chứng demand duy nhất; <code>available_quantity = 0</code> là cờ hết hàng trong ngày</td></tr></tbody></table></div>
+<p>Nhu cầu mô phỏng TP.HCM (<code>source = SIMULATED_MD04_DEMAND</code>) nằm trong <code>fact_sales_observation</code>, <code>provenance_class = SYNTHETIC</code>. Không gộp với IRPD/Onyx khi tính KPI theo vùng.</p>
+<h4 id="43-silver_inventory-md-02-md-04a">4.3 <code>silver_inventory</code> (MD-02, MD-04a)</h4>
+<div class="tw"><table><thead><tr><th>Bảng</th><th>Grain</th><th>Luật</th></tr></thead><tbody><tr><td><code>dim_batch_lot</code></td><td>lot</td><td><code>expiry_date</code> null → giữ null (Gold gán <code>UNKNOWN_EXPIRY</code>)</td></tr><tr><td><code>snap_inventory_balance</code></td><td>warehouse × lot × <code>as_of</code></td><td><code>on_hand_quantity</code>, <code>reserved_quantity</code>, <code>unreserved_quantity</code>, <code>restricted_quantity</code>. Không tạo cột saleable ở Silver</td></tr><tr><td><code>fact_inventory_movement</code></td><td>event</td><td><code>movement_type</code>, <code>quantity_delta</code> có dấu; giữ FK nguồn (sales line / GR line / transfer line / stock take line)</td></tr><tr><td><code>fact_transfer_line</code></td><td>transfer line</td><td><code>requested/shipped/received</code> + <code>requested_at/dispatched_at/received_at</code>; <code>in_transit = shipped − received</code> khi chưa nhận</td></tr><tr><td><code>fact_stock_take_line</code></td><td>count line</td><td><code>book</code>, <code>counted</code>, <code>variance</code></td></tr><tr><td><code>fact_quality_event</code></td><td>event</td><td><code>event_action</code>, <code>affected_quantity</code>, <code>authorization_reference</code></td></tr><tr><td><code>fact_return_line</code>, <code>fact_recall_scope</code>, <code>fact_recall_action</code>, <code>snap_recall_reconciliation</code></td><td>theo bảng nguồn</td><td>notice ≠ action ≠ recovered</td></tr></tbody></table></div>
+<h4 id="44-silver_procurement-md-03">4.4 <code>silver_procurement</code> (MD-03)</h4>
+<div class="tw"><table><thead><tr><th>Bảng</th><th>Grain</th><th>Luật</th></tr></thead><tbody><tr><td><code>fact_po_line</code></td><td>PO line</td><td><code>ordered_quantity</code>, <code>order_uom_code</code>, <code>unit_cost</code>, <code>ordered_at</code>, <code>expected_delivery_date</code>, <code>po_status</code>. PO do ERP phát hành; PharmaFlow chỉ đọc</td></tr><tr><td><code>fact_po_confirmation</code></td><td>PO line × lần xác nhận</td><td><code>confirmed_quantity</code>, <code>confirmed_at</code>, <code>new_eta</code>, lý do giao thiếu / từ chối (bảng nguồn đề xuất)</td></tr><tr><td><code>fact_goods_receipt_line</code></td><td>GR line</td><td><code>received</code>, <code>accepted</code>, <code>rejected</code>, <code>received_at</code>, <code>batch_lot_id</code>, hạn dùng, kết quả QC, nhiệt độ khi nhận hàng lạnh; FK <code>purchase_order_line_id</code></td></tr><tr><td><code>dim_supplier_certificate</code></td><td>NCC × chứng nhận</td><td>loại (GDP, giấy phép KD dược), phạm vi (hàng lạnh, kiểm soát đặc biệt), số, ngày cấp, ngày hết hạn, link minh chứng</td></tr><tr><td><code>dim_supplier_product_price</code></td><td>NCC × SKU × hiệu lực (SCD2)</td><td>đơn giá theo đơn vị mua, MOQ, bậc giá, lead time cam kết, tiền tệ, <code>vat_included</code>; <code>base_unit_price</code> chỉ khi có hệ số quy đổi</td></tr></tbody></table></div>
+<p>Bốn lượng <strong>đặt → xác nhận → nhận → đạt QC</strong> luôn ở bốn cột khác nhau, không gộp.</p>
+<h4 id="45-silver_weather">4.5 <code>silver_weather</code></h4>
+<div class="tw"><table><thead><tr><th>Bảng</th><th>Grain</th><th>Khóa</th><th>Luật</th></tr></thead><tbody><tr><td><code>weather_snapshot</code></td><td>1 accepted attempt</td><td><code>snapshot_id</code></td><td><code>source_type</code>, <code>store_id</code>, <code>model</code>, <code>window</code>, <code>validation_status</code>, <code>retrieved_at_utc</code> = <strong>available_at</strong></td></tr><tr><td><code>weather_hourly</code></td><td>snapshot × giờ</td><td><code>snapshot_id, valid_time_utc</code></td><td>explode mảng <code>hourly</code>; <code>valid_time_local</code>; <code>lead_hours = valid_time − retrieved_at</code> (chỉ forecast); null giữ null</td></tr><tr><td><code>weather_daily</code></td><td>snapshot × ngày local</td><td><code>snapshot_id, local_date</code></td><td>từ <code>daily</code>; ngày DST tự tổng hợp từ hourly</td></tr><tr><td><code>store_grid_mapping</code></td><td>store × version (P5)</td><td><code>store_id, mapping_version</code></td><td><code>grid_id</code>, công thức ô 0,13°</td></tr></tbody></table></div>
+<p>Phân biệt rõ ba loại: forecast snapshot thu mỗi sáng (as-of hợp lệ), historical forecast stitched (không phải thông tin từng biết ở cutoff cũ), ERA5 reanalysis (quan sát hậu kiểm).</p>
+<h4 id="45b-silver_logistics-md-04b">4.5b <code>silver_logistics</code> (MD-04b)</h4>
+<div class="tw"><table><thead><tr><th>Bảng</th><th>Grain</th><th>Nguồn</th><th>Luật</th></tr></thead><tbody><tr><td><code>ref_travel_matrix</code></td><td>điểm đi × điểm đến × loại xe × khung giờ</td><td><code>bronze_sim</code></td><td>giữ <code>distance_source</code> (OSRM thật) tách khỏi hệ số giả định</td></tr><tr><td><code>ref_service_profile</code></td><td>loại xe 3PL</td><td><code>bronze_sim</code></td><td>nhãn "không phải báo giá thật"</td></tr><tr><td><code>fact_trip</code> / <code>fact_trip_stop</code></td><td>chuyến / điểm dừng</td><td><code>bronze_app</code> (sự kiện 3PL)</td><td>bắt buộc có mã phiếu điều chuyển để nối <code>fact_transfer_line</code></td></tr><tr><td><code>fact_gps_ping</code></td><td>chuyến × thời điểm</td><td><code>bronze_app</code></td><td>khoảng trống &gt; ngưỡng → sự kiện mất tín hiệu</td></tr><tr><td><code>fact_temperature_reading</code></td><td>chuyến × thời điểm</td><td><code>bronze_app</code></td><td>ngoài 2–8 °C với hàng lạnh → sự kiện lệch nhiệt</td></tr></tbody></table></div>
+<h4 id="45c-silver_decision-dữ-liệu-module-tạo-ra-từ-app-db">4.5c <code>silver_decision</code> (dữ liệu module tạo ra, từ App DB)</h4>
+<div class="tw"><table><thead><tr><th>Bảng</th><th>Module</th><th>Nội dung chính</th></tr></thead><tbody><tr><td><code>fact_purchase_need</code></td><td>MD-03</td><td>kỳ, kho, SKU, phiên bản forecast, tồn khả dụng, hàng đang về, phần trừ điều chuyển, tồn an toàn, đề xuất, điều chỉnh + lý do, người xác nhận, trạng thái nháp / đã xác nhận</td></tr><tr><td><code>fact_supplier_suggestion</code></td><td>MD-03</td><td>SKU, lượng, phương pháp (chấm điểm / tối ưu chi phí), trọng số, điểm từng NCC, NCC được chọn, người chọn</td></tr><tr><td><code>fact_supplier_assessment</code></td><td>MD-03</td><td>NCC, kết luận đạt / đạt có điều kiện / không đạt, lý do, người thẩm định, hiệu lực</td></tr><tr><td><code>fact_transfer_request</code> (+ line)</td><td>MD-04</td><td>mã, điểm nhận, ngày cần, mức khẩn, cách tạo, trạng thái (nháp → chờ duyệt KSĐB → chờ cấp 1 → chờ cấp 2 → đã duyệt / từ chối / hủy), thời điểm từng bước, đạt SLA</td></tr><tr><td><code>fact_transfer_proposal</code> (+ line)</td><td>MD-04</td><td>giải pháp heuristic / MILP, phiên bản tham số, <code>inventory_as_of</code> đã dùng, nguồn, lô, lượng, lý do, chi phí ước tính, ETA, số chuyến</td></tr><tr><td><code>fact_proposal_feedback</code></td><td>MD-04</td><td>chấp nhận / sửa / từ chối, lượng trước và sau, lý do</td></tr><tr><td><code>fact_approval</code></td><td>MD-03/04</td><td>cấp, người duyệt, kết quả, lý do; dòng KSĐB bị từ chối tách riêng</td></tr><tr><td><code>fact_stock_reservation</code></td><td>MD-04</td><td>lô, lượng, yêu cầu, hết giữ lúc</td></tr><tr><td><code>fact_transfer_order</code> (+ link request)</td><td>MD-04</td><td>mã phiếu, các yêu cầu được gộp, nguồn, đích, dòng lô và lượng, gửi cho ai, lúc nào</td></tr><tr><td><code>fact_trip_plan</code></td><td>MD-04</td><td>phiếu thuộc chuyến, giải pháp tuyến, thứ tự điểm, ETA, km, chi phí ước tính</td></tr><tr><td><code>fact_alert</code></td><td>MD-03/04</td><td>loại (PO trễ, giao thiếu, chứng nhận sắp hết hạn, chuyến trễ, lệch nhiệt, mất tín hiệu), đối tượng, thời điểm, trạng thái đã xem</td></tr><tr><td><code>dim_policy_param</code></td><td>MD-03/04/06</td><td>tham số, giá trị, phiên bản, hiệu lực, người sửa</td></tr></tbody></table></div>
+<p>Nhãn trạng thái không được nâng: đề xuất được chọn ≠ đã duyệt ≠ đã xuất kho; đã giao ≠ đã nhận đủ; NCC được chọn ≠ PO đã phát hành.</p>
+<h4 id="46-tender-trong-silver">4.6 Tender trong Silver</h4>
+<p>Chỉ khi app có: <code>silver_decision.fact_tender_commitment</code> (cam kết / đặt trước theo SKU × kho × kỳ), <code>fact_tender_award_line</code> (chỉ kết quả <code>CONFIRMED</code>, có căn cứ), <code>fact_tender_delivery</code> (đợt giao thực tế). Đọc từ <code>bronze_app</code>. Lượng trúng và lượng giao ở hai bảng khác nhau.</p>
+<h3 id="5-gold--data-product-theo-module">5. Gold — data product theo module</h3>
+<p>Mỗi bảng Gold có contract: grain, khóa, owner, độ mới, consumer, giới hạn.</p>
+<h4 id="md-01-gold_md01_sales">MD-01 <code>gold_md01_sales</code></h4>
+<div class="tw"><table><thead><tr><th>Product</th><th>Grain</th><th>Nội dung</th></tr></thead><tbody><tr><td><code>mart_sales_daily</code></td><td>product × location × local_date × provenance_class</td><td><code>sold_qty</code>, <code>base_qty</code>, <code>revenue</code>, <code>order_count</code>; chỉ từ <code>fact_sales_line</code></td></tr><tr><td><code>mart_sales_observation_period</code></td><td>store × subject × period</td><td>Aggregate nguồn, hiển thị riêng</td></tr><tr><td><code>kpi_sales_trend</code></td><td>category × location × tuần/tháng</td><td>so kỳ, mùa vụ (FR-SD-02, 03)</td></tr></tbody></table></div>
+<p><code>ml</code> cho MD-01:</p>
+<div class="tw"><table><thead><tr><th>Bảng</th><th>Nội dung</th></tr></thead><tbody><tr><td><code>feat_sales_daily</code></td><td>lag/rolling từ <code>mart_sales_daily</code>, calendar, weather daily as-of</td></tr><tr><td><code>trainset_sales_&lt;version&gt;</code></td><td>cắt theo forecast origin, ghi <code>feature_cutoff_at</code></td></tr><tr><td><code>forecast_sales</code></td><td><code>forecast_origin</code>, <code>target_date</code>, <code>horizon_d</code>, <code>model_name</code>, <code>model_version</code>, <code>yhat</code>, <code>yhat_lo/hi</code>, <code>is_adjusted</code></td></tr><tr><td><code>forecast_adjustment</code></td><td>đọc từ app DB khi có (FR-SD-10), giữ giá trị trước/sau</td></tr><tr><td><code>backtest_forecast_metrics</code></td><td>fold × model × grain: MAE, RMSE, WAPE, Bias; luôn có baseline naive/seasonal-naive</td></tr></tbody></table></div>
+<h4 id="md-02-gold_md02_inventory">MD-02 <code>gold_md02_inventory</code></h4>
+<div class="tw"><table><thead><tr><th>Product</th><th>Grain</th><th>Nội dung</th></tr></thead><tbody><tr><td><code>mart_inventory_position</code></td><td>location × product × lot × as_of</td><td>on_hand, reserved, unreserved, restricted, <code>quality_state</code>, <code>hold_or_recall_flag</code>, <code>available_for_decision</code> = unreserved − restricted khi lô không bị giữ / thu hồi / hết hạn; <code>eligibility_status = UNKNOWN</code> khi thiếu dữ kiện</td></tr><tr><td><code>mart_lot_expiry_status</code></td><td>lot × location × evaluation_date</td><td><code>days_to_expiry</code>, <code>expiry_bucket</code> theo warning-days cấu hình (logic khớp <code>inventory.lot_expiry_status()</code>), <code>UNKNOWN_EXPIRY</code></td></tr><tr><td><code>mart_inventory_movement_daily</code></td><td>location × product × ngày × movement_type</td><td></td></tr><tr><td><code>fefo_candidate_lots</code></td><td>location × product × lot</td><td>đã lọc eligibility, sort expiry; là gợi ý</td></tr><tr><td><code>risk_stock_projection</code></td><td>location × product × ngày tương lai × scenario</td><td>projected balance = tồn + incoming (MD-03) − forecast (MD-01); cờ stockout/overstock/expiry</td></tr><tr><td><code>mart_recall_tracking</code></td><td>recall × scope line</td><td>notice, action, recovered tách cột</td></tr></tbody></table></div>
+<h4 id="md-03-gold_md03_procurement">MD-03 <code>gold_md03_procurement</code></h4>
+<div class="tw"><table><thead><tr><th>Product</th><th>Grain</th><th>Nội dung</th></tr></thead><tbody><tr><td><code>mart_po_tracking</code></td><td>PO line</td><td>4 lượng: ordered, confirmed, received, accepted; <code>open = ordered − accepted</code>; <code>is_late</code> (quá ETA, kể cả ETA mới), <code>is_short</code> (confirmed hoặc received &lt; ordered) (FR-MD03-13, 27)</td></tr><tr><td><code>mart_supplier_scorecard</code></td><td>supplier × tháng</td><td>lead time TB/P90, đúng hạn %, giao đủ %, tỷ lệ lô bị giữ / thu hồi; cần 12–24 tháng lịch sử (FR-MD03-05)</td></tr><tr><td><code>mart_supplier_certificate_expiry</code></td><td>supplier × chứng nhận</td><td><code>days_to_expiry</code>, cờ sắp hết hạn theo số ngày báo trước trong <code>dim_policy_param</code> (FR-MD03-28)</td></tr><tr><td><code>mart_supplier_price_compare</code></td><td>SKU × NCC hiệu lực</td><td>giá quy về đơn vị bán (khi có hệ số), MOQ, bậc giá, lead time, phạm vi chứng nhận (hàng lạnh chỉ NCC đủ điều kiện lạnh)</td></tr><tr><td><code>mart_incoming_supply</code></td><td>product × warehouse × expected_date</td><td>open qty theo ETA mới nhất</td></tr><tr><td><code>net_purchase_need_input</code></td><td>product × warehouse × kỳ</td><td>forecast (hoặc baseline mùa vụ, ghi rõ) − <code>available_for_decision</code> − incoming − phần dư ở kho khác <strong>chưa giữ chỗ</strong> + nhu cầu chưa đáp ứng từ MD-04 + tồn an toàn (FR-MD03-06/07/21). Chỉ đặt về kho tổng hoặc kho vùng</td></tr><tr><td><code>supplier_score_input</code></td><td>SKU × NCC</td><td>các tiêu chí đã chuẩn hóa; trọng số mặc định từ <code>dim_policy_param</code> (giá 35 %, lead time 25 %, tin cậy 25 %, chất lượng 15 %)</td></tr></tbody></table></div>
+<h4 id="md-04-gold_md04_distribution">MD-04 <code>gold_md04_distribution</code></h4>
+<div class="tw"><table><thead><tr><th>Product</th><th>Grain</th><th>Nội dung</th></tr></thead><tbody><tr><td><code>mart_network_inventory</code></td><td>location × product</td><td>view trên <code>mart_inventory_position</code>; không tạo balance thứ hai</td></tr><tr><td><code>imbalance_signal</code></td><td>location × product × ngày</td><td>thiếu / dư / cận date (FR-MD04-01); <code>inventory_stale_flag</code> khi heartbeat quá ngưỡng → chặn đề xuất</td></tr><tr><td><code>transfer_candidate_input</code></td><td>source × dest × product × lot</td><td>chỉ lô <code>available_for_decision &gt; 0</code>, hạn dùng tại ETA ≥ ngưỡng, nguồn không phải điểm có tồn cũ; kèm khoảng cách / thời gian từ <code>ref_travel_matrix</code>, cờ hàng lạnh và xe lạnh. Input cho heuristic / MILP; solver chạy ngoài Gold</td></tr><tr><td><code>mart_transfer_tracking</code></td><td>transfer line</td><td>requested, shipped, received, in_transit, lead time; nối <code>fact_transfer_order</code> và chuyến qua mã phiếu</td></tr><tr><td><code>mart_trip_daily</code></td><td>ngày × vùng</td><td>số chuyến, đúng giờ %, chi phí ước tính, số lần lệch nhiệt, mất GPS (FR-MD04-21, 22, 37, 43)</td></tr><tr><td><code>kpi_transfer_daily</code></td><td>ngày × điểm</td><td>tỷ lệ chấp nhận đề xuất (từ <code>fact_proposal_feedback</code>), lượng hàng cận date đã chuyển, đạt SLA theo mức khẩn (FR-MD04-23)</td></tr><tr><td><code>unmet_after_transfer</code></td><td>SKU × điểm × kỳ</td><td>lượng thiếu sau điều chuyển, chuyển sang MD-03</td></tr></tbody></table></div>
+<h4 id="md-05-gold_md05_tender--đầu-vào-cho-platform">MD-05 <code>gold_md05_tender</code> — đầu vào cho platform</h4>
+<p>MD-05 chạy chủ yếu trong platform (App DB + S3). Gold chỉ phát hành dữ liệu cung ứng mà app cần để phân tích gói thầu:</p>
+<div class="tw"><table><thead><tr><th>Product</th><th>Grain</th><th>Nội dung</th></tr></thead><tbody><tr><td><code>tender_supply_input</code></td><td>SKU × kho/vùng × as_of</td><td><code>available_for_decision</code> (đã trừ giữ chỗ, bị giữ, hết hạn), on_hand, đơn vị, lô/hạn gần nhất, <code>as_of</code>, <code>provenance_class</code></td></tr><tr><td><code>tender_incoming_supply</code></td><td>SKU × kho/vùng × ngày dự kiến</td><td>hàng đang về từ <code>mart_incoming_supply</code>, trạng thái, nguồn</td></tr><tr><td><code>tender_forecast_input</code></td><td>SKU × vùng × kỳ</td><td>forecast bán lẻ, khoảng dự báo, model, phiên bản, thời điểm chạy</td></tr><tr><td><code>tender_sku_reference</code></td><td>SKU</td><td>mã ổn định, hoạt chất, hàm lượng, dạng bào chế, đơn vị, quy cách, hệ số quy đổi (chỉ khi đã xác nhận)</td></tr></tbody></table></div>
+<p>App đối chiếu dòng thuốc của hồ sơ với <code>tender_sku_reference</code>, chạy kịch bản, lưu kết quả ở App DB. Khi app có, <code>bronze_app</code> đọc lại cam kết tender, lượng trúng đã xác nhận và các đợt giao để (1) trừ cam kết tender khỏi <code>available_for_decision</code> cho MD-03/MD-04, không trừ lặp; (2) tính KPI trúng ↔ giao trong <code>gold_kpi</code>. Dùng chung <code>dim_product</code>, <code>dim_location</code>, <code>mart_inventory_position</code> với MD-03/MD-04; không sinh danh mục riêng.</p>
+<h4 id="md-06--không-có-gold">MD-06 — không có Gold</h4>
+<p>Tài khoản, role/permission, role-scope (GLOBAL/REGION/STORE) và audit nằm ở App DB. Backend dùng một service principal đọc Gold, rồi <strong>lọc theo scope ở API</strong> trước khi trả dữ liệu. Không chép mật khẩu/token vào lakehouse. Nếu cần báo cáo quyền, chỉ đọc bảng gán role-scope (không có thông tin đăng nhập) vào <code>bronze_app</code>.</p>
+<h4 id="xuyên-miền">Xuyên miền</h4>
+<div class="tw"><table><thead><tr><th>Bảng</th><th>Nội dung</th></tr></thead><tbody><tr><td><code>gold_kpi.kpi_catalog</code></td><td>Mã KPI, domain, category, công thức, numerator/denominator, grain</td></tr><tr><td><code>gold_kpi.kpi_daily</code></td><td>KPI × location × ngày, có <code>provenance_class</code></td></tr><tr><td><code>ml.decision_eval</code></td><td>scenario × policy: stockout rate, fill rate, avg inventory, overstock, expiry qty, simulated cost. Không chứa MAE/RMSE</td></tr></tbody></table></div>
+<h3 id="6-luật-chất-lượng-lakeflow-expectations">6. Luật chất lượng (Lakeflow expectations)</h3>
+<div class="tw"><table><thead><tr><th>Layer</th><th>Luật</th><th>Hành động</th></tr></thead><tbody><tr><td>Bronze</td><td>file JSON hợp lệ; sha256 khớp (weather/mongo B)</td><td>quarantine</td></tr><tr><td>Silver</td><td>khóa NOT NULL, unique</td><td>DROP + ghi <code>ops.dq_result</code></td></tr><tr><td>Silver</td><td><code>sold_quantity &gt; 0</code>; <code>on_hand &gt;= 0</code>; <code>received = accepted + rejected</code> (nếu nguồn định nghĩa vậy)</td><td>WARN</td></tr><tr><td>Silver</td><td><code>confirmed_quantity &lt;= ordered_quantity</code> trừ khi NCC giao dư có ghi nhận</td><td>WARN</td></tr><tr><td>Silver</td><td><code>fact_trip_stop</code> có mã phiếu tồn tại trong <code>fact_transfer_order</code></td><td>DROP + báo</td></tr><tr><td>Silver</td><td>người duyệt ≠ người tạo yêu cầu; dòng KSĐB có duyệt US-13 trước cấp 1</td><td>WARN (báo vi phạm quy tắc)</td></tr><tr><td>Gold</td><td>scorecard tính lại từ PO sim ≈ tham số ẩn của bộ sinh (xác suất trễ, tỷ lệ giao đủ, tỷ lệ lô bị giữ) trong ngưỡng nhóm chốt</td><td>FAIL khi lệch</td></tr><tr><td>Silver</td><td>FK tồn tại (line → order, line → product, packaging thuộc product)</td><td>DROP</td></tr><tr><td>Silver</td><td><code>provenance_class</code> NOT NULL</td><td>FAIL pipeline</td></tr><tr><td>Silver weather</td><td><code>validation_status IN (&#x27;ACCEPTED&#x27;,&#x27;ACCEPTED_WITH_WARNINGS&#x27;)</code></td><td>DROP</td></tr><tr><td>Gold</td><td>độ mới: <code>max(as_of_date) &gt;= today − N</code></td><td>chặn publish, báo</td></tr><tr><td>Gold</td><td>reconciliation: tổng <code>sold_qty</code> Gold = Silver theo nguồn</td><td>FAIL</td></tr></tbody></table></div>
+<p>Ví dụ SQL Lakeflow Declarative Pipelines:</p>
+<pre data-lang="sql"><code>CREATE OR REFRESH MATERIALIZED VIEW silver_sales.fact_sales_line (
+  CONSTRAINT pk_not_null EXPECT (sales_order_line_id IS NOT NULL) ON VIOLATION DROP ROW,
+  CONSTRAINT qty_positive EXPECT (sold_quantity &gt; 0),
+  CONSTRAINT has_provenance EXPECT (provenance_class IS NOT NULL) ON VIOLATION FAIL UPDATE
+) AS
+SELECT l.sales_order_line_id, l.sales_order_id, l.product_id, l.product_packaging_id,
+       l.sold_quantity, l.sales_uom_code,
+       l.sold_quantity * p.quantity_in_base_uom AS base_qty,
+       l.line_amount, l.currency_code,
+       o.ordered_at AS ordered_at_utc,
+       from_utc_timestamp(o.ordered_at, s.timezone_name) AS ordered_at_local,
+       to_date(from_utc_timestamp(o.ordered_at, s.timezone_name)) AS local_date,
+       o.demand_location_id,
+       l.source AS source_code,
+       CASE WHEN l.source LIKE &#x27;%SYNTH%&#x27; OR l.source LIKE &#x27;%SIM%&#x27; THEN &#x27;SYNTHETIC&#x27; ELSE &#x27;OBSERVED&#x27; END AS provenance_class
+FROM silver_sales.v_latest_sales_order_line l
+JOIN silver_sales.v_latest_sales_order o USING (sales_order_id)
+LEFT JOIN silver_core.dim_product_packaging p USING (product_packaging_id)
+LEFT JOIN silver_core.dim_location s ON s.location_key = concat(&#x27;STORE:&#x27;, o.demand_location_id);</code></pre>
+<p>Bảng map <code>source</code> → <code>provenance_class</code> phải lấy từ giá trị thật trong nguồn (xem preflight), không dùng <code>LIKE</code> như ví dụ khi đã có danh sách.</p>
+<h3 id="7-chống-rò-rỉ-thời-gian">7. Chống rò rỉ thời gian</h3>
+<ul><li>Feature weather cho forecast origin <code>t0</code> chỉ dùng <code>weather_snapshot</code> có <code>retrieved_at_utc &lt;= t0</code> và <code>source_type = DAILY_FORECAST</code>.</li><li>Backtest trên lịch sử trước khi có snapshot hằng ngày: dùng <code>HISTORICAL_FORECAST_STITCHED</code>/ERA5 với nhãn <code>weather_asof_valid = false</code>; báo cáo tách riêng.</li><li>Sales lag tính từ dữ liệu <code>local_date &lt; t0</code>.</li><li>Mỗi trainset lưu <code>feature_cutoff_at</code> và <code>source_snapshot_ids</code>.</li></ul></section><section class="doc" id="doc-03-quy-trinh-nghiep-vu"><div class="src">Nguồn: <code>03-quy-trinh-nghiep-vu.md</code></div><h2 id="03--quy-trình-nghiệp-vụ-trên-nền-databricks">03 — Quy trình nghiệp vụ trên nền Databricks</h2>
+<p>Quy trình này nối hai góc nhìn:</p>
+<ul><li>Xử lý: <code>DATA → FORECAST → RISK → DECISION → OPERATIONAL OUTCOME</code>.</li><li>Nghiệp vụ: <code>Business Monitoring → Business Insight → Business Optimization → Human Approval → Operational Outcome</code>.</li></ul>
+<p>Databricks lo DATA, FORECAST, RISK và chuẩn bị input cho DECISION. Duyệt và ghi quyết định nằm trong app (backend + app DB). Hệ nguồn (POS/WMS/ERP) vẫn là nơi thực thi.</p>
+<h3 id="1-bảng-vai-trò">1. Bảng vai trò</h3>
+<div class="tw"><table><thead><tr><th>Bước</th><th>Ai làm</th><th>Ở đâu</th><th>Sản phẩm</th></tr></thead><tbody><tr><td>B0. Chốt contract nguồn</td><td>Data owner từng miền + Data engineer</td><td>Tài liệu + <code>ops.source_contract</code></td><td>Grain, khóa, provenance, lịch</td></tr><tr><td>B1. Nạp nguồn</td><td>Lakeflow Jobs (tự động)</td><td>Bronze</td><td>Snapshot theo run</td></tr><tr><td>B2. Chuẩn hóa &amp; kiểm chất lượng</td><td>Lakeflow Pipelines</td><td>Silver + <code>ops.dq_result</code></td><td>Bảng sạch, báo cáo lỗi</td></tr><tr><td>B3. Monitoring</td><td>Gold job</td><td><code>gold_*</code>, <code>gold_kpi</code></td><td>KPI hiện tại</td></tr><tr><td>B4. Insight: forecast</td><td>ML job (<code>ml</code>)</td><td><code>ml.forecast_*</code></td><td>Dự báo + backtest</td></tr><tr><td>B5. Insight: risk</td><td>Gold job</td><td><code>risk_*</code>, <code>imbalance_signal</code>, <code>mart_po_tracking</code></td><td>Cờ thiếu/dư/hết hạn/trễ</td></tr><tr><td>B6. Optimization</td><td>Solver/heuristic job</td><td><code>transfer_candidate_input</code> → kết quả scenario</td><td>Phương án đề xuất + lý do</td></tr><tr><td>B7. Human Approval</td><td>Người dùng có quyền</td><td>App (web) + app DB</td><td>Duyệt / sửa / từ chối, có audit</td></tr><tr><td>B8. Thực thi</td><td>Hệ nguồn (ngoài DSS)</td><td>POS/WMS/ERP</td><td>PO, transfer, xuất kho thật</td></tr><tr><td>B9. Outcome</td><td>Gold + <code>ml.decision_eval</code></td><td>Sau khi nguồn ghi nhận</td><td>Stockout, fill rate, tồn, expiry, chi phí</td></tr></tbody></table></div>
+<p>B7 → B9 khép vòng khi app DB được nạp ngược vào Bronze (khoảng trống G5).</p>
+<h3 id="2-lịch-nghiệp-vụ-hằng-ngày-đề-xuất-giờ-asiaho_chi_minh">2. Lịch nghiệp vụ hằng ngày (đề xuất, giờ Asia/Ho_Chi_Minh)</h3>
+<div class="tw"><table><thead><tr><th>Giờ</th><th>Việc</th><th>Phụ thuộc</th></tr></thead><tbody><tr><td>06:00</td><td>Weather Planner (AWS) chạy daily forecast</td><td>EventBridge (đã có P4)</td></tr><tr><td>~06:20</td><td>Weather summary chốt trên S3</td><td>Reconciler</td></tr><tr><td>06:30</td><td>Databricks nạp PostgreSQL, MongoDB, Weather vào Bronze</td><td>Nguồn đã đóng sổ ngày hôm trước</td></tr><tr><td>06:45</td><td>Silver refresh + DQ</td><td>Bronze xong</td></tr><tr><td>07:00</td><td>Gold monitoring + risk refresh</td><td>Silver đạt DQ</td></tr><tr><td>07:15</td><td>Forecast scoring (dùng model đã duyệt)</td><td>Gold + weather snapshot sáng nay</td></tr><tr><td>07:30</td><td>Publish: cập nhật <code>ops.product_release</code>, app đọc bản mới</td><td>Tất cả kiểm đạt</td></tr><tr><td>Tuần (CN 22:00)</td><td>Retrain + backtest, so baseline</td><td>Data Admin duyệt trước khi dùng</td></tr></tbody></table></div>
+<p>Nếu một bước fail, Gold giữ bản publish cũ và app hiện "dữ liệu tới ngày X".</p>
+<h3 id="3-quy-trình-theo-module">3. Quy trình theo module</h3>
+<h4 id="md-01-sales--demand">MD-01 Sales &amp; Demand</h4>
+<ol><li><strong>Monitoring:</strong> <code>mart_sales_daily</code> theo product/category/location/kênh (FR-SD-01, 02). Synthetic và observed hiển thị bằng nhãn.</li><li><strong>Insight:</strong> xu hướng, mùa vụ (FR-SD-03); forecast theo grain nguồn cho phép (FR-SD-04). Pharma Sales là ATC-group: forecast ở mức ATC, không suy ra SKU.</li><li><strong>Kiểm định:</strong> Data Admin xem <code>backtest_forecast_metrics</code> (MAE, RMSE, WAPE, Bias) so baseline; chỉ model vượt baseline mới được <code>APPROVED</code> (FR-SD-05).</li><li><strong>Điều chỉnh:</strong> người có quyền sửa một giá trị forecast trong app (FR-SD-10). Giá trị gốc giữ ở <code>ml.forecast_sales</code>; bản sửa nằm ở app DB và <code>ml.forecast_adjustment</code>.</li><li><strong>Không làm:</strong> coi sales là demand khi có stockout; dùng <code>customer_request_line.unmet_quantity</code> nếu có.</li></ol>
+<h4 id="md-02-inventory--expiry">MD-02 Inventory &amp; Expiry</h4>
+<ol><li><strong>Monitoring:</strong> <code>mart_inventory_position</code> (FR-MD02-01, 02), movement (03), lot expiry (04).</li><li><strong>Risk:</strong> <code>risk_stock_projection</code> theo scenario: tồn + incoming MD-03 − forecast MD-01 (FR-MD02-05).</li><li><strong>Optimization:</strong> <code>fefo_candidate_lots</code> là thứ tự ưu tiên trong lô đủ điều kiện (FR-MD02-06). GP0 <code>NO_ACTION</code> luôn là một scenario để so (FR-MD02-08).</li><li><strong>Approval:</strong> QA (US-13) quyết hold/release/recall trong app (FR-MD02-09). Databricks không đổi trạng thái lô.</li><li><strong>Chuyển tín hiệu:</strong> risk signal gửi MD-03 (mua) hoặc MD-04 (điều chuyển) qua payload có <code>signal_id</code>, product, location, scenario (FR-MD02-11).</li><li><strong>Outcome:</strong> KPI theo mục 6 của <code>REQUIREMENTS_INVENTORY_EXPIRY_V1.md</code>; thiếu mẫu số → "chưa đánh giá được".</li></ol>
+<h4 id="md-03-mua-hàng--ncc">MD-03 Mua hàng &amp; NCC</h4>
+<ol><li><strong>Monitoring:</strong> <code>mart_po_tracking</code> với 4 lượng đặt / xác nhận / nhận / đạt QC (FR-MD03-13); scorecard (05); dashboard theo vai trò (18, 23–26).</li><li><strong>Cảnh báo:</strong> PO trễ (kể cả ETA mới), giao thiếu, chứng nhận NCC sắp hết hạn (27, 28) → <code>fact_alert</code> trong app.</li><li><strong>Insight:</strong> <code>net_purchase_need_input</code> = forecast − tồn khả dụng − hàng đang về − phần dư ở kho khác <strong>chưa giữ chỗ</strong> + nhu cầu chưa đáp ứng từ MD-04 + tồn an toàn (06, 21). Chưa có forecast MD-01 thì dùng baseline mùa vụ và ghi rõ là baseline. Chỉ đặt về kho tổng hoặc kho vùng.</li><li><strong>Optimization:</strong> gợi ý NCC: giải pháp 1 chấm điểm đa tiêu chí (trọng số mặc định giá 35 %, lead time 25 %, tin cậy 25 %, chất lượng 15 %), giải pháp 2 tối ưu chi phí tổng (08, 09). Hàng lạnh chỉ xét NCC có chứng nhận phạm vi lạnh. SKU chưa có bảng giá thì báo thiếu dữ liệu.</li><li><strong>Approval:</strong> người mua xác nhận hoặc điều chỉnh nhu cầu, kèm lý do (07, 22); US-13 thẩm định NCC (03). Lưu trong App DB.</li><li><strong>Không làm:</strong> tạo, sửa, hủy PO; ghi nhập kho; đối soát hóa đơn. Chọn NCC không có nghĩa PO đã phát hành.</li><li><strong>Phần thiếu chuyển kỳ sau:</strong> NCC từ chối, giao thiếu, lô bị từ chối cộng vào kỳ sau.</li></ol>
+<h4 id="md-04-phân-phối">MD-04 Phân phối</h4>
+<ol><li><strong>Monitoring:</strong> <code>imbalance_signal</code> thiếu / dư / cận date (FR-MD04-01); <code>mart_transfer_tracking</code> (16); <code>mart_trip_daily</code> (21, 22).</li><li><strong>Chặn dữ liệu cũ:</strong> điểm có heartbeat quá ngưỡng thì không tạo đề xuất cho điểm đó.</li><li><strong>Optimization:</strong> <code>transfer_candidate_input</code> → heuristic (03) hoặc MILP (04). Kèm chi phí ước tính, ETA, lý do (05). Chỉ lô khả dụng, hạn dùng tại ETA ≥ ngưỡng; loại lô bị giữ / thu hồi; hàng lạnh cần xe lạnh. Không gọi là "tối ưu" khi chưa chốt objective / constraint / horizon.</li><li><strong>Phản hồi:</strong> US-03 chấp nhận, sửa lượng hoặc từ chối đề xuất, kèm lý do (27) → KPI tỷ lệ chấp nhận.</li><li><strong>Approval:</strong> dòng kiểm soát đặc biệt do US-13 duyệt từng dòng trước; cấp 1 do quản lý điểm nguồn; cấp 2 (liên vùng hoặc vượt ngưỡng giá trị) do US-10 hoặc US-01 (09–12). Không ai tự duyệt yêu cầu mình tạo. Mức khẩn có SLA (ví dụ mức 1: 15 phút). Cần nhóm chốt người duyệt thay và ngưỡng cấp 2.</li><li><strong>Giữ chỗ và phiếu:</strong> duyệt xong thì giữ chỗ lô có hạn; gộp yêu cầu cùng nguồn thành phiếu (28, 41) và gửi bên liên quan (29).</li><li><strong>Vận chuyển (04b):</strong> gom phiếu thành chuyến, gợi ý tuyến NN/savings hoặc VRPTW (17–19). Theo dõi ETA, trễ, lệch nhiệt 2–8 °C, mất GPS từ sự kiện 3PL (21, 37, 43). Chi phí là ước tính, không phải cước thật. Không quản lý xe, tài xế.</li><li><strong>Thực thi:</strong> xuất / nhận thật ở WMS. Databricks thấy kết quả qua <code>inventory.stock_transfer*</code> lần nạp sau.</li><li><strong>Chuyển tiếp:</strong> <code>unmet_after_transfer</code> gửi sang MD-03.</li></ol>
+<h4 id="kịch-bản-kiểm-thử-dữ-liệu-issue-7">Kịch bản kiểm thử dữ liệu (issue #7)</h4>
+<p>Bộ dữ liệu sim phải có đủ các ca sau trước khi nghiệm thu Gold MD-03/MD-04:</p>
+<div class="tw"><table><thead><tr><th>MD-03</th><th>MD-04</th></tr></thead><tbody><tr><td>SKU đủ tồn, không cần mua</td><td>Điểm thiếu, có nguồn dư ở gần</td></tr><tr><td>SKU cần mua, có 3 NCC để so</td><td>Nguồn duy nhất là lô cận date</td></tr><tr><td>SKU có dư ở kho khác, phải trừ phần điều chuyển</td><td>Hàng lạnh, nguồn không có xe lạnh</td></tr><tr><td>NCC có GDP sắp hết hạn</td><td>Yêu cầu có dòng kiểm soát đặc biệt</td></tr><tr><td>PO giao thiếu</td><td>Liên vùng hoặc vượt ngưỡng, cần cấp 2</td></tr><tr><td>PO trễ</td><td>Yêu cầu bị từ chối; bị hủy trước khi duyệt</td></tr><tr><td>Lô nhận về bị QC giữ</td><td>Khẩn mức 1, SLA 15 phút</td></tr><tr><td>Hàng lạnh chỉ đặt được ở NCC đủ điều kiện lạnh</td><td>Hai yêu cầu cùng nguồn gộp một phiếu</td></tr><tr><td>Bảng giá theo thùng, cần quy đổi sang đơn vị bán</td><td>Chuyến nhiều điểm có khung giờ (VRPTW); chuyến trễ</td></tr><tr><td>SKU chưa có bảng giá</td><td>Lệch nhiệt; mất GPS; lô bị giữ / thu hồi bị loại; tồn ở điểm nhận quá cũ bị chặn</td></tr></tbody></table></div>
+<p>Số lượng bản ghi cụ thể còn chờ nhóm thống nhất.</p>
+<h4 id="md-05-đấu-thầu-chạy-chủ-yếu-trong-platform">MD-05 Đấu thầu (chạy chủ yếu trong platform)</h4>
+<p>Theo yêu cầu dữ liệu MD-05/06, các bước 1, 2, 4, 5 diễn ra trong app và App DB. Databricks chỉ tham gia bước 3 (cấp dữ liệu) và bước 6 (đọc lại để đo).</p>
+<div class="tw"><table><thead><tr><th>Bước</th><th>Ở đâu</th><th>Việc</th></tr></thead><tbody><tr><td>1</td><td>App + S3 platform</td><td>Tải PDF (có lớp chữ hoặc scan), lưu phiên bản; trích xuất dòng thuốc kèm trang, trạng thái <code>PROPOSED</code>; nhân viên xác nhận (FR-T01, T02)</td></tr><tr><td>2</td><td>App</td><td>Đối chiếu dòng thuốc ↔ SKU qua <code>gold_md05_tender.tender_sku_reference</code>; chỉ dùng liên kết / quy đổi đã xác nhận (T03)</td></tr><tr><td>3</td><td>App đọc Gold</td><td>Phân tích cung ứng: lượng yêu cầu so <code>tender_supply_input</code> (tồn khả dụng), <code>tender_incoming_supply</code>, <code>tender_forecast_input</code>, lead time; lưu giả định và kết quả kịch bản ở App DB (T04)</td></tr><tr><td>4</td><td>App</td><td>Kiến nghị và quyết định nội bộ có người duyệt (T05, T09)</td></tr><tr><td>5</td><td>App</td><td>Ghi kết quả trúng có căn cứ theo mặt hàng / số lượng (T06); ghi từng đợt giao thực tế và lượng còn giao (T07)</td></tr><tr><td>6</td><td>Databricks đọc <code>bronze_app</code></td><td>Trừ cam kết tender khỏi tồn khả dụng cho MD-03/MD-04; KPI trúng ↔ giao</td></tr></tbody></table></div>
+<p>Không suy ra kịch bản được chọn đã trúng; không nhầm lượng trúng với lượng đã giao. Lập / nộp hồ sơ và quản lý hợp đồng nằm ngoài module.</p>
+<p>Kịch bản kiểm thử tối thiểu (cùng SKU / đơn vị giữa các bảng): đủ hàng; thiếu hàng; dòng thuốc cần quy đổi / đối chiếu; dữ liệu thiếu hoặc chưa xác nhận.</p>
+<h4 id="md-06-quản-trị-toàn-bộ-trong-platform">MD-06 Quản trị (toàn bộ trong platform)</h4>
+<p>Đơn vị / phạm vi GLOBAL-REGION-STORE, tài khoản giả lập, role-permission, gán role-scope và audit đều ở App DB. Backend kiểm quyền và lọc dữ liệu theo scope ở server trước khi trả kết quả đọc từ Gold. Databricks không giữ thông tin đăng nhập.</p>
+<h3 id="4-hai-lớp-đánh-giá">4. Hai lớp đánh giá</h3>
+<div class="tw"><table><thead><tr><th>Lớp</th><th>Câu hỏi</th><th>Bảng</th><th>Chỉ số</th></tr></thead><tbody><tr><td>Prediction Quality</td><td>Dự báo đúng tới đâu?</td><td><code>ml.backtest_forecast_metrics</code></td><td>MAE, RMSE, WAPE, Bias</td></tr><tr><td>Decision Quality</td><td>Quyết định có tốt hơn không?</td><td><code>ml.decision_eval</code></td><td>stockout rate, fill rate, avg inventory, overstock, expiry/wastage, simulated cost</td></tr></tbody></table></div>
+<p>Forecast tốt hơn không tự động cho quyết định tốt hơn. Mỗi lần đổi model phải chạy lại cả hai lớp. Kết quả trên dữ liệu synthetic ghi rõ "mô phỏng".</p>
+<h3 id="5-điều-kiện-phát-hành-một-data-product">5. Điều kiện phát hành một data product</h3>
+<div class="tw"><table><thead><tr><th>#</th><th>Điều kiện</th></tr></thead><tbody><tr><td>1</td><td>Contract có grain, khóa, owner, độ mới, consumer, giới hạn</td></tr><tr><td>2</td><td>Silver input đạt DQ, không có lỗi FAIL</td></tr><tr><td>3</td><td>Reconciliation Gold ↔ Silver khớp</td></tr><tr><td>4</td><td><code>provenance_class</code> có trên mọi dòng</td></tr><tr><td>5</td><td>Owner miền xem và ký nhận lần đầu</td></tr><tr><td>6</td><td>Ghi <code>ops.product_release(product, version, as_of_date, published_at, run_id)</code></td></tr></tbody></table></div></section><section class="doc" id="doc-04-quy-trinh-ky-thuat-databricks"><div class="src">Nguồn: <code>04-quy-trinh-ky-thuat-databricks.md</code></div><h2 id="04--quy-trình-kỹ-thuật-databricks">04 — Quy trình kỹ thuật Databricks</h2>
+<p>Đây là các bước đề xuất. Chưa bước nào được chạy. Tên resource là đề xuất.</p>
+<h3 id="1-thành-phần-databricks-dùng">1. Thành phần Databricks dùng</h3>
+<div class="tw"><table><thead><tr><th>Thành phần</th><th>Dùng cho</th></tr></thead><tbody><tr><td>Workspace trên AWS <code>ap-southeast-1</code></td><td>Cùng region với bucket weather</td></tr><tr><td>Unity Catalog</td><td>Catalog/schema/volume, quyền, lineage</td></tr><tr><td>Storage credential + External location</td><td>Đọc S3 weather (hồ sơ thầu ở S3 platform, không đọc)</td></tr><tr><td>UC Connection / Secret scope</td><td>Thông tin Neon, MongoDB</td></tr><tr><td>Auto Loader</td><td>File S3, file Mongo landing</td></tr><tr><td>Lakeflow Declarative Pipelines</td><td>Bronze → Silver → Gold có expectations</td></tr><tr><td>Lakeflow Jobs</td><td>Điều phối DAG, lịch, retry, cảnh báo</td></tr><tr><td>Databricks SQL Warehouse</td><td>Backend app đọc Gold; dashboard</td></tr><tr><td>MLflow + Unity Catalog model registry</td><td>Model forecast, version, alias <code>champion</code></td></tr><tr><td>Databricks Asset Bundles</td><td>Đóng gói code + job + pipeline theo env, chạy từ CI</td></tr><tr><td>System tables</td><td>Audit, billing, lineage</td></tr></tbody></table></div>
+<h3 id="2-bố-cục-code-trong-repo-đề-xuất">2. Bố cục code trong repo (đề xuất)</h3>
+<p><code>src/pipeline/</code> đang là scaffold. Đề xuất:</p>
+<pre data-lang="text"><code>src/pipeline/databricks/
+  databricks.yml                 # Asset Bundle: targets dev/prod
+  resources/
+    jobs.yml                     # pf_daily, pf_weather_backfill, pf_weekly_retrain
+    pipelines.yml                # pf_silver, pf_gold
+  src/
+    bronze/pg_snapshot.py
+    bronze/mongo_snapshots.py
+    bronze/weather_autoloader.py
+    silver/*.sql                 # Lakeflow SQL
+    gold/md01_*.sql ... md05_*.sql
+    ml/train_sales.py, score_sales.py, backtest.py
+    ops/preflight.py, readiness.py, publish.py
+  tests/                         # unit test transform bằng dữ liệu nhỏ</code></pre>
+<h3 id="3-các-bước-dựng">3. Các bước dựng</h3>
+<h4 id="bước-1--workspace-và-unity-catalog">Bước 1 — Workspace và Unity Catalog</h4>
+<pre data-lang="sql"><code>CREATE CATALOG IF NOT EXISTS pharmaflow_dev;
+USE CATALOG pharmaflow_dev;
+CREATE SCHEMA IF NOT EXISTS ops;
+CREATE SCHEMA IF NOT EXISTS bronze_pg;
+CREATE SCHEMA IF NOT EXISTS bronze_mongo;
+CREATE SCHEMA IF NOT EXISTS bronze_weather;
+CREATE SCHEMA IF NOT EXISTS bronze_sim;
+CREATE SCHEMA IF NOT EXISTS silver_core;
+CREATE SCHEMA IF NOT EXISTS silver_sales;
+CREATE SCHEMA IF NOT EXISTS silver_inventory;
+CREATE SCHEMA IF NOT EXISTS silver_procurement;
+CREATE SCHEMA IF NOT EXISTS silver_logistics;
+CREATE SCHEMA IF NOT EXISTS silver_weather;
+CREATE SCHEMA IF NOT EXISTS gold_md01_sales;
+CREATE SCHEMA IF NOT EXISTS gold_md02_inventory;
+CREATE SCHEMA IF NOT EXISTS gold_md03_procurement;
+CREATE SCHEMA IF NOT EXISTS gold_md04_distribution;
+CREATE SCHEMA IF NOT EXISTS gold_kpi;
+CREATE SCHEMA IF NOT EXISTS ml;
+CREATE VOLUME IF NOT EXISTS ops.checkpoints;
+CREATE VOLUME IF NOT EXISTS bronze_mongo.landing;
+CREATE VOLUME IF NOT EXISTS bronze_sim.landing;
+-- bronze_app, silver_decision: tạo khi App DB có schema</code></pre>
+<p>Group UC đề xuất: <code>pf_data_engineers</code> (ghi bronze/silver/gold), <code>pf_ml</code> (ghi <code>ml</code>), <code>pf_app_reader</code> (service principal của backend, chỉ SELECT gold + ml.forecast), <code>pf_analysts</code> (SELECT silver/gold).</p>
+<h4 id="bước-2--nối-s3-weather-chỉ-đọc">Bước 2 — Nối S3 weather (chỉ đọc)</h4>
+<ol><li>Tạo IAM role cho Databricks storage credential, trust Databricks UC master role + external ID.</li><li>Gắn <strong>policy reader weather đã có trong Terraform</strong> (<code>GetObject</code> + <code>ListBucket</code> theo prefix). Không cấp <code>PutObject</code>/<code>DeleteObject</code>. Thêm vào <code>src/infra/terrafrom/environments/dev/</code>.</li><li>Trong Databricks:</li></ol>
+<pre data-lang="sql"><code>CREATE STORAGE CREDENTIAL pf_weather_reader WITH (AWS_IAM_ROLE = &#x27;arn:aws:iam::&lt;acct&gt;:role/pharmaflow-dev-databricks-weather-reader&#x27;);
+CREATE EXTERNAL LOCATION pf_weather_raw
+  URL &#x27;s3://pharmaflow-dev-weather-raw-&lt;acct&gt;-ap-southeast-1/raw/open_meteo/&#x27;
+  WITH (STORAGE CREDENTIAL pf_weather_reader) COMMENT &#x27;Open-Meteo raw, read-only&#x27;;
+CREATE EXTERNAL VOLUME bronze_weather.weather_raw
+  LOCATION &#x27;s3://pharmaflow-dev-weather-raw-&lt;acct&gt;-ap-southeast-1/raw/open_meteo/&#x27;;
+GRANT READ VOLUME ON VOLUME bronze_weather.weather_raw TO pf_data_engineers;</code></pre>
+<h4 id="bước-3--nối-postgresql-neon">Bước 3 — Nối PostgreSQL Neon</h4>
+<ol><li>Tạo role Neon mới <code>dbx_reader</code>: <code>SELECT</code> trên 5 schema, <code>default_transaction_read_only = on</code>. Không dùng role loader.</li><li>Lưu thông tin vào secret scope <code>pf-neon</code> (<code>host</code>, <code>user</code>, <code>password</code>) hoặc UC Connection type <code>POSTGRESQL</code>.</li><li>Notebook Bronze (pilot full snapshot):</li></ol>
+<pre data-lang="python"><code># src/bronze/pg_snapshot.py
+from pyspark.sql import functions as F
+
+TABLES = [&quot;catalog.product&quot;, &quot;catalog.product_packaging&quot;, &quot;org.store&quot;, &quot;org.warehouse&quot;,
+          &quot;pos.sales_order&quot;, &quot;pos.sales_order_line&quot;, &quot;pos.sales_observation&quot;,
+          &quot;procurement.purchase_order_line&quot;, &quot;procurement.goods_receipt_line&quot;,
+          &quot;inventory.batch_lot&quot;, &quot;inventory.inventory_balance&quot;, &quot;inventory.inventory_movement&quot;,
+          &quot;inventory.stock_transfer&quot;, &quot;inventory.stock_transfer_line&quot;]  # + các bảng còn lại
+
+run_id = dbutils.widgets.get(&quot;run_id&quot;)
+opts = dict(host=dbutils.secrets.get(&quot;pf-neon&quot;, &quot;host&quot;), port=&quot;5432&quot;,
+            database=&quot;pharmaflow_source_postgre_v2&quot;,
+            user=dbutils.secrets.get(&quot;pf-neon&quot;, &quot;user&quot;),
+            password=dbutils.secrets.get(&quot;pf-neon&quot;, &quot;password&quot;),
+            sslmode=&quot;require&quot;)
+
+for t in TABLES:
+    df = (spark.read.format(&quot;postgresql&quot;).options(**opts).option(&quot;dbtable&quot;, t).load())
+    biz_cols = df.columns
+    (df.withColumn(&quot;_ingest_run_id&quot;, F.lit(run_id))
+       .withColumn(&quot;_ingested_at&quot;, F.current_timestamp())
+       .withColumn(&quot;_ingest_date&quot;, F.current_date())
+       .withColumn(&quot;_source_system&quot;, F.lit(&quot;neon:pharmaflow_source_postgre_v2&quot;))
+       .withColumn(&quot;_source_object&quot;, F.lit(t))
+       .withColumn(&quot;_snapshot_mode&quot;, F.lit(&quot;FULL&quot;))
+       .withColumn(&quot;_row_hash&quot;, F.sha2(F.to_json(F.struct(*biz_cols)), 256))
+       .write.mode(&quot;append&quot;).partitionBy(&quot;_ingest_date&quot;)
+       .saveAsTable(f&quot;pharmaflow_dev.bronze_pg.{t.replace(&#x27;.&#x27;, &#x27;__&#x27;)}&quot;))</code></pre>
+<p>Bảng lớn (<code>sales_order_line</code>, ~715k dòng) thêm <code>partitionColumn</code>/<code>numPartitions</code>. Ghi số dòng từng bảng vào <code>ops.ingest_log</code> để so với <code>final-verification.json</code>.</p>
+<h4 id="bước-4--nối-mongodb">Bước 4 — Nối MongoDB</h4>
+<ul><li><strong>Cách A (khuyến nghị khi có cluster classic):</strong> cài Maven <code>org.mongodb.spark:mongo-spark-connector_2.12:10.x</code> vào job cluster; URI trong secret scope <code>pf-mongo</code>. Đọc với pipeline filter <code>{&quot;provenance.captured_at&quot;: {&quot;$gt&quot;: &lt;watermark&gt;}}</code>, lưu toàn document thành <code>raw_doc</code>.</li><li><strong>Cách B (serverless, không cần connector):</strong> chạy <code>product_knowledge_cli.py prepare</code> như hiện tại, upload <code>documents.ejsonl</code> + <code>manifest.json</code> lên <code>bronze_mongo.landing/&lt;run_id&gt;/</code>. Auto Loader đọc, kiểm SHA-256 với manifest trước khi ghi Bronze.</li></ul>
+<h4 id="bước-4b--dữ-liệu-md-03--md-04-theo-issue-7-8">Bước 4b — Dữ liệu MD-03 / MD-04 (theo issue #7, #8)</h4>
+<p>Việc này làm <strong>ở nguồn</strong>, trước Databricks:</p>
+<ol><li>Loader CSV sim → PostgreSQL nguồn: kho tổng + 3 kho vùng + kho cho 48 nhà thuốc TP.HCM (<code>org.warehouse</code>); gắn 42 SKU sim vào <code>catalog.product_source_reference</code>; tồn đầu kỳ (<code>inventory.batch_lot</code>, <code>inventory_balance</code> từ <code>inventory_lots_t0.csv</code>); nhu cầu TP.HCM 24 tháng (<code>pos.sales_observation</code>, <code>source = SIMULATED_MD04_DEMAND</code>); phiếu điều chuyển lịch sử (<code>inventory.stock_transfer*</code>, <code>inventory_movement</code>) có mã phiếu; lô bị giữ, recall.</li><li>Bộ sinh MD-03: NCC, chứng nhận, bảng giá, PO, xác nhận PO, nhận hàng, 12–24 tháng. Mỗi NCC có tham số ẩn (xác suất trễ, tỷ lệ giao đủ, tỷ lệ lô bị giữ); lưu tham số này vào <code>ops.sim_ground_truth</code> để Gold kiểm scorecard.</li><li>Mọi dòng sim: <code>data_origin = &#x27;SYNTHETIC&#x27;</code> hoặc <code>source</code> bắt đầu bằng <code>SIMULATED_</code>.</li><li>Sau khi schema nguồn thêm <code>supplier_certificate</code>, <code>supplier_product_price</code>, <code>po_confirmation</code>, <code>location_heartbeat</code>: thêm chúng vào danh sách <code>TABLES</code> của <code>pg_snapshot.py</code> và vào <code>ops.source_contract</code>.</li></ol>
+<p>Phía Databricks: upload <code>travel_matrix.csv</code>, <code>service_profiles.csv</code> vào <code>bronze_sim.landing/&lt;version&gt;/</code>, đọc bằng Auto Loader <code>csv</code> (header, schema cố định), ghi <code>bronze_sim.travel_matrix</code>, <code>bronze_sim.service_profiles</code>.</p>
+<h4 id="bước-5--auto-loader-weather">Bước 5 — Auto Loader weather</h4>
+<p>Ba stream, mỗi stream một loại file. Silver chỉ lấy file mà <code>accepted.json</code> trỏ tới.</p>
+<pre data-lang="python"><code># src/bronze/weather_autoloader.py
+base = &quot;/Volumes/pharmaflow_dev/bronze_weather/weather_raw&quot;
+ckpt = &quot;/Volumes/pharmaflow_dev/ops/checkpoints/weather&quot;
+
+def load(glob, fmt, table, extra=None):
+    r = (spark.readStream.format(&quot;cloudFiles&quot;)
+         .option(&quot;cloudFiles.format&quot;, fmt)
+         .option(&quot;cloudFiles.schemaLocation&quot;, f&quot;{ckpt}/{table}/schema&quot;)
+         .option(&quot;pathGlobFilter&quot;, glob)
+         .option(&quot;recursiveFileLookup&quot;, &quot;true&quot;))
+    for k, v in (extra or {}).items():
+        r = r.option(k, v)
+    (r.load(base)
+      .selectExpr(&quot;*&quot;, &quot;_metadata.file_path AS _source_object&quot;, &quot;current_timestamp() AS _ingested_at&quot;)
+      .writeStream.option(&quot;checkpointLocation&quot;, f&quot;{ckpt}/{table}/cp&quot;)
+      .trigger(availableNow=True)
+      .toTable(f&quot;pharmaflow_dev.bronze_weather.{table}&quot;))
+
+load(&quot;accepted.json&quot;, &quot;json&quot;, &quot;weather_accepted&quot;, {&quot;multiLine&quot;: &quot;true&quot;})
+load(&quot;metadata.json&quot;, &quot;json&quot;, &quot;weather_metadata&quot;, {&quot;multiLine&quot;: &quot;true&quot;})
+load(&quot;response.json&quot;, &quot;text&quot;, &quot;weather_response&quot;, {&quot;wholetext&quot;: &quot;true&quot;})</code></pre>
+<p>Silver <code>weather_snapshot</code> = <code>weather_accepted</code> JOIN <code>weather_metadata</code> (theo <code>metadata_key</code>) JOIN <code>weather_response</code> (theo <code>response_key</code>), lọc <code>sha2(value,256) = raw_sha256</code>.</p>
+<h4 id="bước-6--silver-và-gold-bằng-lakeflow-declarative-pipelines">Bước 6 — Silver và Gold bằng Lakeflow Declarative Pipelines</h4>
+<ul><li>Pipeline <code>pf_silver</code>: đọc Bronze, ghi các schema <code>silver_*</code>. Dùng <code>MATERIALIZED VIEW</code> cho bảng snapshot (PG full), <code>STREAMING TABLE</code> cho weather/mongo (append).</li><li>Dim SCD2: <code>AUTO CDC ... STORED AS SCD TYPE 2</code> (tên cũ <code>APPLY CHANGES</code>) với key <code>product_id</code>, sequence <code>_ingested_at</code>.</li><li>Pipeline <code>pf_gold</code>: materialized views theo module. Chỉ build module có readiness <code>READY</code> trong <code>ops.module_readiness</code>.</li><li>Expectations theo mục 6 của tài liệu 02. Kết quả đọc từ event log của pipeline, ghi <code>ops.dq_result</code>.</li></ul>
+<h4 id="bước-7--ml">Bước 7 — ML</h4>
+<ol><li><code>train_sales.py</code>: đọc <code>ml.trainset_sales_&lt;v&gt;</code>, chạy baseline (naive, seasonal-naive, moving average) trước, rồi model (ví dụ LightGBM/ETS). Temporal backtest rolling-origin.</li><li>Log MLflow: params, metrics, <code>feature_cutoff_at</code>, <code>source_snapshot_ids</code>.</li><li>Đăng ký model <code>pharmaflow_dev.ml.sales_forecast</code>; alias <code>champion</code> chỉ gán sau khi Data Admin duyệt (FR-SD-05).</li><li><code>score_sales.py</code> hằng ngày dùng alias <code>champion</code>, ghi <code>ml.forecast_sales</code>.</li><li><code>decision_eval</code> chạy simulation chính sách tồn kho trên forecast, ghi riêng metric quyết định.</li></ol>
+<h4 id="bước-8--job-điều-phối">Bước 8 — Job điều phối</h4>
+<pre data-lang="yaml"><code># src/pipeline/databricks/resources/jobs.yml (trích)
+resources:
+  jobs:
+    pf_daily:
+      name: pf_daily
+      schedule:
+        quartz_cron_expression: &quot;0 30 6 * * ?&quot;
+        timezone_id: Asia/Ho_Chi_Minh
+      max_concurrent_runs: 1
+      email_notifications:
+        on_failure: [${var.alert_email}]
+      tasks:
+        - task_key: preflight
+          notebook_task: { notebook_path: ../src/ops/preflight.py }
+        - task_key: bronze_pg
+          depends_on: [{ task_key: preflight }]
+          notebook_task: { notebook_path: ../src/bronze/pg_snapshot.py, base_parameters: { run_id: &quot;{{job.run_id}}&quot; } }
+        - task_key: bronze_mongo
+          depends_on: [{ task_key: preflight }]
+          notebook_task: { notebook_path: ../src/bronze/mongo_snapshots.py }
+        - task_key: bronze_weather
+          depends_on: [{ task_key: preflight }]
+          notebook_task: { notebook_path: ../src/bronze/weather_autoloader.py }
+        - task_key: silver
+          depends_on: [{ task_key: bronze_pg }, { task_key: bronze_mongo }, { task_key: bronze_weather }]
+          pipeline_task: { pipeline_id: ${resources.pipelines.pf_silver.id} }
+        - task_key: readiness
+          depends_on: [{ task_key: silver }]
+          notebook_task: { notebook_path: ../src/ops/readiness.py }
+        - task_key: gold
+          depends_on: [{ task_key: readiness }]
+          pipeline_task: { pipeline_id: ${resources.pipelines.pf_gold.id} }
+        - task_key: score_forecast
+          depends_on: [{ task_key: gold }]
+          notebook_task: { notebook_path: ../src/ml/score_sales.py }
+        - task_key: publish
+          depends_on: [{ task_key: score_forecast }]
+          notebook_task: { notebook_path: ../src/ops/publish.py }</code></pre>
+<p>Job khác:</p>
+<div class="tw"><table><thead><tr><th>Job</th><th>Kích hoạt</th><th>Việc</th></tr></thead><tbody><tr><td><code>pf_weather_backfill</code></td><td>Thủ công / file arrival trên <code>historical_*</code></td><td>Bronze + Silver weather cho dải ngày cũ</td></tr><tr><td><code>pf_weekly_retrain</code></td><td>CN 22:00</td><td>trainset → train → backtest → chờ duyệt</td></tr><tr><td><code>pf_full_rebuild</code></td><td>Thủ công</td><td>Dựng lại Silver/Gold từ Bronze (full refresh)</td></tr></tbody></table></div>
+<p>Deploy: <code>databricks bundle validate -t dev</code> → <code>databricks bundle deploy -t dev</code> → <code>databricks bundle run pf_daily -t dev</code>.</p>
+<h4 id="bước-9--phục-vụ-ứng-dụng">Bước 9 — Phục vụ ứng dụng</h4>
+<ul><li>Backend dùng service principal <code>pf_app_reader</code>, gọi SQL Warehouse (JDBC/ODBC hoặc SQL Statement Execution API). Chỉ đọc <code>gold_*</code>, <code>ml.forecast_sales</code>.</li><li>App đọc <code>ops.product_release</code> để biết bản mới nhất và hiển thị <code>as_of_date</code>.</li><li>Quyết định, duyệt, audit, điều chỉnh forecast ghi vào <strong>app DB</strong>, không ghi vào Gold.</li><li>Khi app DB có, nạp nó vào <code>bronze_app</code> (read-only) để đo outcome.</li></ul>
+<h3 id="4-preflight-và-readiness">4. Preflight và readiness</h3>
+<p><code>ops/preflight.py</code> kiểm:</p>
+<ol><li>Kết nối Neon bằng <code>dbx_reader</code>, <code>current_database() = pharmaflow_source_postgre_v2</code>, session read-only.</li><li>Đếm 35 bảng + <code>GROUP BY source/data_origin</code>; ghi <code>ops.source_profile</code>.</li><li>Mongo ping + đếm <code>product_snapshots</code>.</li><li>List được prefix <code>raw/open_meteo/daily_forecast/ingest_date=&lt;hôm nay&gt;/</code>.</li></ol>
+<p><code>ops/readiness.py</code> gán <code>ops.module_readiness</code>:</p>
+<div class="tw"><table><thead><tr><th>Module</th><th>READY khi</th><th>Hiện trạng 13/11</th></tr></thead><tbody><tr><td>MD-01</td><td><code>pos.sales_order_line</code> &gt; 0, <code>catalog.product</code> &gt; 0</td><td>READY (ID/EU/Serbia); TP.HCM chờ nhu cầu sim 24 tháng</td></tr><tr><td>MD-02</td><td><code>inventory.inventory_balance</code> &gt; 0 và <code>batch_lot</code> &gt; 0</td><td>Chưa: 0 dòng</td></tr><tr><td>MD-03</td><td><code>procurement.purchase_order_line</code>, <code>goods_receipt_line</code>, <code>supplier</code> &gt; 0; có <code>supplier_product_price</code> và <code>supplier_certificate</code></td><td>Chưa: 0 dòng, 3 bảng chưa có</td></tr><tr><td>MD-04a</td><td><code>inventory.stock_transfer_line</code> &gt; 0, <code>org.warehouse</code> có <code>CENTRAL</code></td><td>Chưa: 0 dòng, chưa có kho tổng</td></tr><tr><td>MD-04b</td><td><code>silver_logistics.fact_trip_stop</code> có mã phiếu; <code>ref_travel_matrix</code> &gt; 0</td><td>Chưa: sim có CSV nhưng chưa nạp, thiếu mã phiếu</td></tr><tr><td>MD-05</td><td><code>tender_supply_input</code> và <code>tender_sku_reference</code> có dữ liệu (phụ thuộc MD-02, MD-03)</td><td>Chưa: tồn và mua hàng còn 0 dòng</td></tr></tbody></table></div>
+<h3 id="5-chạy-lại-và-sự-cố">5. Chạy lại và sự cố</h3>
+<div class="tw"><table><thead><tr><th>Tình huống</th><th>Cách xử lý</th></tr></thead><tbody><tr><td>Bảng nguồn còn rỗng</td><td><code>readiness</code> đặt module <code>NOT_READY</code>; Gold module đó không build, app hiện "chưa có dữ liệu"</td></tr><tr><td>Task Bronze fail</td><td>Job retry 2 lần; chạy lại từ task fail ("Repair run"). PG append theo <code>run_id</code> mới; Silver lấy run mới nhất</td></tr><tr><td>Weather chưa xong lúc 06:30</td><td>Auto Loader <code>availableNow</code> lấy file đã có; lần chạy sau tự lấy phần còn lại. Feature dùng snapshot mới nhất có <code>retrieved_at &lt;= origin</code></td></tr><tr><td>Silver DQ FAIL</td><td>Gold không chạy; app giữ bản publish cũ; xem <code>ops.dq_result</code></td></tr><tr><td>Cần sửa logic Silver</td><td>Sửa code → deploy bundle → full refresh pipeline <code>pf_silver</code> (Bronze còn nguyên)</td></tr><tr><td>Schema nguồn đổi</td><td>Auto Loader ghi <code>_rescued_data</code>; PG snapshot so cột với <code>ops.source_contract</code>, khác → dừng</td></tr><tr><td>Sai dữ liệu đã publish</td><td>Delta <code>RESTORE TABLE ... TO VERSION AS OF &lt;v&gt;</code>; ghi <code>ops.product_release</code> lùi bản</td></tr></tbody></table></div>
+<h3 id="6-bảo-mật">6. Bảo mật</h3>
+<div class="tw"><table><thead><tr><th>Điểm</th><th>Quy định</th></tr></thead><tbody><tr><td>Secret</td><td>Chỉ trong secret scope / UC connection. Không để trong notebook, log, bundle</td></tr><tr><td>Nguồn</td><td>Role đọc riêng cho Databricks ở Neon, Mongo, S3</td></tr><tr><td>S3</td><td>Storage credential chỉ đọc; không cấp <code>DeleteObject</code></td></tr><tr><td>Quyền UC</td><td>Theo group; app chỉ SELECT gold; quyền theo user / scope của MD-06 kiểm ở backend, không đưa tài khoản người dùng vào UC</td></tr><tr><td>Row filter</td><td><code>gold_*</code> theo <code>location_key</code> cho Quản lý nhà thuốc/kho vùng (FR-MD04-36, 38)</td></tr><tr><td>Audit</td><td><code>system.access.audit</code> + lineage UC</td></tr><tr><td>Ghi nguồn</td><td>Mọi màn hình weather ghi "Weather data by Open-Meteo.com (CC BY 4.0)"</td></tr></tbody></table></div>
+<h3 id="7-lộ-trình-triển-khai">7. Lộ trình triển khai</h3>
+<div class="tw"><table><thead><tr><th>Giai đoạn</th><th>Phạm vi</th><th>Xong khi</th></tr></thead><tbody><tr><td>P0</td><td>Workspace, UC, group, secret, storage credential</td><td>Preflight xanh</td></tr><tr><td>P1</td><td>Bronze 3 nguồn</td><td>Số dòng Bronze = nguồn; sha256 weather khớp</td></tr><tr><td>P2</td><td>Silver core + sales + weather</td><td>DQ đạt; reconcile sales với <code>final-verification.json</code></td></tr><tr><td>P3</td><td>Gold MD-01 + forecast baseline + backtest</td><td>Dashboard MD-01 đọc được qua SQL Warehouse</td></tr><tr><td>P4</td><td>Loader sim vào nguồn; Silver/Gold MD-02, MD-03, MD-04a, MD-04b</td><td>Readiness READY, DQ đạt, đủ kịch bản kiểm thử của issue #7</td></tr><tr><td>P5</td><td><code>bronze_app</code> + <code>silver_decision</code>; decision eval, outcome loop</td><td>KPI tỷ lệ chấp nhận đề xuất có số; <code>ml.decision_eval</code> có ít nhất GP0 vs 1 policy</td></tr><tr><td>P6</td><td>Gold MD-05 (<code>tender_supply_input</code> …) cho app; đọc lại tender từ <code>bronze_app</code></td><td>App MD-05 chạy đủ 4 ca kiểm thử; cam kết tender không bị trừ lặp</td></tr></tbody></table></div>
+<h3 id="8-checklist-nghiệm-thu-pilot">8. Checklist nghiệm thu pilot</h3>
+<ul><li class="cb"><input type="checkbox" disabled > <code>bronze_pg.*</code> có 35 bảng, số dòng khớp nguồn tại cùng run.</li><li class="cb"><input type="checkbox" disabled > <code>bronze_mongo.product_snapshots</code> = 2.481 snapshot (run <code>lc-longchau-full-20261105-02</code>) hoặc số mới hơn đã verify.</li><li class="cb"><input type="checkbox" disabled > <code>bronze_weather.weather_accepted</code> = số <code>accepted.json</code> trên S3; 0 sha256 lệch.</li><li class="cb"><input type="checkbox" disabled > <code>silver_sales.fact_sales_line</code> không có dòng thiếu <code>provenance_class</code>.</li><li class="cb"><input type="checkbox" disabled > <code>fact_sales_observation</code> và <code>fact_sales_line</code> không bị cộng chung ở bất kỳ Gold nào.</li><li class="cb"><input type="checkbox" disabled > <code>mart_sales_daily</code> tổng qty = Silver theo từng <code>source_code</code>.</li><li class="cb"><input type="checkbox" disabled > Backtest có baseline và model, ghi MAE/RMSE/WAPE/Bias riêng từng fold.</li><li class="cb"><input type="checkbox" disabled > Không feature nào dùng weather có <code>retrieved_at_utc &gt; forecast_origin</code> trong đánh giá as-of.</li><li class="cb"><input type="checkbox" disabled > Service principal app không SELECT được bronze/silver.</li><li class="cb"><input type="checkbox" disabled > <code>mart_po_tracking</code> có 4 cột lượng riêng (đặt, xác nhận, nhận, đạt QC).</li><li class="cb"><input type="checkbox" disabled > <code>net_purchase_need_input</code> không trừ phần dư đã giữ chỗ cho điều chuyển.</li><li class="cb"><input type="checkbox" disabled > <code>transfer_candidate_input</code> không chứa lô bị giữ / thu hồi / hết hạn tại ETA, và không có điểm có heartbeat quá ngưỡng.</li><li class="cb"><input type="checkbox" disabled > Scorecard NCC tính lại khớp <code>ops.sim_ground_truth</code> trong ngưỡng.</li><li class="cb"><input type="checkbox" disabled > Mọi <code>fact_trip_stop</code> nối được <code>fact_transfer_order</code> qua mã phiếu.</li><li class="cb"><input type="checkbox" disabled > Tên SKU và tên điểm trên dashboard lấy từ <code>dim_product</code> / <code>dim_location</code>.</li></ul></section></main></div>
+<footer>Weather data by Open-Meteo.com (CC BY 4.0). Tên catalog/schema/table là đề xuất, cần nhóm chốt.</footer>
+</body></html>

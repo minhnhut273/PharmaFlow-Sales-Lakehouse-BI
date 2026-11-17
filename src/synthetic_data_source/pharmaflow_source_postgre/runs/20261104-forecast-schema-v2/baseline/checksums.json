@@ -1,0 +1,22 @@
+[
+  {
+    "file": "git-status.pre-v2.txt",
+    "sha256": "6536303ea9867271c853f16850c0cc83d0aa09538d4c88baf6115bff0a5a5c32",
+    "bytes": 377
+  },
+  {
+    "file": "PharmaFlow_PostgreSQL_EERD.pre-v2.drawio",
+    "sha256": "e0afc52505d40f5b799eed6a738eb157b8c5e2fa05210487253b081518c542f3",
+    "bytes": 546553
+  },
+  {
+    "file": "Relations-DataSource.README.pre-v2.md",
+    "sha256": "c56598b494b2e43cf21a52fc807134ece2bdcfcb3dfd24647a3e72977d0091b9",
+    "bytes": 205123
+  },
+  {
+    "file": "schema_full.pre-v2.sql",
+    "sha256": "2021b6e3247b15eada5da3044d9256cfb3d8430318d980329599599331b13f24",
+    "bytes": 47009
+  }
+]

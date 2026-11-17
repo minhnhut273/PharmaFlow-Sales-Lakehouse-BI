@@ -1,0 +1,22 @@
+# Python 3.12+ Dependencies for PharmaFlow Sales & Weather Lakehouse (BI Pipeline)
+
+# Relational & Document Data Sources
+psycopg[binary]>=3,<4
+pymongo>=4.11,<5
+dnspython>=2.7,<3
+
+# Configuration, HTTP & Data Processing
+python-dotenv>=1.0,<2
+requests>=2.32,<3
+PyYAML>=6,<7
+pandas>=2.2,<4
+
+# AWS Integration (S3, STS AssumeRole, Lambda, SSM)
+# [crt] is required for `aws login` profile support
+boto3[crt]>=1.40.70,<2
+
+# Databricks Asset Bundles & Files/Jobs/SQL API Bridge
+databricks-sdk>=0.167,<1
+
+# Testing
+pytest>=8,<9

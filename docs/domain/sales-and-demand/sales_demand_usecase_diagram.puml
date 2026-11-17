@@ -1,0 +1,154 @@
+@startuml
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName "Segoe UI", Arial, sans-serif
+skinparam roundCorner 10
+skinparam shadowing false
+skinparam handwritten false
+
+skinparam actor {
+    BackgroundColor #FFFFFF
+    BorderColor #1E293B
+    BorderThickness 1.8
+    FontColor #0F172A
+    FontSize 12
+    FontStyle bold
+}
+
+skinparam usecase {
+    BackgroundColor #FFFFFF
+    BorderColor #0284C7
+    BorderThickness 1.8
+    FontColor #0F172A
+    FontSize 12
+    FontStyle bold
+    ArrowColor #475569
+    ArrowThickness 1.4
+}
+
+skinparam package {
+    BackgroundColor #F8FAFC
+    BorderColor #94A3B8
+    BorderThickness 1.2
+    FontColor #1E293B
+    FontSize 13
+    FontStyle bold
+    Style rectangle
+}
+
+skinparam rectangle {
+    BackgroundColor #FAFAFA
+    BorderColor #334155
+    BorderThickness 2
+    FontColor #0F172A
+    FontSize 15
+    FontStyle bold
+}
+
+skinparam note {
+    BackgroundColor #FEF3C7
+    BorderColor #D97706
+    FontColor #78350F
+    FontSize 11
+}
+
+title <b>PHARMAFLOW — USE CASE DIAGRAM: PHÂN HỆ SALES & DEMAND DSS</b>\n<font size="11" color="#475569">Mô hình hóa 13 ca sử dụng cốt lõi chuẩn UML dựa trên WHO TRS 1025, USAID LMIS Ch.4 & Long Châu Policy</font>
+
+left to right direction
+
+' ==========================================
+' ACTORS
+' ==========================================
+actor "Khách hàng /\nBệnh nhân\n(ACT-CUST)" as ACT_CUST
+actor "Dược sĩ quầy /\nPOS Operator\n(ACT-PHAR)" as ACT_PHAR
+actor "Thủ kho điểm bán\n(ACT-KEEPER)" as ACT_KEEPER
+
+actor "Dược sĩ trưởng /\nThẩm quyền\n(ACT-CHIEF)" as ACT_CHIEF
+actor "Thủ kho tổng /\nQA Inspector\n(ACT-QA)" as ACT_QA
+actor "Chuyên viên Hoạch định DSS\n(ACT-PLAN)" as ACT_PLAN
+
+' ==========================================
+' SYSTEM BOUNDARY
+' ==========================================
+rectangle "HỆ THỐNG PHARMAFLOW — PHÂN HỆ QUẢN TRỊ BÁN HÀNG & NHU CẦU (SALES & DEMAND DSS)" as SYS {
+
+    package "Epic 1 & 2: Bán lẻ & Cảm biến nhu cầu đa kênh" {
+        usecase "UC-01: Bán lẻ tại quầy & Bóc tách DOM\n(US-01, US-02: POS Intake)" as UC01
+        usecase "UC-02: Ghi nhận nhu cầu bị bỏ lỡ\n(US-03: Captured Unmet Demand)" as UC02 #F0F9FF;line:0284C7;text:0369A1
+        usecase "UC-03: Đo thời gian phơi nhiễm hết hàng\n(US-04: Exposure Minutes)" as UC03 #F0F9FF;line:0284C7;text:0369A1
+    }
+
+    package "Epic 3: Bổ sung tồn kho liên tục (USAID Min-Max)" {
+        usecase "UC-04: Rà soát tồn liên tục khi xuất cấp\n(US-05: Continuous Review Rule)" as UC04 #F0FDF4;line:16A34A;text:15803D
+        usecase "UC-05: Tính lượng đặt hàng lên Max\n(US-06: Order Quantity Formula)" as UC05 #F0FDF4;line:16A34A;text:15803D
+    }
+
+    package "Epic 4: Đổi trả & Khóa cách ly kiểm định (WHO §9)" {
+        usecase "UC-06: Tiếp nhận yêu cầu đổi trả 4 bước\n(US-07: Long Châu Return Policy)" as UC06 #FFF7ED;line:EA580C;text:C2410C
+        usecase "UC-07: Khóa cách ly tức thì thuốc hoàn\n(US-08: WHO §9.2 Quarantine Locked)" as UC07 #FFF7ED;line:EA580C;text:C2410C
+        usecase "UC-08: Thẩm định & Ra quyết định xử lý\n(US-09: Authorized Disposition Review)" as UC08 #FFF7ED;line:EA580C;text:C2410C
+        usecase "UC-08a: Duyệt bán lại\n(Release to Saleable Stock)" as UC08a #F8FAFC;line:64748B;line.dashed;text:059669
+        usecase "UC-08b: Tiêu hủy thuốc hỏng\n(Disposal / Scrap)" as UC08b #F8FAFC;line:64748B;line.dashed;text:DC2626
+    }
+
+    package "Epic 5: Tiếp nhận Kho tổng & Đối chiếu lô (WHO §12-13)" {
+        usecase "UC-09: Tiếp nhận & Đối chiếu 3 chiều\n(US-10: PO · ASN · Delivery Matching)" as UC09 #FAF5FF;line:9333EA;text:7E22CE
+        usecase "UC-10: Báo cáo container hư hỏng\n(US-11: WHO §13.3 Damaged Alert)" as UC10 #FAF5FF;line:9333EA;text:7E22CE
+        usecase "UC-11: Ký duyệt lô đạt chuẩn vào tồn\n(WHO §12.17: Authorized Inbound Release)" as UC11 #FAF5FF;line:9333EA;text:7E22CE
+    }
+
+    package "Epic 6: Bộ não DSS & Giám sát Quyết định Hai lớp" {
+        usecase "UC-12: Giám sát & Can thiệp bổ sung (HITL)\n(US-12: Human-in-the-loop Override)" as UC12 #FEFCE8;line:CA8A04;text:A16207
+        usecase "UC-13: Giám sát Dashboard 2 lớp độc lập\n(US-13: Prediction vs Decision Quality)" as UC13 #FEFCE8;line:CA8A04;text:A16207
+    }
+}
+
+' ==========================================
+' ACTOR ASSOCIATIONS
+' ==========================================
+ACT_CUST -- UC01
+ACT_CUST -- UC06
+
+ACT_PHAR -- UC01
+ACT_PHAR -- UC02
+ACT_PHAR -- UC06
+ACT_PHAR -- UC07
+
+ACT_KEEPER -- UC04
+
+ACT_CHIEF -- UC08
+ACT_CHIEF -- UC11
+
+ACT_QA -- UC09
+ACT_QA -- UC10
+
+ACT_PLAN -- UC03
+ACT_PLAN -- UC12
+ACT_PLAN -- UC13
+
+' ==========================================
+' UML RELATIONSHIPS (INCLUDE & EXTEND)
+' ==========================================
+UC02 .> UC01 : <<extend>>\n(khi hết hàng)
+UC02 .> UC03 : <<include>>
+
+UC04 .> UC05 : <<include>>\n(khi Stock ≤ Min)
+UC05 .> UC12 : <<include>>\n(trình duyệt DSS)
+
+UC06 .> UC07 : <<include>>\n(khi nhận vật lý)
+UC07 .> UC08 : <<include>>\n(trình thẩm định)
+
+UC08a .> UC08 : <<extend>>\n(đạt chuẩn)
+UC08b .> UC08 : <<extend>>\n(hỏng/hết hạn)
+
+UC10 .> UC09 : <<extend>>\n(nếu container hỏng)
+UC09 .> UC11 : <<include>>\n(chờ ký duyệt)
+
+legend bottom
+  |= Ký hiệu |= Ý nghĩa trong chuẩn UML Use Case |
+  | <color:#1E293B>──</color> | <b>Association:</b> Tác nhân người/hệ thống trực tiếp kích hoạt hoặc nhận kết quả từ Use Case |
+  | <color:#0284C7>..></color> | <b><<include>>:</b> Luồng quan hệ bắt buộc phải thực hiện trong Use Case cơ sở |
+  | <color:#D97706>..></color> | <b><<extend>>:</b> Nhánh chức năng mở rộng thực hiện có điều kiện tại điểm mở rộng (extension point) |
+endlegend
+
+@enduml

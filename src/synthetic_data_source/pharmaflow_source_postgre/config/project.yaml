@@ -1,0 +1,64 @@
+project_id: round-brook-76208048
+production_branch_id: br-icy-lake-b3gg39qb
+production_branch_name: production
+target_database: pharmaflow_source_postgre_v2
+previous_database: pharmaflow_source_postgre
+previous_database_status: DELETED_AFTER_VERIFIED_BACKUP
+previous_database_backup:
+  path: runs/20261104-forecast-schema-v2/backup/pharmaflow_source_postgre-pre-v2.dump
+  sha256: 0913a148e72dda4634219043243bde0ba9cd3bc8cc2cddde4f7744c0cfafa0c5
+active_environment:
+  mode: SINGLE
+  branch_name: production
+  branch_id: br-icy-lake-b3gg39qb
+  database_name: pharmaflow_source_postgre_v2
+  database_id: 773750
+  expected_branch_count: 1
+  expected_database_count: 1
+retired_resources:
+  neondb_database_status: DELETED
+  neon_auth_status: DISABLED
+test_environment:
+  status: RETIRED_AND_DELETED
+  retirement_reason: User requested one active Neon environment after 7/7 sample acceptance.
+  acceptance_evidence: runs/20261104-forecast-schema-v2/test/forecast-validation-20261104/
+  branch_name: pharmaflow-forecast-validation-20261104
+  branch_id: br-dry-meadow-b3cfdc97
+  parent_branch_id: br-icy-lake-b3gg39qb
+  parent_timestamp_utc: 2026-11-04T15:20:34Z
+  created_at_utc: 2026-11-04T15:59:11Z
+  database_name: pharmaflow_source_postgre_v2_test
+  database_id: 774091
+  run_key: forecast-validation-20261104
+default_run_id: 20261104-forecast-schema-v2
+load_order:
+  - longchau
+  - irpd
+  - onyx
+  - pharma_sales
+database_safety:
+  one_environment_only: true
+  require_unpooled_connection: true
+  verify_current_database_before_write: true
+  apply_schema_in_transaction: true
+  never_drop_active_target_database: true
+  never_drop_project_or_branch: true
+forecast_scope:
+  source_sales_and_observations_only: true
+  import_stock_movement_sources: false
+  infer_inventory_or_receipts_from_sales: false
+  infer_sales_channel: false
+  infer_fulfillment_location: false
+migrations:
+  - name: 20261104_02_product_packaging_pair_fk
+    database: pharmaflow_source_postgre_v2
+    status: APPLIED_AND_VERIFIED
+    applied_at_utc: "2026-11-04T17:09:28Z"
+acceptance:
+  test_branch_sample_status: PASS_HISTORICAL_BEFORE_RETIREMENT
+  tests_passed: 7
+  tests_failed: 0
+  production_full_reconciliation: PASS
+  production_table_count: 35
+  production_simulated_store_warehouses: 122
+  verified_at_utc: "2026-11-04T17:21:44Z"

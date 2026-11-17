@@ -1,0 +1,53 @@
+mapping_id: PHARMA_SALES_ATC_TO_LONGCHAU_CANDIDATES_V1
+atc_reference: https://atcddd.fhi.no/atc_ddd_index/
+matching:
+  only_use_longchau_medicine_product_pages: true
+  allow_curated_official_medicine_pages_without_inferred_longchau_taxonomy: true
+  only_use_explicit_product_active_ingredient_or_ingredients_from_page: true
+  case_insensitive_token_match: true
+  exclude_clear_route_or_indication_mismatch: true
+  prefer_single_active_ingredient_candidate: true
+  maximum_products_per_group: 3
+  assignment_status: CANDIDATE
+  no_match_policy: preserve_atc_observation_only
+  sample_seed_product_codes:
+    - LC:00003460
+    - LC:00050692
+    - LC:00008350
+    - LC:00018235
+    - LC:00007820
+    - LC:00007102
+    - LC:00006657
+    - LC:00021045
+    - LC:00001412
+    - LC:00030191
+groups:
+  M01AB:
+    name: Acetic acid derivatives and related substances
+    ingredient_terms: [diclofenac, indometacin, indomethacin, ketorolac, aceclofenac, etodolac]
+  M01AE:
+    name: Propionic acid derivatives
+    ingredient_terms: [ibuprofen, naproxen, ketoprofen, dexketoprofen, flurbiprofen]
+  N02BA:
+    name: Salicylic acid and derivatives
+    ingredient_terms: [acetylsalicylic acid, aspirin, salicylic acid, diflunisal]
+  N02BE:
+    name: Anilides
+    ingredient_terms: [paracetamol, acetaminophen, phenacetin, propacetamol]
+  N05B:
+    name: Anxiolytics
+    ingredient_terms: [diazepam, alprazolam, bromazepam, lorazepam, oxazepam, buspirone, etifoxine]
+  N05C:
+    name: Hypnotics and sedatives
+    ingredient_terms: [zolpidem, zopiclone, nitrazepam, melatonin, eszopiclone]
+  R03:
+    name: Drugs for obstructive airway diseases
+    ingredient_terms: [salbutamol, albuterol, formoterol, salmeterol, budesonide, beclometasone, fluticasone]
+  R06:
+    name: Antihistamines for systemic use
+    ingredient_terms: [cetirizine, loratadine, fexofenadine, desloratadine, levocetirizine, chlorphenamine, diphenhydramine]
+simulation:
+  quantity_multiplier: 10
+  rounding: ROUND_HALF_UP
+  split: even_by_selected_product_count
+  remainder: sorted_product_code_order

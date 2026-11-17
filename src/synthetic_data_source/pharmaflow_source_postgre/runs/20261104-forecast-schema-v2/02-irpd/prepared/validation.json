@@ -1,0 +1,25 @@
+{
+  "category_keys": 8,
+  "issues": [],
+  "line_keys": 4641,
+  "observation_keys": 0,
+  "order_keys": 2508,
+  "prepared_directory": "runs/20261104-forecast-schema-v2/02-irpd/prepared/sample",
+  "product_keys": 1076,
+  "row_counts": {
+    "assignments": 879,
+    "categories": 8,
+    "lines": 4641,
+    "manufacturers": 58,
+    "observations": 0,
+    "orders": 2508,
+    "packaging": 1225,
+    "products": 1076,
+    "references": 1076,
+    "rejects": 0,
+    "stores": 1,
+    "uoms": 15
+  },
+  "store_keys": 1,
+  "valid": true
+}

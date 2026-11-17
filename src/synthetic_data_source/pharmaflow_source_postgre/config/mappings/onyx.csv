@@ -1,0 +1,20 @@
+source_file,source_grain,source_field,target_table_column,transformation,data_class,notes
+DimPharmacy,pharmacy,PharmacyID,org.store.store_code,Prefix with ONYX: and preserve source ID,OBSERVED_DATASET,Coordinates are perturbed and provenance is unverified
+DimPharmacy,pharmacy,PharmacyName,org.store.store_name,Preserve source value,OBSERVED_DATASET,
+DimPharmacy,pharmacy,City,org.store.city_name,Preserve source value,OBSERVED_DATASET,
+DimPharmacy,pharmacy,Region,org.store.region_name,Preserve source value,OBSERVED_DATASET,
+DimPharmacy,pharmacy,Country,org.store.country_code,Map country to ISO alpha-2 code,OBSERVED_DATASET,
+DimPharmacy,pharmacy,Latitude,org.store.latitude,Parse and range-check; retain coordinate caveat,OBSERVED_DATASET,Source coordinates are perturbed
+DimPharmacy,pharmacy,Longitude,org.store.longitude,Parse and range-check; retain coordinate caveat,OBSERVED_DATASET,Source coordinates are perturbed
+DimProduct,product,ProductID,catalog.product.product_code,Prefix with ONYX: and preserve source ID,OBSERVED_DATASET,Do not merge with same-name Long Chau items
+DimProduct,product,ProductName,catalog.product.product_name,Preserve source value,OBSERVED_DATASET,
+DimProduct,product,Brand,catalog.product.brand_name,Preserve as brand; do not infer legal manufacturer,OBSERVED_DATASET,
+DimProduct,product,Category,catalog.product_category and catalog.product_category_assignment,Preserve in ONYX_CATEGORY taxonomy,OBSERVED_DATASET,
+DimProduct,product,PackSize,catalog.product_packaging.display_name,Preserve label; no unit conversion without evidence,OBSERVED_DATASET,
+FactSales,daily pharmacy-product fact,DateKey,pos.sales_observation.period_start and period_end,Map to one-day period,OBSERVED_DATASET,
+FactSales,daily pharmacy-product fact,UnitsSold,pos.sales_observation.quantity,Preserve source quantity and grain,OBSERVED_DATASET,Do not treat PackSize as verified conversion
+FactSales,daily pharmacy-product fact,RevenueEUR,pos.sales_observation.revenue_amount,Parse EUR amount,OBSERVED_DATASET,
+FactSales,daily pharmacy-product fact,CostEUR,pos.sales_observation.cost_amount,Parse EUR amount; do not create procurement,OBSERVED_DATASET,
+FactSales,daily pharmacy-product fact,MarginEUR,pos.sales_observation.margin_amount,Preserve source measure,OBSERVED_DATASET,
+FactSales,daily pharmacy-product fact,PromoFlag,prepared source evidence (not a typed target column),Preserve in prepared source data; no matching typed field on aggregate observation,OBSERVED_DATASET,
+FactSales,daily pharmacy-product fact,UnitsSold + source date,synthetic pos.sales_order and pos.sales_order_line,Generate one order per store-day with positive sales at 12:00 local; preserve aggregate facts separately,SYNTHETIC,Not an observed transaction; use SIMULATED_ONYX_DAILY_FACT_TO_POS source

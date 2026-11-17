@@ -1,0 +1,16 @@
+irpd_central_java:
+  seed: 5011901
+  city_center: {latitude: -6.9667, longitude: 110.4167}
+  offset_degrees: 0.008
+  region_name: Central Java
+  country_code: ID
+  timezone_name: Asia/Jakarta
+  warning: Coordinates are generated for a fictional store in the reported province; they are not the source pharmacy location.
+pharma_sales_nis:
+  seed: 5011991
+  city_center: {latitude: 43.3209, longitude: 21.8958}
+  offset_degrees: 0.006
+  region_name: Nišava District
+  country_code: RS
+  timezone_name: Europe/Belgrade
+  warning: Coordinates are generated for the fictional Neven Farma in Niš; they are not from the source dataset.

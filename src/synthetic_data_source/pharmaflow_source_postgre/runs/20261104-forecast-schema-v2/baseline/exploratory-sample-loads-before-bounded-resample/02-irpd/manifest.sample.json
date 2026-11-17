@@ -1,0 +1,99 @@
+{
+  "files": {
+    "assignments.csv": {
+      "rows": 1639,
+      "sha256": "f2236297f2c43723c95ecfb946268a4106f6ac8c45d25d9d71d014e45d45388e"
+    },
+    "categories.csv": {
+      "rows": 10,
+      "sha256": "d52ba541ca7bac1e2712e1541edef078bfdee6ee71fd059e50f5e6323b960f64"
+    },
+    "lines.csv": {
+      "rows": 199,
+      "sha256": "acf4461b7d42675f58ae3ded2efca46c21edfa065626c9210f1399569f123901"
+    },
+    "manufacturers.csv": {
+      "rows": 77,
+      "sha256": "017aab0f3a6848d77b437b1d3e467305cfbc92d949cb3f3b8af0b89fd179de34"
+    },
+    "observations.csv": {
+      "rows": 0,
+      "sha256": "9e946e0b6643d663ce2d631dc5d257e2c34a8a052a5d4319b34ec2331d76732e"
+    },
+    "orders.csv": {
+      "rows": 100,
+      "sha256": "b364e9b6a7f59df2ac800868c86f27d32d5fd86e1348f6603b2d5fe5e82ce0a2"
+    },
+    "packaging.csv": {
+      "rows": 3159,
+      "sha256": "3ee831147e33138abc1ddc31a7be24408a25e4e333e571af96bf39a1c1a617fb"
+    },
+    "products.csv": {
+      "rows": 2972,
+      "sha256": "f3ae79890781a485ea487869362a3ff5112b691dd7b051ee3546df457d12bd1a"
+    },
+    "references.csv": {
+      "rows": 2972,
+      "sha256": "41a83dbef9097fecc72cbe3efbe10b05142a485cbdb99d48290225728264e806"
+    },
+    "rejects.csv": {
+      "rows": 0,
+      "sha256": "e27fd5f527fc4184d7a4eb7096009ab228f9b8860ed9412c8adf8e92a0c5c29e"
+    },
+    "stores.csv": {
+      "rows": 1,
+      "sha256": "8c300ce1a3c5a893afa28789c0a17fbdb3ccea6cb1ca559a6a47f58f080487ba"
+    },
+    "uoms.csv": {
+      "rows": 20,
+      "sha256": "fd1064ffab684ae5f2eaadbaadef2afae981c29db64b49bf463951b59df6d631"
+    }
+  },
+  "prepared_at_utc": "2026-11-04T14:57:24+00:00",
+  "prepared_row_counts": {
+    "assignments": 1639,
+    "categories": 10,
+    "lines": 199,
+    "manufacturers": 77,
+    "observations": 0,
+    "orders": 100,
+    "packaging": 3159,
+    "products": 2972,
+    "references": 2972,
+    "rejects": 0,
+    "stores": 1,
+    "uoms": 20
+  },
+  "run_id": "20261104-forecast-schema-v2",
+  "sample_parameters": {
+    "invoice_count": 100,
+    "selection": "first invoice keys in source order"
+  },
+  "source_name": "irpd",
+  "stage": "sample",
+  "validation": {
+    "category_keys": 10,
+    "issues": [],
+    "line_keys": 199,
+    "observation_keys": 0,
+    "order_keys": 100,
+    "prepared_directory": "runs/20261104-forecast-schema-v2/02-irpd/prepared/sample",
+    "product_keys": 2972,
+    "row_counts": {
+      "assignments": 1639,
+      "categories": 10,
+      "lines": 199,
+      "manufacturers": 77,
+      "observations": 0,
+      "orders": 100,
+      "packaging": 3159,
+      "products": 2972,
+      "references": 2972,
+      "rejects": 0,
+      "stores": 1,
+      "uoms": 20
+    },
+    "store_keys": 1,
+    "valid": true
+  }
+}

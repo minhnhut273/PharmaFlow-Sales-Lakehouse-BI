@@ -1,0 +1,56 @@
+{
+  "daily_csv_sha256": "49e4f1c5c3daf5220fdda10785256dba5ff89c1ec18703e5ad676b7449d55b2e",
+  "first_date": "2014-01-02",
+  "ignored_daily_hour_values": true,
+  "last_date": "2019-10-08",
+  "observation_rows": 16848,
+  "quantity_unit": null,
+  "reject_rows": 0,
+  "scale": 10,
+  "scaled_group_totals": {
+    "M01AB": 105840,
+    "M01AE": 82024,
+    "N02BA": 81795,
+    "N02BE": 630111,
+    "N05B": 186461,
+    "N05C": 12501,
+    "R03": 116091,
+    "R06": 61077
+  },
+  "simulated_atc_mapping_count_by_group": {
+    "M01AB": 0,
+    "M01AE": 2,
+    "N02BA": 0,
+    "N02BE": 2,
+    "N05B": 0,
+    "N05C": 0,
+    "R03": 3,
+    "R06": 3
+  },
+  "simulated_coordinates": {
+    "latitude": "43.322359",
+    "longitude": "21.899252"
+  },
+  "simulated_order_lines": 18701,
+  "simulated_orders": 2080,
+  "simulated_store_code": "SIM_PHARMA_SALES_NIS_001",
+  "source_groups": [
+    "M01AB",
+    "M01AE",
+    "N02BA",
+    "N02BE",
+    "N05B",
+    "N05C",
+    "R03",
+    "R06"
+  ],
+  "source_id": "PHARMA_SALES_DAILY_ATC",
+  "source_rows": 2106,
+  "unmapped_atc_groups": [
+    "M01AB",
+    "N02BA",
+    "N05B",
+    "N05C"
+  ],
+  "zero_group_values_retained": 2393
+}

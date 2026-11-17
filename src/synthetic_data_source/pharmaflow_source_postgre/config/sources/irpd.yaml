@@ -1,0 +1,52 @@
+source_id: IRPD_PUBLISHER_REPORTED_POS
+dataset_path: dataset/indonesia-retail-pharmacy/Retail Pharmacy Sales and Stock Dataset in Indonesia, 2023-2025/processed_dataset/sales_processed.csv
+provenance_manifest: dataset/indonesia-retail-pharmacy/manifest.json
+grain: invoice_number_x_sales_line
+source_timezone: Asia/Jakarta
+currency: IDR
+fields:
+  order_number: InvoiceNumber
+  order_date: Date
+  order_time: Time
+  product_code: DrugCode
+  product_name: DrugName
+  product_category: Category
+  drug_class: DrugClass
+  manufacturer: Manufacturer
+  quantity: Quantity
+  quantity_uom: Unit
+  unit_price: UnitPrice
+  line_amount: TotalPrice
+  audit_subtotal: Subtotal
+  order_total: "SUM(TotalPrice) by InvoiceNumber; derived at load grain"
+  source_line_number: RowNumber
+  promotional_discount: PromoDiscountPct
+load_rules:
+  include_file: sales_processed.csv
+  exclude_stock_files: true
+  preserve_invoice_grouping: true
+  order_total_when_line_amount_missing: null
+  order_total_rule: "sum valid TotalPrice values for all sales lines in one InvoiceNumber"
+  base_uom_when_product_has_multiple_source_units: null
+  customer_and_cashier_identifiers: exclude
+store_warehouse_simulation:
+  create_for_each_demand_store_in_orders: true
+  code_prefix: SIM_STORE_WH
+  warehouse_kind: STORE
+  data_origin: SYNTHETIC
+  fulfillment_location_populated_on_orders: false
+  inventory_or_receipt_rows_created: false
+location:
+  store_code: SIM_IRPD_CENTRAL_JAVA_001
+  display_name: Apotek Simulasi IRPD - Jawa Tengah
+  city_name: Semarang
+  region_name: Central Java
+  country_code: ID
+  timezone_name: Asia/Jakarta
+  coordinate_source: SIMULATED_DETERMINISTIC
+source_codes:
+  products: IRPD_PUBLISHER_REPORTED_CATALOG
+  categories: IRPD_PUBLISHER_REPORTED_CLASSIFICATION
+  location: IRPD_SIMULATED_LOCATION_CENTRAL_JAVA
+  orders: IRPD_DERIVED_POS_ORDER_TOTAL_FROM_TOTALPRICE_LINES
+  order_lines: IRPD_PUBLISHER_REPORTED_POS

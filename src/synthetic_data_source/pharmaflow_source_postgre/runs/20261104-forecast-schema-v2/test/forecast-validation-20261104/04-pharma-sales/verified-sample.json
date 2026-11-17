@@ -1,0 +1,37 @@
+{
+  "database": "pharmaflow_source_postgre_v2_test",
+  "manifest_sha256": "395884f260e50501157356eae10ba979efa7340ce0b87a7b60c4ef2576edff40",
+  "mismatches": [],
+  "mode": "sample",
+  "reconciliation": "PASS",
+  "run_id": "20261104-forecast-schema-v2",
+  "source_counts": {
+    "assignments": {
+      "PHARMA_SALES_ATC_MAPPING_CANDIDATE": 10
+    },
+    "categories": {
+      "WHO_ATC_CLASSIFICATION": 8
+    },
+    "lines": {
+      "SIMULATED_PHARMA_SALES_ATC_SCALE10": 236
+    },
+    "manufacturers": {},
+    "observations": {
+      "PHARMA_SALES_DAILY_ATC": 224
+    },
+    "orders": {
+      "SIMULATED_PHARMA_SALES_ATC_SCALE10": 27
+    },
+    "packaging": {},
+    "products": {},
+    "references": {},
+    "stores": {
+      "PHARMA_SALES_SIMULATED_LOCATION_NIS": 1
+    },
+    "uoms": {
+      "SIMULATED_PHARMA_SALES_ATC_SCALE10": 1
+    }
+  },
+  "source_name": "pharma_sales",
+  "verified_at_utc": "2026-11-04T17:17:58+00:00"
+}

@@ -1,0 +1,51 @@
+# Active Lakeflow Declarative Pipelines (Free Edition Serverless).
+# Full multi-domain pipeline definitions awaiting SQL implementation live in resources/planned/pipelines.yml.
+resources:
+  pipelines:
+    pf_silver_weather:
+      name: "[${bundle.target}] pf_silver_weather_pipeline"
+      catalog: ${var.catalog}
+      schema: silver_weather
+      serverless: true
+      continuous: false
+      configuration:
+        catalog: ${var.catalog}
+      libraries:
+        - file:
+            path: ../src/silver/weather.sql
+
+    pf_silver_core:
+      name: "[${bundle.target}] pf_silver_core_pipeline"
+      catalog: ${var.catalog}
+      schema: silver_core
+      serverless: true
+      continuous: false
+      configuration:
+        catalog: ${var.catalog}
+      libraries:
+        - file:
+            path: ../src/silver/core.sql
+
+    pf_silver_sales:
+      name: "[${bundle.target}] pf_silver_sales_pipeline"
+      catalog: ${var.catalog}
+      schema: silver_sales
+      serverless: true
+      continuous: false
+      configuration:
+        catalog: ${var.catalog}
+      libraries:
+        - file:
+            path: ../src/silver/sales.sql
+
+    pf_gold_md01:
+      name: "[${bundle.target}] pf_gold_md01_pipeline"
+      catalog: ${var.catalog}
+      schema: gold_md01_sales
+      serverless: true
+      continuous: false
+      configuration:
+        catalog: ${var.catalog}
+      libraries:
+        - file:
+            path: ../src/gold/md01_sales.sql

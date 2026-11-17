@@ -1,0 +1,49 @@
+# Python & Virtual Environments
+.venv*/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local Runtime, Logs & Scratch
+.runtime/
+tmp/
+*.log
+
+# Secrets, Credentials & Environment Files (NEVER COMMIT)
+.env
+.env.*
+!.env.example
+.neon
+
+# Databricks Local Bundle State
+.databricks/
+
+# Terraform State, Plans & Local Secrets
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!*.tfvars.example
+*.backend.hcl
+!*.backend.hcl.example
+crash.log
+
+# Large Source Preparation CSVs & Database Dumps
+src/synthetic_data_source/pharmaflow_source_postgre/runs/**/prepared/**/*.csv
+src/synthetic_data_source/pharmaflow_source_postgre/runs/**/backup/*.dump
+src/synthetic_data_source/pharmaflow_source_postgre/tools/
+src/synthetic_data_source/mongodb/runs/**/*.ejsonl
+src/synthetic_data_source/mongodb/runs/**/rejected.jsonl
+
+# OS / IDE Artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

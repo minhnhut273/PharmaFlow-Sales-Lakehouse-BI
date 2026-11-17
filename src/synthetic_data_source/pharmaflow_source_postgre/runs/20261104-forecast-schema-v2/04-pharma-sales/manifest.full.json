@@ -1,0 +1,151 @@
+{
+  "files": {
+    "assignments.csv": {
+      "rows": 14,
+      "sha256": "e5255c78434dcf83e3511a5bbd36e63c319389127720e8a1638275b5fff6b9fb"
+    },
+    "atc_candidate_mapping.csv": {
+      "rows": 14,
+      "sha256": "cc17bd88f4fdfd02cdb3d7b709034eeb542f9652cc8b07b980717da9058977cf"
+    },
+    "categories.csv": {
+      "rows": 8,
+      "sha256": "06f973550f7221d09fbbf725964b806f2faffc4cddbd53c0e167cb170a9c9c46"
+    },
+    "lines.csv": {
+      "rows": 25534,
+      "sha256": "0ca034db6d36378bd6bc66caed059c284bbe334156c33b0d0ab019ed73516c79"
+    },
+    "manufacturers.csv": {
+      "rows": 0,
+      "sha256": "f079200d47cfdff145c351cc43ff2c0fd9b360711d69b566fd509315c7a5a9a2"
+    },
+    "observations.csv": {
+      "rows": 16848,
+      "sha256": "8a6c4be84ddc4d30a0ee066db6131b06eacd636cb5ba786ac3409ac0a11c3b30"
+    },
+    "orders.csv": {
+      "rows": 2080,
+      "sha256": "9ce6dbd28a6524125a2b9875901f2b0065fba3d977df19e7865751cb341e6404"
+    },
+    "packaging.csv": {
+      "rows": 0,
+      "sha256": "20dab40064817c695b2d8d867a6ba580353532a4cb9dcf613426b26383ad37dc"
+    },
+    "products.csv": {
+      "rows": 0,
+      "sha256": "4b2f84115673b5c2a40feebaa65988d6db27762fa4352a73a1b05341bdf2911f"
+    },
+    "references.csv": {
+      "rows": 0,
+      "sha256": "a4c49833f69625033f2297ce7e2e597b4560c8691823fcc5779652d28393b140"
+    },
+    "rejects.csv": {
+      "rows": 0,
+      "sha256": "e27fd5f527fc4184d7a4eb7096009ab228f9b8860ed9412c8adf8e92a0c5c29e"
+    },
+    "stores.csv": {
+      "rows": 1,
+      "sha256": "c3a78d7cfdfec498d469794a4dae9abae2c8e14ed9d639804c49b0a6e4ecf456"
+    },
+    "uoms.csv": {
+      "rows": 1,
+      "sha256": "cb0b81300209eefc6bce2ceca5e9c99d00803cc3fe8c495a0f4ac7f96fbc2fe4"
+    }
+  },
+  "prepared_at_utc": "2026-11-05T03:15:09+00:00",
+  "prepared_row_counts": {
+    "assignments": 14,
+    "categories": 8,
+    "lines": 25534,
+    "manufacturers": 0,
+    "observations": 16848,
+    "orders": 2080,
+    "packaging": 0,
+    "products": 0,
+    "references": 0,
+    "rejects": 0,
+    "stores": 1,
+    "uoms": 1
+  },
+  "run_id": "20261104-forecast-schema-v2",
+  "source_id": "PHARMA_SALES_DAILY_ATC",
+  "source_name": "pharma_sales",
+  "source_profile": {
+    "daily_csv_sha256": "49e4f1c5c3daf5220fdda10785256dba5ff89c1ec18703e5ad676b7449d55b2e",
+    "first_date": "2014-01-02",
+    "ignored_daily_hour_values": true,
+    "last_date": "2019-10-08",
+    "observation_rows": 16848,
+    "quantity_unit": null,
+    "reject_rows": 0,
+    "scale": 10,
+    "scaled_group_totals": {
+      "M01AB": 105840,
+      "M01AE": 82024,
+      "N02BA": 81795,
+      "N02BE": 630111,
+      "N05B": 186461,
+      "N05C": 12501,
+      "R03": 116091,
+      "R06": 61077
+    },
+    "simulated_atc_mapping_count_by_group": {
+      "M01AB": 1,
+      "M01AE": 2,
+      "N02BA": 1,
+      "N02BE": 2,
+      "N05B": 1,
+      "N05C": 1,
+      "R03": 3,
+      "R06": 3
+    },
+    "simulated_coordinates": {
+      "latitude": "43.322359",
+      "longitude": "21.899252"
+    },
+    "simulated_order_lines": 25534,
+    "simulated_orders": 2080,
+    "simulated_store_code": "SIM_PHARMA_SALES_NIS_001",
+    "source_groups": [
+      "M01AB",
+      "M01AE",
+      "N02BA",
+      "N02BE",
+      "N05B",
+      "N05C",
+      "R03",
+      "R06"
+    ],
+    "source_id": "PHARMA_SALES_DAILY_ATC",
+    "source_rows": 2106,
+    "unmapped_atc_groups": [],
+    "zero_group_values_retained": 2393
+  },
+  "stage": "full",
+  "validation": {
+    "category_keys": 8,
+    "issues": [],
+    "line_keys": 25534,
+    "observation_keys": 16848,
+    "order_keys": 2080,
+    "prepared_directory": "runs/20261104-forecast-schema-v2/04-pharma-sales/prepared/full",
+    "product_keys": 2482,
+    "row_counts": {
+      "assignments": 14,
+      "categories": 8,
+      "lines": 25534,
+      "manufacturers": 0,
+      "observations": 16848,
+      "orders": 2080,
+      "packaging": 0,
+      "products": 0,
+      "references": 0,
+      "rejects": 0,
+      "stores": 1,
+      "uoms": 1
+    },
+    "store_keys": 1,
+    "valid": true
+  }
+}

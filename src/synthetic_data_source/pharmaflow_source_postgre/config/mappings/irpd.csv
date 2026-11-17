@@ -1,0 +1,17 @@
+source_file,source_grain,source_field,target_table_column,transformation,data_class,notes
+sales_processed.csv,invoice line,InvoiceNumber,pos.sales_order.order_number,Preserve invoice identity with IRPD: namespace,OBSERVED_DATASET,Invoice header is derived by grouping source lines
+sales_processed.csv,invoice line,Date + Time,pos.sales_order.ordered_at,Parse as Asia/Jakarta local time then store timestamptz,OBSERVED_DATASET,Keep local timestamp meaning via org.store.timezone_name
+sales_processed.csv,invoice line,DrugCode,catalog.product.product_code,Prefix with IRPD:; do not cross-match to Long Chau by name,OBSERVED_DATASET,Source-specific product identity
+sales_processed.csv,invoice line,DrugName,catalog.product.product_name,Trim and preserve source label,OBSERVED_DATASET,
+sales_processed.csv,invoice line,Manufacturer,catalog.manufacturer.manufacturer_name,Create only when the source supplies a value,OBSERVED_DATASET,Do not infer from brand
+sales_processed.csv,invoice line,Category,catalog.product_category.category_name,Preserve source category in IRPD_CATEGORY taxonomy,OBSERVED_DATASET,
+sales_processed.csv,invoice line,DrugClass,catalog.product_category.category_name,Preserve source class in IRPD_DRUG_CLASS taxonomy,OBSERVED_DATASET,
+sales_processed.csv,invoice line,Quantity,pos.sales_order_line.sold_quantity,Parse decimal; retain the source unit,OBSERVED_DATASET,
+sales_processed.csv,invoice line,Unit,catalog.unit_of_measure and pos.sales_order_line.sales_uom_code,Normalize only explicit source unit labels; unknown units remain null,OBSERVED_DATASET,
+sales_processed.csv,invoice line,UnitPrice,pos.sales_order_line.unit_price,Parse decimal; blank and '-' become null,OBSERVED_DATASET,Source currency IDR
+sales_processed.csv,invoice line,TotalPrice,pos.sales_order_line.line_amount,Parse source line total; blank and '-' become null,OBSERVED_DATASET,Do not replace with Subtotal
+sales_processed.csv,invoice line,TotalPrice,pos.sales_order.currency_code,Set IDR only where invoice amount is supported by source currency metadata,OBSERVED_DATASET,
+sales_processed.csv,invoice line,TotalPrice,pos.sales_order.total_amount,Sum valid line TotalPrice values by InvoiceNumber; null if any required amount is missing,DERIVED,Invoice header total is derived from source lines
+sales_processed.csv,invoice line,RowNumber,source evidence only,Retain as line identity in prepared mapping/manifest,OBSERVED_DATASET,Relational line_number is assigned deterministically
+sales_processed.csv,invoice line,PromoDiscountPct,pos.sales_order_line.is_promotional,Map positive discount to true; null when missing,OBSERVED_DATASET,Discount percent itself stays in prepared/source evidence
+synthetic location config,one simulated pharmacy,configured store identity and Central Java location,org.store,Use deterministic coordinates and label with SIMULATED source,SYNTHETIC,Not the original pharmacy identity or location

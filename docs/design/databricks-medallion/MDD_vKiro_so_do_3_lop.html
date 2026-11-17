@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PharmaFlow · Medallion trên Databricks</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#f7f8fc;color:#1e1b4b;font-family:'Geist',system-ui,sans-serif;padding:3rem 2rem}
+.frame{max-width:1320px;margin:0 auto}
+.eyebrow,.dg-eyebrow{display:block;color:#475569;font:500 .66rem 'Geist Mono',monospace;letter-spacing:.18em;margin-bottom:.4rem}
+h1{font:400 2rem/1.15 'Instrument Serif',serif;letter-spacing:-.02em;margin-bottom:1.5rem}
+.dg-fig{margin:0 0 2.5rem}.dg-fig figcaption{font:400 1.35rem 'Instrument Serif',serif;margin-bottom:.4rem}
+.dg-note{color:#475569;font-size:.85rem;margin-top:.4rem;max-width:900px}
+
+.dg-wrap{overflow-x:auto;margin:12px 0 4px}
+svg.dg{display:block;width:100%}
+.dg-tier{fill:#1e1b4b;font:600 13px 'Geist',system-ui,sans-serif;text-anchor:middle}
+.dg-bucket{font:400 9px 'Geist Mono',ui-monospace,monospace;text-anchor:middle}
+.dg-flabel{fill:#1e1b4b;font:600 11px 'Geist',system-ui,sans-serif}
+.dg-fvalue{color:#475569;font:400 9px/1.25 'Geist Mono',ui-monospace,monospace}
+.dg-exlabel{fill:#64748b;font:500 8px 'Geist Mono',ui-monospace,monospace;letter-spacing:.08em}
+.dg-exval{font:400 9px 'Geist Mono',ui-monospace,monospace}
+.dg-arc{font:500 10px 'Geist Mono',ui-monospace,monospace;letter-spacing:.08em;text-anchor:middle}
+.dg-ptag{fill:#1e1b4b;font:500 7px 'Geist Mono',ui-monospace,monospace;letter-spacing:.08em}
+.dg-ptitle{fill:#1e1b4b;font:600 11px 'Geist',system-ui,sans-serif}
+.dg-psub{fill:#475569;font:400 9px 'Geist Mono',ui-monospace,monospace}
+.dg-ztitle{fill:#1e1b4b;font:600 14px 'Geist',system-ui,sans-serif}
+.dg-zsub{fill:#64748b;font:400 9.5px 'Geist Mono',ui-monospace,monospace}
+.dg-btitle{fill:#1e1b4b;font:600 12px 'Geist',system-ui,sans-serif}
+.dg-bline{fill:#475569;font:400 9.5px 'Geist Mono',ui-monospace,monospace}
+.dg-legend{fill:#475569;font:400 11px 'Geist',system-ui,sans-serif}
+</style></head>
+<body><main class="frame"><p class="eyebrow">MEDALLION · PHARMAFLOW · ĐỀ XUẤT</p>
+<h1>Ba lớp Bronze, Silver, Gold trên Databricks</h1>
+<figure class="dg-fig"><figcaption><span class="dg-eyebrow">HÌNH 1 · TỔNG QUAN</span>Năm tầng từ nguồn tới ứng dụng</figcaption><div class="dg-wrap"><svg class="dg" viewBox="0 0 1040 548" style="min-width:1040px" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="medallion-overview-title medallion-overview-desc">
+<title id="medallion-overview-title">Tổng quan medallion PharmaFlow trên Databricks</title>
+<desc id="medallion-overview-desc">Dữ liệu từ PostgreSQL, MongoDB và S3 đi qua Bronze, Silver, Gold rồi được backend DSS đọc qua SQL Warehouse.</desc>
+<defs>
+<marker id="mo-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#475569"/></marker>
+<marker id="mo-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6366f1"/></marker>
+<marker id="mo-arrow-slate" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5a7d9a"/></marker>
+<clipPath id="mo-clip-0"><rect x="16" y="80" width="172" height="380" rx="6"/></clipPath>
+<clipPath id="mo-clip-1"><rect x="204" y="80" width="172" height="380" rx="6"/></clipPath>
+<clipPath id="mo-clip-2"><rect x="392" y="80" width="172" height="380" rx="6"/></clipPath>
+<clipPath id="mo-clip-3"><rect x="580" y="80" width="172" height="380" rx="6"/></clipPath>
+<clipPath id="mo-clip-4"><rect x="768" y="80" width="172" height="380" rx="6"/></clipPath>
+</defs>
+<rect width="1040" height="548" fill="#f7f8fc"/>
+<path d="M102 80 C102 0 290 0 290 80" fill="none" stroke="#475569" stroke-width="1.4" marker-end="url(#mo-arrow)"/>
+<text x="196" y="50" class="dg-arc" fill="#475569">NẠP</text>
+<path d="M290 80 C290 0 478 0 478 80" fill="none" stroke="#5a7d9a" stroke-width="1.4" marker-end="url(#mo-arrow-slate)"/>
+<text x="384" y="50" class="dg-arc" fill="#5a7d9a">CHUẨN HÓA</text>
+<path d="M478 80 C478 0 666 0 666 80" fill="none" stroke="#6366f1" stroke-width="1.6" marker-end="url(#mo-arrow-accent)"/>
+<text x="572" y="50" class="dg-arc" fill="#6366f1">PHÁT HÀNH</text>
+<path d="M666 80 C666 0 854 0 854 80" fill="none" stroke="#475569" stroke-width="1.4" marker-end="url(#mo-arrow)"/>
+<text x="760" y="50" class="dg-arc" fill="#475569">PHỤC VỤ</text>
+<rect x="16" y="80" width="172" height="380" rx="6" fill="#fff"/>
+<rect x="16" y="80" width="172" height="50" fill="rgba(71,85,105,0.10)" clip-path="url(#mo-clip-0)"/>
+<rect x="16" y="80" width="172" height="380" rx="6" fill="none" stroke="#475569" stroke-width="1"/>
+<text x="102" y="106" class="dg-tier">Nguồn</text>
+<text x="102" y="144" class="dg-bucket" fill="#475569">3 nguồn kỹ thuật</text>
+<text x="32" y="180" class="dg-flabel">Công cụ</text>
+<foreignObject x="32" y="186" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Neon PG · MongoDB · S3 · CSV sim · App DB</div></foreignObject>
+<text x="32" y="228" class="dg-flabel">Định dạng</text>
+<foreignObject x="32" y="234" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">bảng · document · JSON · CSV</div></foreignObject>
+<text x="32" y="276" class="dg-flabel">Người ghi</text>
+<foreignObject x="32" y="282" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Hệ nguồn giả lập · Weather Lambda</div></foreignObject>
+<text x="32" y="360" class="dg-exlabel">VÍ DỤ PHARMAFLOW</text>
+<text x="32" y="374" class="dg-exval" fill="#475569">pos.sales_order_line</text>
+<text x="32" y="388" class="dg-exval" fill="#475569">tasks/*/accepted.json</text>
+<rect x="204" y="80" width="172" height="380" rx="6" fill="#fff"/>
+<rect x="204" y="80" width="172" height="50" fill="rgba(30,27,75,0.06)" clip-path="url(#mo-clip-1)"/>
+<rect x="204" y="80" width="172" height="380" rx="6" fill="none" stroke="#1e1b4b" stroke-width="1"/>
+<text x="290" y="106" class="dg-tier">Bronze</text>
+<text x="290" y="144" class="dg-bucket" fill="#475569">bronze_pg · mongo · weather</text>
+<text x="220" y="180" class="dg-flabel">Công cụ</text>
+<foreignObject x="220" y="186" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">JDBC snapshot · Auto Loader</div></foreignObject>
+<text x="220" y="228" class="dg-flabel">Định dạng</text>
+<foreignObject x="220" y="234" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Delta · append-only</div></foreignObject>
+<text x="220" y="276" class="dg-flabel">Người ghi</text>
+<foreignObject x="220" y="282" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Data Engineer (Job)</div></foreignObject>
+<text x="220" y="360" class="dg-exlabel">VÍ DỤ PHARMAFLOW</text>
+<text x="220" y="374" class="dg-exval" fill="#475569">pos__sales_order_line</text>
+<text x="220" y="388" class="dg-exval" fill="#475569">weather_response (raw)</text>
+<rect x="392" y="80" width="172" height="380" rx="6" fill="rgba(90,125,154,0.07)"/>
+<rect x="392" y="80" width="172" height="50" fill="rgba(90,125,154,0.14)" clip-path="url(#mo-clip-2)"/>
+<rect x="392" y="80" width="172" height="380" rx="6" fill="none" stroke="#5a7d9a" stroke-width="1.4"/>
+<text x="478" y="106" class="dg-tier">Silver</text>
+<text x="478" y="144" class="dg-bucket" fill="#5a7d9a">silver_core · _sales · …</text>
+<text x="408" y="180" class="dg-flabel">Công cụ</text>
+<foreignObject x="408" y="186" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Lakeflow Pipelines · expectations</div></foreignObject>
+<text x="408" y="228" class="dg-flabel">Định dạng</text>
+<foreignObject x="408" y="234" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Delta · dim SCD2 · fact</div></foreignObject>
+<text x="408" y="276" class="dg-flabel">Người ghi</text>
+<foreignObject x="408" y="282" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Data Engineer</div></foreignObject>
+<text x="408" y="360" class="dg-exlabel">VÍ DỤ PHARMAFLOW</text>
+<text x="408" y="374" class="dg-exval" fill="#5a7d9a">fact_sales_line</text>
+<text x="408" y="388" class="dg-exval" fill="#5a7d9a">weather_hourly</text>
+<rect x="580" y="80" width="172" height="380" rx="6" fill="rgba(99,102,241,0.07)"/>
+<rect x="580" y="80" width="172" height="50" fill="rgba(99,102,241,0.14)" clip-path="url(#mo-clip-3)"/>
+<rect x="580" y="80" width="172" height="380" rx="6" fill="none" stroke="#6366f1" stroke-width="1.6"/>
+<text x="666" y="106" class="dg-tier">Gold</text>
+<text x="666" y="144" class="dg-bucket" fill="#6366f1">gold_md01…md05 · ml</text>
+<text x="596" y="180" class="dg-flabel">Công cụ</text>
+<foreignObject x="596" y="186" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Materialized view · MLflow</div></foreignObject>
+<text x="596" y="228" class="dg-flabel">Định dạng</text>
+<foreignObject x="596" y="234" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Delta · data product</div></foreignObject>
+<text x="596" y="276" class="dg-flabel">Người ghi</text>
+<foreignObject x="596" y="282" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Data Engineer · Data Scientist</div></foreignObject>
+<text x="596" y="360" class="dg-exlabel">VÍ DỤ PHARMAFLOW</text>
+<text x="596" y="374" class="dg-exval" fill="#6366f1">mart_sales_daily</text>
+<text x="596" y="388" class="dg-exval" fill="#6366f1">forecast_sales</text>
+<rect x="768" y="80" width="172" height="380" rx="6" fill="#fff"/>
+<rect x="768" y="80" width="172" height="50" fill="rgba(30,27,75,0.06)" clip-path="url(#mo-clip-4)"/>
+<rect x="768" y="80" width="172" height="380" rx="6" fill="none" stroke="#1e1b4b" stroke-width="1"/>
+<text x="854" y="106" class="dg-tier">Phục vụ</text>
+<text x="854" y="144" class="dg-bucket" fill="#475569">SQL Warehouse → API</text>
+<text x="784" y="180" class="dg-flabel">Công cụ</text>
+<foreignObject x="784" y="186" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">SQL Warehouse · pf_app_reader</div></foreignObject>
+<text x="784" y="228" class="dg-flabel">Định dạng</text>
+<foreignObject x="784" y="234" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">SQL chỉ đọc</div></foreignObject>
+<text x="784" y="276" class="dg-flabel">Người ghi</text>
+<foreignObject x="784" y="282" width="140" height="28"><div xmlns="http://www.w3.org/1999/xhtml" class="dg-fvalue">Backend DSS (chỉ đọc)</div></foreignObject>
+<text x="784" y="360" class="dg-exlabel">VÍ DỤ PHARMAFLOW</text>
+<text x="784" y="374" class="dg-exval" fill="#475569">dashboard MD-01…05</text>
+<text x="784" y="388" class="dg-exval" fill="#475569">duyệt lưu ở app DB</text>
+<rect x="16" y="476" width="460" height="56" rx="6" fill="#fff" stroke="rgba(30,27,75,0.20)"/>
+<rect x="24" y="482" width="56" height="12" rx="2" fill="none" stroke="rgba(30,27,75,0.30)" stroke-width="0.8"/>
+<text x="52.0" y="491" class="dg-ptag" text-anchor="middle">SQL PATH</text>
+<text x="112" y="506" class="dg-ptitle">Lakeflow Declarative Pipelines (SQL)</text>
+<text x="112" y="522" class="dg-psub">Silver/Gold · expectations · materialized view</text>
+<rect x="492" y="476" width="460" height="56" rx="6" fill="#fff" stroke="rgba(30,27,75,0.20)"/>
+<rect x="500" y="482" width="74" height="12" rx="2" fill="none" stroke="rgba(30,27,75,0.30)" stroke-width="0.8"/>
+<text x="537.0" y="491" class="dg-ptag" text-anchor="middle">PYTHON PATH</text>
+<text x="588" y="506" class="dg-ptitle">Notebook task trong Lakeflow Jobs</text>
+<text x="588" y="522" class="dg-psub">JDBC · Mongo connector · Auto Loader · MLflow</text>
+</svg></div><p class="dg-note">Nguồn và Phục vụ nằm ngoài lakehouse. Silver tô xanh xám vì là lớp kiểm chất lượng. Gold là lớp trọng tâm: mọi consumer đọc từ đây.</p></figure><figure class="dg-fig"><figcaption><span class="dg-eyebrow">HÌNH 2 · CHI TIẾT</span>Schema và bảng trong từng lớp</figcaption><div class="dg-wrap"><svg class="dg" viewBox="0 0 1280 896" style="min-width:1280px" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="medallion-detail-title medallion-detail-desc">
+<title id="medallion-detail-title">Chi tiết schema và bảng của ba lớp</title>
+<desc id="medallion-detail-desc">Từng nguồn được nạp vào schema Bronze riêng, chuẩn hóa thành các schema Silver theo miền, rồi phát hành thành Gold theo module MD-01 đến MD-05 cho backend DSS đọc.</desc>
+<defs>
+<marker id="md-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#475569"/></marker>
+<marker id="md-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#6366f1"/></marker>
+<marker id="md-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#3157b7"/></marker>
+</defs>
+<rect width="1280" height="896" fill="#f7f8fc"/>
+<rect x="16" y="16" width="200" height="752" rx="8" fill="#eef2ff" stroke="rgba(30,27,75,0.18)" stroke-width="1"/>
+<text x="28" y="38" class="dg-ztitle">Nguồn</text>
+<text x="28" y="54" class="dg-zsub">3 nguồn + sim + app DB</text>
+<rect x="264" y="16" width="220" height="752" rx="8" fill="#eef2ff" stroke="rgba(30,27,75,0.18)" stroke-width="1"/>
+<text x="276" y="38" class="dg-ztitle">Bronze</text>
+<text x="276" y="54" class="dg-zsub">nguyên trạng · append-only</text>
+<rect x="532" y="16" width="228" height="752" rx="8" fill="#eef2ff" stroke="rgba(30,27,75,0.18)" stroke-width="1"/>
+<text x="544" y="38" class="dg-ztitle">Silver</text>
+<text x="544" y="54" class="dg-zsub">chuẩn hóa · expectations</text>
+<rect x="808" y="16" width="248" height="752" rx="8" fill="rgba(99,102,241,0.05)" stroke="#6366f1" stroke-width="1.4"/>
+<text x="820" y="38" class="dg-ztitle" fill="#6366f1">Gold</text>
+<text x="820" y="54" class="dg-zsub">data product theo module</text>
+<rect x="1104" y="16" width="160" height="752" rx="8" fill="#eef2ff" stroke="rgba(30,27,75,0.18)" stroke-width="1"/>
+<text x="1116" y="38" class="dg-ztitle">Phục vụ</text>
+<text x="1116" y="54" class="dg-zsub">đọc qua SQL</text>
+<line x1="204" y1="116" x2="276" y2="116" stroke="#475569" stroke-width="1.4" marker-end="url(#md-arrow)"/>
+<line x1="204" y1="224" x2="276" y2="224" stroke="#475569" stroke-width="1.4" marker-end="url(#md-arrow)"/>
+<line x1="204" y1="332" x2="276" y2="332" stroke="#475569" stroke-width="1.4" marker-end="url(#md-arrow)"/>
+<line x1="204" y1="440" x2="276" y2="440" stroke="#475569" stroke-width="1.4" marker-end="url(#md-arrow)"/>
+<line x1="204" y1="548" x2="276" y2="548" stroke="#475569" stroke-width="1.4" stroke-dasharray="5,4" marker-end="url(#md-arrow)"/>
+<line x1="484" y1="344" x2="532" y2="344" stroke="#475569" stroke-width="1.4" marker-end="url(#md-arrow)"/>
+<line x1="760" y1="344" x2="808" y2="344" stroke="#6366f1" stroke-width="1.6" marker-end="url(#md-arrow-accent)"/>
+<line x1="1056" y1="120" x2="1116" y2="120" stroke="#3157b7" stroke-width="1.4" marker-end="url(#md-arrow-link)"/>
+<line x1="1184" y1="176" x2="1184" y2="208" stroke="#3157b7" stroke-width="1.4" marker-end="url(#md-arrow-link)"/>
+<line x1="1184" y1="296" x2="1184" y2="328" stroke="#475569" stroke-width="1.4" marker-end="url(#md-arrow)"/>
+<rect x="28" y="64" width="176" height="104" rx="6" fill="#fff" stroke="#475569"/>
+<rect x="28" y="64" width="4" height="104" fill="#475569" opacity="0.5"/>
+<text x="40" y="86" class="dg-btitle">PostgreSQL (Neon)</text>
+<text x="40" y="104" class="dg-bline">catalog · org · pos: có data</text>
+<text x="40" y="120" class="dg-bline">procurement · inventory:</text>
+<text x="40" y="136" class="dg-bline">23 bảng còn 0 dòng</text>
+<text x="40" y="152" class="dg-bline">+ bảng giá, GDP, xác nhận PO</text>
+<rect x="28" y="180" width="176" height="88" rx="6" fill="#fff" stroke="#475569"/>
+<rect x="28" y="180" width="4" height="88" fill="#475569" opacity="0.5"/>
+<text x="40" y="202" class="dg-btitle">MongoDB</text>
+<text x="40" y="220" class="dg-bline">product_snapshots</text>
+<text x="40" y="236" class="dg-bline">2.481 snapshot · observed</text>
+<rect x="28" y="280" width="176" height="104" rx="6" fill="#fff" stroke="#475569"/>
+<rect x="28" y="280" width="4" height="104" fill="#475569" opacity="0.5"/>
+<text x="40" y="302" class="dg-btitle">S3 · Open-Meteo raw</text>
+<text x="40" y="320" class="dg-bline">daily_forecast/</text>
+<text x="40" y="336" class="dg-bline">historical_* (GFS · ERA5)</text>
+<text x="40" y="352" class="dg-bline">chỉ đọc theo accepted.json</text>
+<rect x="28" y="396" width="176" height="88" rx="6" fill="#fff" stroke="#475569"/>
+<rect x="28" y="396" width="4" height="88" fill="#475569" opacity="0.5"/>
+<text x="40" y="418" class="dg-btitle">CSV sim MD-04</text>
+<text x="40" y="436" class="dg-bline">travel_matrix · 3PL profile</text>
+<text x="40" y="452" class="dg-bline">SYNTHETIC + đường OSRM</text>
+<rect x="28" y="496" width="176" height="104" rx="6" fill="#f7f8fc" stroke="#475569" stroke-dasharray="5,3"/>
+<text x="40" y="518" class="dg-btitle">App DB (khi có app)</text>
+<text x="40" y="536" class="dg-bline">MD-03/04: đề xuất · duyệt</text>
+<text x="40" y="552" class="dg-bline">MD-05: trích xuất · trúng</text>
+<text x="40" y="568" class="dg-bline">MD-06: role-scope · audit</text>
+<rect x="28" y="612" width="176" height="44" rx="6" fill="#f7f8fc" stroke="#475569" stroke-dasharray="5,3"/>
+<text x="40" y="638" class="dg-btitle">S3 platform · PDF thầu</text>
+<rect x="276" y="64" width="196" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="288" y="86" class="dg-btitle">bronze_pg</text>
+<text x="288" y="104" class="dg-bline">&lt;schema&gt;__&lt;table&gt; × 35+</text>
+<text x="288" y="120" class="dg-bline">JDBC full snapshot mỗi run</text>
+<text x="288" y="136" class="dg-bline">+ _ingest_run_id, _row_hash</text>
+<text x="288" y="152" class="dg-bline">partition _ingest_date</text>
+<rect x="276" y="180" width="196" height="88" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="288" y="202" class="dg-btitle">bronze_mongo</text>
+<text x="288" y="220" class="dg-bline">product_snapshots</text>
+<text x="288" y="236" class="dg-bline">raw_doc JSON + khóa</text>
+<rect x="276" y="280" width="196" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="288" y="302" class="dg-btitle">bronze_weather</text>
+<text x="288" y="320" class="dg-bline">weather_accepted · _metadata</text>
+<text x="288" y="336" class="dg-bline">weather_response (raw text)</text>
+<text x="288" y="352" class="dg-bline">Auto Loader · kiểm sha256</text>
+<rect x="276" y="396" width="196" height="88" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="288" y="418" class="dg-btitle">bronze_sim</text>
+<text x="288" y="436" class="dg-bline">travel_matrix</text>
+<text x="288" y="452" class="dg-bline">service_profiles</text>
+<rect x="276" y="496" width="196" height="104" rx="6" fill="#f7f8fc" stroke="#475569" stroke-dasharray="5,3"/>
+<text x="288" y="518" class="dg-btitle">bronze_app</text>
+<text x="288" y="536" class="dg-bline">review · ops · tender</text>
+<text x="288" y="552" class="dg-bline">chuyến, GPS, nhiệt độ</text>
+<text x="288" y="568" class="dg-bline">JDBC chỉ đọc · không token</text>
+<rect x="276" y="612" width="196" height="44" rx="6" fill="#f7f8fc" stroke="#475569" stroke-dasharray="5,3"/>
+<text x="288" y="638" class="dg-btitle">không nạp PDF</text>
+<rect x="544" y="64" width="204" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="556" y="86" class="dg-btitle">silver_core</text>
+<text x="556" y="104" class="dg-bline">dim_product (+ vận chuyển)</text>
+<text x="556" y="120" class="dg-bline">dim_location (tổng/vùng/NT)</text>
+<text x="556" y="136" class="dg-bline">dim_supplier · heartbeat</text>
+<text x="556" y="152" class="dg-bline">dim_product_knowledge</text>
+<rect x="544" y="180" width="204" height="88" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="556" y="202" class="dg-btitle">silver_sales</text>
+<text x="556" y="220" class="dg-bline">fact_sales_line</text>
+<text x="556" y="236" class="dg-bline">fact_sales_observation</text>
+<text x="556" y="252" class="dg-bline">fact_customer_request_line</text>
+<rect x="544" y="280" width="204" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="556" y="302" class="dg-btitle">silver_inventory</text>
+<text x="556" y="320" class="dg-bline">snap_inventory_balance</text>
+<text x="556" y="336" class="dg-bline">dim_batch_lot · movement</text>
+<text x="556" y="352" class="dg-bline">fact_transfer_line</text>
+<text x="556" y="368" class="dg-bline">fact_quality · fact_recall_*</text>
+<rect x="544" y="396" width="204" height="88" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="556" y="418" class="dg-btitle">silver_procurement</text>
+<text x="556" y="436" class="dg-bline">fact_po_line · po_confirmation</text>
+<text x="556" y="452" class="dg-bline">fact_goods_receipt_line</text>
+<text x="556" y="468" class="dg-bline">supplier_price · certificate</text>
+<rect x="544" y="496" width="204" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="556" y="518" class="dg-btitle">silver_logistics · decision</text>
+<text x="556" y="536" class="dg-bline">ref_travel_matrix · trip</text>
+<text x="556" y="552" class="dg-bline">gps · temperature_reading</text>
+<text x="556" y="568" class="dg-bline">transfer_request · proposal</text>
+<text x="556" y="584" class="dg-bline">approval · purchase_need</text>
+<rect x="544" y="612" width="204" height="72" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="556" y="634" class="dg-btitle">silver_weather</text>
+<text x="556" y="652" class="dg-bline">weather_snapshot</text>
+<text x="556" y="668" class="dg-bline">weather_hourly · daily</text>
+<rect x="820" y="64" width="224" height="88" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="832" y="86" class="dg-btitle">gold_md01_sales</text>
+<text x="832" y="104" class="dg-bline">mart_sales_daily</text>
+<text x="832" y="120" class="dg-bline">mart_sales_observation_period</text>
+<text x="832" y="136" class="dg-bline">kpi_sales_trend</text>
+<rect x="820" y="164" width="224" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="832" y="186" class="dg-btitle">gold_md02_inventory</text>
+<text x="832" y="204" class="dg-bline">mart_inventory_position</text>
+<text x="832" y="220" class="dg-bline">mart_lot_expiry_status</text>
+<text x="832" y="236" class="dg-bline">fefo_candidate_lots</text>
+<text x="832" y="252" class="dg-bline">risk_stock_projection</text>
+<rect x="820" y="280" width="224" height="120" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="832" y="302" class="dg-btitle">gold_md03_procurement</text>
+<text x="832" y="320" class="dg-bline">mart_po_tracking (4 lượng)</text>
+<text x="832" y="336" class="dg-bline">mart_supplier_scorecard</text>
+<text x="832" y="352" class="dg-bline">supplier_certificate_expiry</text>
+<text x="832" y="368" class="dg-bline">supplier_price_compare</text>
+<text x="832" y="384" class="dg-bline">net_purchase_need_input</text>
+<rect x="820" y="412" width="224" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="832" y="434" class="dg-btitle">gold_md04_distribution</text>
+<text x="832" y="452" class="dg-bline">imbalance_signal (+ tồn cũ)</text>
+<text x="832" y="468" class="dg-bline">transfer_candidate_input</text>
+<text x="832" y="484" class="dg-bline">mart_transfer_tracking</text>
+<text x="832" y="500" class="dg-bline">mart_trip_daily · kpi</text>
+<rect x="820" y="528" width="224" height="104" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="832" y="550" class="dg-btitle">gold_md05_tender</text>
+<text x="832" y="568" class="dg-bline">tender_supply_input</text>
+<text x="832" y="584" class="dg-bline">tender_incoming_supply</text>
+<text x="832" y="600" class="dg-bline">tender_forecast_input</text>
+<text x="832" y="616" class="dg-bline">tender_sku_reference</text>
+<rect x="820" y="644" width="224" height="40" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="832" y="668" class="dg-btitle">gold_kpi · kpi_daily</text>
+<rect x="820" y="696" width="224" height="56" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="832" y="718" class="dg-btitle">ml</text>
+<text x="832" y="736" class="dg-bline">forecast · backtest · decision_eval</text>
+<rect x="1116" y="64" width="136" height="112" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="1128" y="86" class="dg-btitle">SQL Warehouse</text>
+<text x="1128" y="104" class="dg-bline">SP pf_app_reader</text>
+<text x="1128" y="120" class="dg-bline">SELECT gold + ml</text>
+<text x="1128" y="136" class="dg-bline">row filter theo kho</text>
+<rect x="1116" y="208" width="136" height="88" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="1128" y="230" class="dg-btitle">Backend + Web DSS</text>
+<text x="1128" y="248" class="dg-bline">dashboard MD-01…05</text>
+<text x="1128" y="264" class="dg-bline">Human Approval</text>
+<rect x="1116" y="328" width="136" height="120" rx="6" fill="#fff" stroke="#475569"/>
+<rect x="1116" y="328" width="4" height="120" fill="#475569" opacity="0.5"/>
+<text x="1128" y="350" class="dg-btitle">Database ứng dụng</text>
+<text x="1128" y="368" class="dg-bline">MD-05 tender</text>
+<text x="1128" y="384" class="dg-bline">MD-06 user · scope</text>
+<text x="1128" y="400" class="dg-bline">duyệt · audit</text>
+<text x="1128" y="416" class="dg-bline">→ bronze_app</text>
+<rect x="264" y="784" width="792" height="40" rx="6" fill="#fff" stroke="rgba(30,27,75,0.35)"/>
+<text x="280" y="809" class="dg-btitle">ops</text>
+<text x="320" y="809" class="dg-bline">ingest_log · watermark · source_profile · dq_result · module_readiness · product_release</text>
+<line x1="16" y1="848" x2="1264" y2="848" stroke="rgba(30,27,75,0.12)"/>
+<line x1="16" y1="872" x2="48" y2="872" stroke="#475569" stroke-width="1.4" marker-end="url(#md-arrow)"/>
+<text x="60" y="876" class="dg-legend">Nạp / chuyển dữ liệu</text>
+<line x1="248" y1="872" x2="280" y2="872" stroke="#6366f1" stroke-width="1.4" marker-end="url(#md-arrow-accent)"/>
+<text x="292" y="876" class="dg-legend">Phát hành Gold</text>
+<line x1="480" y1="872" x2="512" y2="872" stroke="#3157b7" stroke-width="1.4" marker-end="url(#md-arrow-link)"/>
+<text x="524" y="876" class="dg-legend">Đọc qua SQL / API</text>
+<line x1="712" y1="872" x2="744" y2="872" stroke="#475569" stroke-width="1.4" stroke-dasharray="5,4" marker-end="url(#md-arrow)"/>
+<text x="756" y="876" class="dg-legend">Dự kiến, chưa có</text>
+<rect x="944" y="864" width="24" height="16" rx="3" fill="#fff" stroke="#475569"/><rect x="944" y="864" width="4" height="16" fill="#475569" opacity="0.5"/>
+<text x="980" y="876" class="dg-legend">Kho dữ liệu ngoài Databricks</text>
+</svg></div><p class="dg-note">Mỗi nguồn có schema Bronze riêng. Silver tách theo miền, Gold tách theo module. Ô nét đứt là phần chưa có hoặc không nạp. MD-05 và MD-06 chạy chủ yếu trong platform (App DB, S3 PDF); App MD-05 đọc 4 bảng gold_md05_tender (tồn khả dụng, hàng về, forecast, SKU) qua SQL Warehouse. Theo issue #8, 23 bảng procurement/inventory còn 0 dòng, nên Gold MD-02/03/04 chờ loader dữ liệu sim. Quyết định và duyệt lưu ở database ứng dụng, không ghi vào Gold; Databricks chỉ đọc lại qua bronze_app.</p></figure>
+</main></body></html>

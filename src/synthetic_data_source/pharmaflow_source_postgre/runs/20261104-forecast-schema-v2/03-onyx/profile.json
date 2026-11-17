@@ -1,0 +1,20 @@
+{
+  "coordinate_provenance": "source dimension coordinates; workbook says they are perturbed; real-versus-synthetic data provenance unverified",
+  "duplicate_fact_keys": 103,
+  "fact_rows": 62139,
+  "first_date": "2024-01-01",
+  "invalid_fact_rows": 0,
+  "last_date": "2025-12-31",
+  "margin_reconciliation_mismatches": 0,
+  "observation_rows": 62036,
+  "reject_rows": 103,
+  "source_currency": [
+    "EUR"
+  ],
+  "source_id": "ONYX_CHALLENGE_PROVENANCE_UNVERIFIED",
+  "source_pharmacies": 120,
+  "source_products": 220,
+  "synthetic_order_line_rows": 62036,
+  "synthetic_order_rows": 42666,
+  "workbook_sha256": "a6b5418d623f74d8560d6c9b30ded8a0fac293da68da2b2baca1c26c43511671"
+}

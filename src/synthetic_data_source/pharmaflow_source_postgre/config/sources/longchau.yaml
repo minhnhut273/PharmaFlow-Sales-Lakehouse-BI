@@ -1,0 +1,35 @@
+source_id: LONGCHAU_PUBLIC_CATALOG
+dataset_path: dataset/longchau-knowledge
+store_dataset_path: dataset/longchau-store-locations
+product_note_glob: "**/*.md"
+product_page_type: product_detail
+forecast_mapping_candidate_supplement: config/mappings/pharma_sales_longchau_candidates.csv
+store_file: store_locations_gps.csv
+product_identity:
+  preferred_key: product.other_public_attributes.sku
+  fallback_key: canonical_url
+  fallback_is_sku: false
+  deduplicate_capture_by: canonical_url
+  duplicate_source_sku_conflict: reject
+fields:
+  product_name: product.title
+  brand_name: product.brand
+  manufacturer_name: product.manufacturer
+  packaging_label: product.unit_or_packing
+  taxonomy: taxonomy.page_product_categories
+  observed_at: crawl.crawled_at
+  location_code: shop_code
+  latitude: latitude
+  longitude: longitude
+  address: address
+  city: ward_name
+  region: province_name
+  location_source: coordinate_source
+semantics:
+  observed_public_product_catalog_only: true
+  sales_or_inventory_evidence: false
+  store_coordinates_independently_verified: false
+source_codes:
+  product: LONGCHAU_PUBLIC_PRODUCT_PAGE
+  store: LONGCHAU_PUBLIC_STORE_LOCATOR
+  category: LONGCHAU_PUBLIC_TAXONOMY

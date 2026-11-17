@@ -1,0 +1,13 @@
+expected_account_id = "123456789012"
+
+# Optional existing IAM roles. Leave empty until the exact principals are selected.
+weather_writer_role_names = []
+weather_reader_role_names = []
+
+# P2 local CLI: explicit IAM user/role ARNs allowed to assume pharmaflow-dev-weather-local-writer.
+# Empty list = role is not created.
+weather_local_writer_principal_arns = ["arn:aws:iam::123456789012:user/example-dev-user"]
+
+# P3: Lambda/SQS/DynamoDB/Scheduler stack (false = nothing created). Schedules ENABLED only from P4.
+enable_weather_compute            = false
+weather_compute_schedules_enabled = false

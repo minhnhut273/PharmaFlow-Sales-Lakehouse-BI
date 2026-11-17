@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PharmaFlow forecast source physical schema v2</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing:border-box; }
+    :root { --paper:#f7f8fc; --paper2:#eef2ff; --ink:#1e1b4b; --muted:#475569; --soft:#64748b; --rule:#d7dbea; --rule-solid:#c7c9dc; --accent:#6366f1; --sans:'Geist',system-ui,sans-serif; --serif:'Instrument Serif',Georgia,serif; --mono:'Geist Mono',ui-monospace,monospace; }
+    body { margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans); }
+    main { max-width:1320px; margin:0 auto; padding:36px 24px 48px; }
+    .eyebrow { color:var(--muted); font:500 11px var(--mono); letter-spacing:.16em; text-transform:uppercase; margin:0 0 8px; }
+    h1 { font:400 clamp(32px,4vw,48px)/1.05 var(--serif); letter-spacing:-.02em; margin:0 0 10px; }
+    .intro { color:var(--muted); max-width:900px; line-height:1.6; margin:0 0 26px; }
+    section { background:#fff; border:1px solid var(--rule); border-radius:8px; padding:20px 20px 14px; margin:18px 0; }
+    h2 { font:600 16px var(--sans); margin:0 0 4px; }
+    .sub { color:var(--muted); font:12px var(--mono); line-height:1.5; margin:0 0 10px; }
+    .diagram-container { width:100%; overflow-x:auto; }
+    svg { display:block; width:100%; min-width:1280px; height:auto; }
+    .table-name { fill:var(--ink); font:600 12px var(--sans); }
+    .table-tag { fill:var(--muted); font:500 8px var(--mono); letter-spacing:.12em; }
+    .column-name { fill:var(--ink); font:400 12px var(--sans); }
+    .constraint { fill:var(--muted); font:500 8px var(--mono); }
+    .sql-type { fill:var(--muted); font:400 9px var(--mono); }
+    .overflow { fill:var(--soft); font:400 9px var(--mono); }
+    .fk-label { fill:var(--muted); font:400 8px var(--mono); letter-spacing:.04em; }
+    .panel-note { fill:var(--muted); font:400 10px var(--sans); }
+    .cards { display:grid; grid-template-columns:1.15fr 1fr .9fr; gap:12px; margin-top:20px; }
+    .card { background:#fff; border:1px solid var(--rule); border-radius:6px; padding:14px 16px; color:var(--muted); font-size:13px; line-height:1.5; }
+    .card strong { color:var(--ink); display:block; margin-bottom:4px; }
+    footer { color:var(--soft); font:400 11px/1.5 var(--mono); margin-top:22px; border-top:1px solid var(--rule); padding-top:14px; }
+    @media(max-width:760px) { main { padding:24px 14px 32px; } section { padding:16px 12px 12px; } .cards { grid-template-columns:1fr; } }
+    @media print { .diagram-container { overflow-x:visible; } svg { min-width:0; } body { background:#fff; } }
+  </style>
+</head>
+<body><main>
+  <p class="eyebrow">PharmaFlow · Source database · Contract 20261104_01 · Migration 20261104_02 applied</p>
+  <h1>Forecast source physical schema</h1>
+  <p class="intro">Current PostgreSQL source contract for catalog, store geography, synthetic store-warehouse location markers, transaction-shaped source data, and aggregate sales facts. Each SVG is a focused database-schema view with SQL types and key constraints; `+ N more columns` means the full table continues in the canonical DDL. FK labels show PostgreSQL's default <code>NO ACTION</code> behavior where no delete action is declared.</p>
+  <section aria-labelledby="catalog-core-heading">
+<h2 id="catalog-core-heading">01 · Catalog identity</h2>
+<p class="sub">Core product identity, its manufacturer reference, and the base unit used when supported.</p>
+<div class="diagram-container">
+<svg viewBox="0 0 1280 560" role="img" aria-labelledby="catalog-core-title catalog-core-desc" xmlns="http://www.w3.org/2000/svg">
+<title id="catalog-core-title">01 · Catalog identity</title>
+<desc id="catalog-core-desc">Three physical tables show the compact product master and its foreign keys to manufacturer and unit of measure.</desc>
+<defs><marker id="catalog-core-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#475569"/></marker></defs>
+<rect width="1280" height="560" fill="#ffffff"/>
+<path d="M 784 272 L 708 272 Q 700 272 700 264 L 700 120 Q 700 112 692 112 L 384 112" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#catalog-core-arrow)"/>
+<rect x="632" y="194" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="662" y="203" text-anchor="middle" class="fk-label">NO ACTION</text>
+<path d="M 784 296 L 648 296 Q 640 296 640 304 L 640 384 Q 640 392 632 392 L 384 392" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#catalog-core-arrow)"/>
+<rect x="470" y="370" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="500" y="379" text-anchor="middle" class="fk-label">NO ACTION</text>
+<g aria-label="catalog.manufacturer">
+<rect x="48" y="64" width="336" height="204" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M54 64H378V100H54Z" fill="#eef2ff"/>
+<text x="60" y="87" class="table-name">catalog.manufacturer</text>
+<text x="372" y="86" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="48" y1="100" x2="384" y2="100" stroke="#d7dbea"/>
+<text x="60" y="116" class="column-name">manufacturer_id</text>
+<text x="240" y="116" class="constraint">PK</text>
+<text x="372" y="116" text-anchor="end" class="sql-type">bigint</text>
+<rect x="49" y="124" width="334" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="140" class="column-name">manufacturer_code</text>
+<text x="240" y="140" class="constraint">UQ</text>
+<text x="372" y="140" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="164" class="column-name">manufacturer_name</text>
+<text x="240" y="164" class="constraint">NN</text>
+<text x="372" y="164" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="172" width="334" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="188" class="column-name">country_code</text>
+<text x="372" y="188" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="212" class="column-name">source</text>
+<text x="240" y="212" class="constraint">NN</text>
+<text x="372" y="212" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="220" width="334" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="236" class="column-name">created_at</text>
+<text x="240" y="236" class="constraint">NN</text>
+<text x="372" y="236" text-anchor="end" class="sql-type">timestamptz</text>
+<text x="60" y="260" class="column-name">updated_at</text>
+<text x="240" y="260" class="constraint">NN</text>
+<text x="372" y="260" text-anchor="end" class="sql-type">timestamptz</text>
+</g>
+<g aria-label="catalog.unit_of_measure">
+<rect x="48" y="344" width="336" height="156" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M54 344H378V380H54Z" fill="#eef2ff"/>
+<text x="60" y="367" class="table-name">catalog.unit_of_measure</text>
+<text x="372" y="366" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="48" y1="380" x2="384" y2="380" stroke="#d7dbea"/>
+<text x="60" y="396" class="column-name">uom_code</text>
+<text x="240" y="396" class="constraint">PK</text>
+<text x="372" y="396" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="404" width="334" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="420" class="column-name">uom_name</text>
+<text x="240" y="420" class="constraint">NN</text>
+<text x="372" y="420" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="444" class="column-name">uom_kind</text>
+<text x="240" y="444" class="constraint">NN</text>
+<text x="372" y="444" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="452" width="334" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="468" class="column-name">source</text>
+<text x="240" y="468" class="constraint">NN</text>
+<text x="372" y="468" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="492" class="column-name">created_at</text>
+<text x="240" y="492" class="constraint">NN</text>
+<text x="372" y="492" text-anchor="end" class="sql-type">timestamptz</text>
+</g>
+<g aria-label="catalog.product">
+<rect x="784" y="144" width="432" height="252" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M790 144H1210V180H790Z" fill="#eef2ff"/>
+<text x="796" y="167" class="table-name">catalog.product</text>
+<text x="1204" y="166" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="784" y1="180" x2="1216" y2="180" stroke="#d7dbea"/>
+<text x="796" y="196" class="column-name">product_id</text>
+<text x="1072" y="196" class="constraint">PK</text>
+<text x="1204" y="196" text-anchor="end" class="sql-type">bigint</text>
+<rect x="785" y="204" width="430" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="796" y="220" class="column-name">product_code</text>
+<text x="1072" y="220" class="constraint">UQ NN</text>
+<text x="1204" y="220" text-anchor="end" class="sql-type">text</text>
+<text x="796" y="244" class="column-name">product_name</text>
+<text x="1072" y="244" class="constraint">NN</text>
+<text x="1204" y="244" text-anchor="end" class="sql-type">text</text>
+<rect x="785" y="252" width="430" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="796" y="268" class="column-name">brand_name</text>
+<text x="1204" y="268" text-anchor="end" class="sql-type">text</text>
+<text x="796" y="292" class="column-name">manufacturer_id</text>
+<text x="1072" y="292" class="constraint">FK</text>
+<text x="1204" y="292" text-anchor="end" class="sql-type">bigint</text>
+<rect x="785" y="300" width="430" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="796" y="316" class="column-name">base_uom_code</text>
+<text x="1072" y="316" class="constraint">FK</text>
+<text x="1204" y="316" text-anchor="end" class="sql-type">text</text>
+<text x="796" y="340" class="column-name">is_active</text>
+<text x="1072" y="340" class="constraint">NN</text>
+<text x="1204" y="340" text-anchor="end" class="sql-type">boolean</text>
+<rect x="785" y="348" width="430" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="796" y="364" class="column-name">source</text>
+<text x="1072" y="364" class="constraint">NN</text>
+<text x="1204" y="364" text-anchor="end" class="sql-type">text</text>
+<rect x="785" y="372" width="430" height="24" fill="#ffffff"/>
+<text x="796" y="388" class="overflow">+ 2 more columns</text>
+</g>
+<line x1="32" y1="514" x2="1248" y2="514" stroke="#d7dbea"/>
+<text x="40" y="532" class="panel-note">Brand and manufacturer are separate attributes. The product table stays semantic; detailed source captures remain in dataset evidence.</text>
+</svg></div></section>
+<section aria-labelledby="taxonomy-source-map-heading">
+<h2 id="taxonomy-source-map-heading">02 · Taxonomy and source mapping</h2>
+<p class="sub">Many-to-many product classification remains distinct from source-product identity.</p>
+<div class="diagram-container">
+<svg viewBox="0 0 1280 720" role="img" aria-labelledby="taxonomy-source-map-title taxonomy-source-map-desc" xmlns="http://www.w3.org/2000/svg">
+<title id="taxonomy-source-map-title">02 · Taxonomy and source mapping</title>
+<desc id="taxonomy-source-map-desc">Four catalog tables show product assignments to independent taxonomies and compact mapping from source product codes.</desc>
+<defs><marker id="taxonomy-source-map-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#475569"/></marker></defs>
+<rect width="1280" height="720" fill="#ffffff"/>
+<path d="M 456 468 L 444 468 Q 436 468 436 460 L 436 228 Q 436 220 428 220 L 392 220" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#taxonomy-source-map-arrow)"/>
+<rect x="444" y="334" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="474" y="343" text-anchor="middle" class="fk-label">NO ACTION</text>
+<path d="M 800 492 L 836 492 Q 844 492 844 484 L 844 120 Q 844 112 852 112 L 900 112" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#taxonomy-source-map-arrow)"/>
+<rect x="776" y="280" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="806" y="289" text-anchor="middle" class="fk-label">NO ACTION</text>
+<path d="M 392 516 L 396 516 Q 404 516 404 508 L 404 244 Q 404 236 396 236 L 392 236" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#taxonomy-source-map-arrow)"/>
+<rect x="412" y="370" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="442" y="379" text-anchor="middle" class="fk-label">NO ACTION</text>
+<g aria-label="catalog.product">
+<rect x="48" y="180" width="344" height="252" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M54 180H386V216H54Z" fill="#eef2ff"/>
+<text x="60" y="203" class="table-name">catalog.product</text>
+<text x="380" y="202" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="48" y1="216" x2="392" y2="216" stroke="#d7dbea"/>
+<text x="60" y="232" class="column-name">product_id</text>
+<text x="248" y="232" class="constraint">PK</text>
+<text x="380" y="232" text-anchor="end" class="sql-type">bigint</text>
+<rect x="49" y="240" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="256" class="column-name">product_code</text>
+<text x="248" y="256" class="constraint">UQ NN</text>
+<text x="380" y="256" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="280" class="column-name">product_name</text>
+<text x="248" y="280" class="constraint">NN</text>
+<text x="380" y="280" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="288" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="304" class="column-name">brand_name</text>
+<text x="380" y="304" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="328" class="column-name">manufacturer_id</text>
+<text x="248" y="328" class="constraint">FK</text>
+<text x="380" y="328" text-anchor="end" class="sql-type">bigint</text>
+<rect x="49" y="336" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="352" class="column-name">base_uom_code</text>
+<text x="248" y="352" class="constraint">FK</text>
+<text x="380" y="352" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="376" class="column-name">is_active</text>
+<text x="248" y="376" class="constraint">NN</text>
+<text x="380" y="376" text-anchor="end" class="sql-type">boolean</text>
+<rect x="49" y="384" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="400" class="column-name">source</text>
+<text x="248" y="400" class="constraint">NN</text>
+<text x="380" y="400" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="408" width="342" height="24" fill="#ffffff"/>
+<text x="60" y="424" class="overflow">+ 2 more columns</text>
+</g>
+<g aria-label="catalog.product_category">
+<rect x="900" y="64" width="336" height="228" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M906 64H1230V100H906Z" fill="#eef2ff"/>
+<text x="912" y="87" class="table-name">catalog.product_category</text>
+<text x="1224" y="86" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="900" y1="100" x2="1236" y2="100" stroke="#d7dbea"/>
+<text x="912" y="116" class="column-name">category_id</text>
+<text x="1092" y="116" class="constraint">PK</text>
+<text x="1224" y="116" text-anchor="end" class="sql-type">bigint</text>
+<rect x="901" y="124" width="334" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="912" y="140" class="column-name">taxonomy_scheme</text>
+<text x="1092" y="140" class="constraint">NN</text>
+<text x="1224" y="140" text-anchor="end" class="sql-type">text</text>
+<text x="912" y="164" class="column-name">category_code</text>
+<text x="1092" y="164" class="constraint">NN</text>
+<text x="1224" y="164" text-anchor="end" class="sql-type">text</text>
+<rect x="901" y="172" width="334" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="912" y="188" class="column-name">category_name</text>
+<text x="1092" y="188" class="constraint">NN</text>
+<text x="1224" y="188" text-anchor="end" class="sql-type">text</text>
+<text x="912" y="212" class="column-name">parent_category_id</text>
+<text x="1092" y="212" class="constraint">FK</text>
+<text x="1224" y="212" text-anchor="end" class="sql-type">bigint</text>
+<rect x="901" y="220" width="334" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="912" y="236" class="column-name">source_category_path</text>
+<text x="1224" y="236" text-anchor="end" class="sql-type">text</text>
+<text x="912" y="260" class="column-name">is_active</text>
+<text x="1092" y="260" class="constraint">NN</text>
+<text x="1224" y="260" text-anchor="end" class="sql-type">boolean</text>
+<rect x="901" y="268" width="334" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="912" y="284" class="column-name">source</text>
+<text x="1092" y="284" class="constraint">NN</text>
+<text x="1224" y="284" text-anchor="end" class="sql-type">text</text>
+</g>
+<g aria-label="catalog.product_category_assignment">
+<rect x="456" y="420" width="344" height="180" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M462 420H794V456H462Z" fill="#eef2ff"/>
+<text x="468" y="443" class="table-name">catalog.product_category_assignment</text>
+<text x="788" y="442" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="456" y1="456" x2="800" y2="456" stroke="#d7dbea"/>
+<text x="468" y="472" class="column-name">product_id</text>
+<text x="656" y="472" class="constraint">PK FK NN</text>
+<text x="788" y="472" text-anchor="end" class="sql-type">bigint</text>
+<rect x="457" y="480" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="496" class="column-name">category_id</text>
+<text x="656" y="496" class="constraint">PK FK NN</text>
+<text x="788" y="496" text-anchor="end" class="sql-type">bigint</text>
+<text x="468" y="520" class="column-name">assignment_status</text>
+<text x="656" y="520" class="constraint">NN</text>
+<text x="788" y="520" text-anchor="end" class="sql-type">text</text>
+<rect x="457" y="528" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="544" class="column-name">assignment_basis</text>
+<text x="656" y="544" class="constraint">NN</text>
+<text x="788" y="544" text-anchor="end" class="sql-type">text</text>
+<text x="468" y="568" class="column-name">source</text>
+<text x="656" y="568" class="constraint">NN</text>
+<text x="788" y="568" text-anchor="end" class="sql-type">text</text>
+<rect x="457" y="576" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="592" class="column-name">assigned_at</text>
+<text x="656" y="592" class="constraint">NN</text>
+<text x="788" y="592" text-anchor="end" class="sql-type">timestamptz</text>
+</g>
+<g aria-label="catalog.product_source_reference">
+<rect x="48" y="444" width="344" height="204" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M54 444H386V480H54Z" fill="#eef2ff"/>
+<text x="60" y="467" class="table-name">catalog.product_source_reference</text>
+<text x="380" y="466" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="48" y1="480" x2="392" y2="480" stroke="#d7dbea"/>
+<text x="60" y="496" class="column-name">product_source_reference_id</text>
+<text x="248" y="496" class="constraint">PK</text>
+<text x="380" y="496" text-anchor="end" class="sql-type">bigint</text>
+<rect x="49" y="504" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="520" class="column-name">product_id</text>
+<text x="248" y="520" class="constraint">FK</text>
+<text x="380" y="520" text-anchor="end" class="sql-type">bigint</text>
+<text x="60" y="544" class="column-name">source</text>
+<text x="248" y="544" class="constraint">NN</text>
+<text x="380" y="544" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="552" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="568" class="column-name">external_product_key</text>
+<text x="248" y="568" class="constraint">NN</text>
+<text x="380" y="568" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="592" class="column-name">match_status</text>
+<text x="248" y="592" class="constraint">NN</text>
+<text x="380" y="592" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="600" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="616" class="column-name">match_basis</text>
+<text x="380" y="616" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="640" class="column-name">observed_at</text>
+<text x="248" y="640" class="constraint">NN</text>
+<text x="380" y="640" text-anchor="end" class="sql-type">timestamptz</text>
+</g>
+<line x1="32" y1="674" x2="1248" y2="674" stroke="#d7dbea"/>
+<text x="40" y="692" class="panel-note">`parent_category_id` is a self-reference to `product_category.category_id`; the category tree remains scoped by taxonomy_scheme. Each panel stays within the 5-table / 6-FK budget.</text>
+</svg></div></section>
+<section aria-labelledby="packaging-contract-heading">
+<h2 id="packaging-contract-heading">03 · Packaging-to-product integrity</h2>
+<p class="sub">A package label is not a verified conversion; every selected sales package must belong to the line product.</p>
+<div class="diagram-container">
+<svg viewBox="0 0 1280 720" role="img" aria-labelledby="packaging-contract-title packaging-contract-desc" xmlns="http://www.w3.org/2000/svg">
+<title id="packaging-contract-title">03 · Packaging-to-product integrity</title>
+<desc id="packaging-contract-desc">Product, package, and sales-line columns show the composite product-packaging foreign key and nullable conversion evidence.</desc>
+<defs><marker id="packaging-contract-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#475569"/></marker></defs>
+<rect width="1280" height="720" fill="#ffffff"/>
+<path d="M 456 136 L 428 136 Q 420 136 412 136 L 48 136 Q 40 136 40 144 L 40 176 Q 40 184 48 184 L 48 184" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#packaging-contract-arrow)"/>
+<rect x="190" y="114" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="220" y="123" text-anchor="middle" class="fk-label">NO ACTION</text>
+<path d="M 856 440 L 440 440 Q 432 440 432 432 L 432 208 Q 432 200 424 200 L 392 200" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#packaging-contract-arrow)"/>
+<rect x="440" y="310" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="470" y="319" text-anchor="middle" class="fk-label">NO ACTION</text>
+<path d="M 856 464 L 848 464 Q 840 464 840 472 L 840 492 Q 840 500 832 500 L 32 500 Q 24 500 24 492 L 24 120 Q 24 112 32 112 L 456 112" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#packaging-contract-arrow)"/>
+<rect x="32" y="454" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="62" y="463" text-anchor="middle" class="fk-label">NO ACTION</text>
+<g aria-label="catalog.product">
+<rect x="48" y="144" width="344" height="252" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M54 144H386V180H54Z" fill="#eef2ff"/>
+<text x="60" y="167" class="table-name">catalog.product</text>
+<text x="380" y="166" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="48" y1="180" x2="392" y2="180" stroke="#d7dbea"/>
+<text x="60" y="196" class="column-name">product_id</text>
+<text x="248" y="196" class="constraint">PK</text>
+<text x="380" y="196" text-anchor="end" class="sql-type">bigint</text>
+<rect x="49" y="204" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="220" class="column-name">product_code</text>
+<text x="248" y="220" class="constraint">UQ NN</text>
+<text x="380" y="220" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="244" class="column-name">product_name</text>
+<text x="248" y="244" class="constraint">NN</text>
+<text x="380" y="244" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="252" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="268" class="column-name">brand_name</text>
+<text x="380" y="268" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="292" class="column-name">manufacturer_id</text>
+<text x="248" y="292" class="constraint">FK</text>
+<text x="380" y="292" text-anchor="end" class="sql-type">bigint</text>
+<rect x="49" y="300" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="316" class="column-name">base_uom_code</text>
+<text x="248" y="316" class="constraint">FK</text>
+<text x="380" y="316" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="340" class="column-name">is_active</text>
+<text x="248" y="340" class="constraint">NN</text>
+<text x="380" y="340" text-anchor="end" class="sql-type">boolean</text>
+<rect x="49" y="348" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="364" class="column-name">source</text>
+<text x="248" y="364" class="constraint">NN</text>
+<text x="380" y="364" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="372" width="342" height="24" fill="#ffffff"/>
+<text x="60" y="388" class="overflow">+ 2 more columns</text>
+</g>
+<g aria-label="catalog.product_packaging">
+<rect x="456" y="64" width="360" height="228" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M462 64H810V100H462Z" fill="#eef2ff"/>
+<text x="468" y="87" class="table-name">catalog.product_packaging</text>
+<text x="804" y="86" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="456" y1="100" x2="816" y2="100" stroke="#d7dbea"/>
+<text x="468" y="116" class="column-name">product_packaging_id</text>
+<text x="672" y="116" class="constraint">PK</text>
+<text x="804" y="116" text-anchor="end" class="sql-type">bigint</text>
+<rect x="457" y="124" width="358" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="140" class="column-name">product_id</text>
+<text x="672" y="140" class="constraint">FK NN</text>
+<text x="804" y="140" text-anchor="end" class="sql-type">bigint</text>
+<text x="468" y="164" class="column-name">packaging_code</text>
+<text x="672" y="164" class="constraint">NN</text>
+<text x="804" y="164" text-anchor="end" class="sql-type">text</text>
+<rect x="457" y="172" width="358" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="188" class="column-name">display_name</text>
+<text x="672" y="188" class="constraint">NN</text>
+<text x="804" y="188" text-anchor="end" class="sql-type">text</text>
+<text x="468" y="212" class="column-name">package_uom_code</text>
+<text x="672" y="212" class="constraint">FK</text>
+<text x="804" y="212" text-anchor="end" class="sql-type">text</text>
+<rect x="457" y="220" width="358" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="236" class="column-name">quantity_in_base_uom</text>
+<text x="804" y="236" text-anchor="end" class="sql-type">numeric(18,4)</text>
+<text x="468" y="260" class="column-name">is_default_sales_unit</text>
+<text x="672" y="260" class="constraint">NN</text>
+<text x="804" y="260" text-anchor="end" class="sql-type">boolean</text>
+<rect x="457" y="268" width="358" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="284" class="column-name">source</text>
+<text x="672" y="284" class="constraint">NN</text>
+<text x="804" y="284" text-anchor="end" class="sql-type">text</text>
+</g>
+<g aria-label="pos.sales_order_line">
+<rect x="856" y="320" width="384" height="252" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M862 320H1234V356H862Z" fill="#f1f3f8"/>
+<text x="868" y="343" class="table-name">pos.sales_order_line</text>
+<text x="1228" y="342" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="856" y1="356" x2="1240" y2="356" stroke="#d7dbea"/>
+<text x="868" y="372" class="column-name">sales_order_line_id</text>
+<text x="1096" y="372" class="constraint">PK</text>
+<text x="1228" y="372" text-anchor="end" class="sql-type">bigint</text>
+<rect x="857" y="380" width="382" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="868" y="396" class="column-name">sales_order_id</text>
+<text x="1096" y="396" class="constraint">FK NN</text>
+<text x="1228" y="396" text-anchor="end" class="sql-type">bigint</text>
+<text x="868" y="420" class="column-name">line_number</text>
+<text x="1096" y="420" class="constraint">NN</text>
+<text x="1228" y="420" text-anchor="end" class="sql-type">integer</text>
+<rect x="857" y="428" width="382" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="868" y="444" class="column-name">product_id</text>
+<text x="1096" y="444" class="constraint">FK NN</text>
+<text x="1228" y="444" text-anchor="end" class="sql-type">bigint</text>
+<text x="868" y="468" class="column-name">product_packaging_id</text>
+<text x="1096" y="468" class="constraint">FK</text>
+<text x="1228" y="468" text-anchor="end" class="sql-type">bigint</text>
+<rect x="857" y="476" width="382" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="868" y="492" class="column-name">sold_quantity</text>
+<text x="1096" y="492" class="constraint">NN</text>
+<text x="1228" y="492" text-anchor="end" class="sql-type">numeric(18,4)</text>
+<text x="868" y="516" class="column-name">sales_uom_code</text>
+<text x="1096" y="516" class="constraint">FK</text>
+<text x="1228" y="516" text-anchor="end" class="sql-type">text</text>
+<rect x="857" y="524" width="382" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="868" y="540" class="column-name">currency_code</text>
+<text x="1228" y="540" text-anchor="end" class="sql-type">char(3)</text>
+<rect x="857" y="548" width="382" height="24" fill="#ffffff"/>
+<text x="868" y="564" class="overflow">+ 6 more columns</text>
+</g>
+<line x1="32" y1="674" x2="1248" y2="674" stroke="#d7dbea"/>
+<text x="40" y="692" class="panel-note">`fk_sales_line_product_packaging_pair` references `(product_packaging_id, product_id)` together. Packaging UOM points to `catalog.unit_of_measure` (panel 01); conversion stays NULL unless supported.</text>
+</svg></div></section>
+<section aria-labelledby="pos-transaction-heading">
+<h2 id="pos-transaction-heading">04 · POS transaction and simulated store warehouse</h2>
+<p class="sub">One header belongs to its demand store; transaction stores get an explicitly synthetic warehouse row. Fulfillment and channel stay nullable.</p>
+<div class="diagram-container">
+<svg viewBox="0 0 1280 720" role="img" aria-labelledby="pos-transaction-title pos-transaction-desc" xmlns="http://www.w3.org/2000/svg">
+<title id="pos-transaction-title">04 · POS transaction and simulated store warehouse</title>
+<desc id="pos-transaction-desc">Five physical tables show demand location, a simulated store warehouse, order header, product line, and the product dimension used by the line.</desc>
+<defs><marker id="pos-transaction-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#475569"/></marker></defs>
+<rect width="1280" height="720" fill="#ffffff"/>
+<path d="M 456 160 L 392 160" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#pos-transaction-arrow)"/>
+<rect x="394" y="138" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="424" y="147" text-anchor="middle" class="fk-label">NO ACTION</text>
+<path d="M 856 312 L 832 312 Q 824 312 824 304 L 824 120 Q 824 112 816 112 L 800 112" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#pos-transaction-arrow)"/>
+<rect x="832" y="214" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="862" y="223" text-anchor="middle" class="fk-label">NO ACTION</text>
+<path d="M 856 360 L 840 360 Q 832 360 832 368 L 832 616 Q 832 624 824 624 L 424 624 Q 416 624 416 616 L 416 496 Q 416 488 408 488 L 392 488" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#pos-transaction-arrow)"/>
+<rect x="578" y="602" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="608" y="611" text-anchor="middle" class="fk-label">NO ACTION</text>
+<path d="M 456 440 L 424 440 Q 416 440 416 432 L 416 348 Q 416 340 408 340 L 392 340" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#pos-transaction-arrow)"/>
+<rect x="356" y="384" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="386" y="393" text-anchor="middle" class="fk-label">NO ACTION</text>
+<path d="M 700 316 L 700 392 Q 700 400 692 400 L 648 400 Q 640 400 640 408 L 640 416" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#pos-transaction-arrow)"/>
+<rect x="640" y="378" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="670" y="387" text-anchor="middle" class="fk-label">NO ACTION</text>
+<g aria-label="org.store">
+<rect x="48" y="112" width="344" height="252" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M54 112H386V148H54Z" fill="#f1f3f8"/>
+<text x="60" y="135" class="table-name">org.store</text>
+<text x="380" y="134" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="48" y1="148" x2="392" y2="148" stroke="#d7dbea"/>
+<text x="60" y="164" class="column-name">store_id</text>
+<text x="248" y="164" class="constraint">PK</text>
+<text x="380" y="164" text-anchor="end" class="sql-type">bigint</text>
+<rect x="49" y="172" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="188" class="column-name">store_code</text>
+<text x="248" y="188" class="constraint">UQ NN</text>
+<text x="380" y="188" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="212" class="column-name">store_name</text>
+<text x="248" y="212" class="constraint">NN</text>
+<text x="380" y="212" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="220" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="236" class="column-name">country_code</text>
+<text x="380" y="236" text-anchor="end" class="sql-type">char(2)</text>
+<text x="60" y="260" class="column-name">latitude</text>
+<text x="380" y="260" text-anchor="end" class="sql-type">numeric(9,6)</text>
+<rect x="49" y="268" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="284" class="column-name">longitude</text>
+<text x="380" y="284" text-anchor="end" class="sql-type">numeric(9,6)</text>
+<text x="60" y="308" class="column-name">timezone_name</text>
+<text x="248" y="308" class="constraint">NN</text>
+<text x="380" y="308" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="316" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="332" class="column-name">source</text>
+<text x="248" y="332" class="constraint">NN</text>
+<text x="380" y="332" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="340" width="342" height="24" fill="#ffffff"/>
+<text x="60" y="356" class="overflow">+ 5 more columns</text>
+</g>
+<g aria-label="pos.sales_order">
+<rect x="456" y="64" width="344" height="252" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M462 64H794V100H462Z" fill="#f1f3f8"/>
+<text x="468" y="87" class="table-name">pos.sales_order</text>
+<text x="788" y="86" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="456" y1="100" x2="800" y2="100" stroke="#d7dbea"/>
+<text x="468" y="116" class="column-name">sales_order_id</text>
+<text x="656" y="116" class="constraint">PK</text>
+<text x="788" y="116" text-anchor="end" class="sql-type">bigint</text>
+<rect x="457" y="124" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="140" class="column-name">order_number</text>
+<text x="656" y="140" class="constraint">UQ NN</text>
+<text x="788" y="140" text-anchor="end" class="sql-type">text</text>
+<text x="468" y="164" class="column-name">demand_location_id</text>
+<text x="656" y="164" class="constraint">FK NN</text>
+<text x="788" y="164" text-anchor="end" class="sql-type">bigint</text>
+<rect x="457" y="172" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="188" class="column-name">fulfillment_location_id</text>
+<text x="656" y="188" class="constraint">FK</text>
+<text x="788" y="188" text-anchor="end" class="sql-type">bigint</text>
+<text x="468" y="212" class="column-name">sales_channel_id</text>
+<text x="656" y="212" class="constraint">FK</text>
+<text x="788" y="212" text-anchor="end" class="sql-type">bigint</text>
+<rect x="457" y="220" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="236" class="column-name">ordered_at</text>
+<text x="656" y="236" class="constraint">NN</text>
+<text x="788" y="236" text-anchor="end" class="sql-type">timestamptz</text>
+<text x="468" y="260" class="column-name">order_status</text>
+<text x="656" y="260" class="constraint">NN</text>
+<text x="788" y="260" text-anchor="end" class="sql-type">text</text>
+<rect x="457" y="268" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="284" class="column-name">currency_code</text>
+<text x="788" y="284" text-anchor="end" class="sql-type">char(3)</text>
+<rect x="457" y="292" width="342" height="24" fill="#ffffff"/>
+<text x="468" y="308" class="overflow">+ 4 more columns</text>
+</g>
+<g aria-label="org.warehouse">
+<rect x="456" y="416" width="344" height="180" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M462 416H794V452H462Z" fill="#f1f3f8"/>
+<text x="468" y="439" class="table-name">org.warehouse</text>
+<text x="788" y="438" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="456" y1="452" x2="800" y2="452" stroke="#d7dbea"/>
+<text x="468" y="468" class="column-name">warehouse_id</text>
+<text x="656" y="468" class="constraint">PK</text>
+<text x="788" y="468" text-anchor="end" class="sql-type">bigint</text>
+<rect x="457" y="476" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="492" class="column-name">warehouse_code</text>
+<text x="656" y="492" class="constraint">UQ NN</text>
+<text x="788" y="492" text-anchor="end" class="sql-type">text</text>
+<text x="468" y="516" class="column-name">warehouse_kind</text>
+<text x="656" y="516" class="constraint">NN</text>
+<text x="788" y="516" text-anchor="end" class="sql-type">text</text>
+<rect x="457" y="524" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="540" class="column-name">store_id</text>
+<text x="656" y="540" class="constraint">FK</text>
+<text x="788" y="540" text-anchor="end" class="sql-type">bigint</text>
+<text x="468" y="564" class="column-name">data_origin</text>
+<text x="656" y="564" class="constraint">NN</text>
+<text x="788" y="564" text-anchor="end" class="sql-type">text</text>
+<rect x="457" y="572" width="342" height="24" fill="#ffffff"/>
+<text x="468" y="588" class="overflow">+ 2 more columns</text>
+</g>
+<g aria-label="pos.sales_order_line">
+<rect x="856" y="240" width="384" height="252" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M862 240H1234V276H862Z" fill="#f1f3f8"/>
+<text x="868" y="263" class="table-name">pos.sales_order_line</text>
+<text x="1228" y="262" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="856" y1="276" x2="1240" y2="276" stroke="#d7dbea"/>
+<text x="868" y="292" class="column-name">sales_order_line_id</text>
+<text x="1096" y="292" class="constraint">PK</text>
+<text x="1228" y="292" text-anchor="end" class="sql-type">bigint</text>
+<rect x="857" y="300" width="382" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="868" y="316" class="column-name">sales_order_id</text>
+<text x="1096" y="316" class="constraint">FK NN</text>
+<text x="1228" y="316" text-anchor="end" class="sql-type">bigint</text>
+<text x="868" y="340" class="column-name">line_number</text>
+<text x="1096" y="340" class="constraint">NN</text>
+<text x="1228" y="340" text-anchor="end" class="sql-type">integer</text>
+<rect x="857" y="348" width="382" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="868" y="364" class="column-name">product_id</text>
+<text x="1096" y="364" class="constraint">FK NN</text>
+<text x="1228" y="364" text-anchor="end" class="sql-type">bigint</text>
+<text x="868" y="388" class="column-name">sold_quantity</text>
+<text x="1096" y="388" class="constraint">NN</text>
+<text x="1228" y="388" text-anchor="end" class="sql-type">numeric(18,4)</text>
+<rect x="857" y="396" width="382" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="868" y="412" class="column-name">line_amount</text>
+<text x="1228" y="412" text-anchor="end" class="sql-type">numeric(18,2)</text>
+<text x="868" y="436" class="column-name">currency_code</text>
+<text x="1228" y="436" text-anchor="end" class="sql-type">char(3)</text>
+<rect x="857" y="444" width="382" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="868" y="460" class="column-name">source</text>
+<text x="1096" y="460" class="constraint">NN</text>
+<text x="1228" y="460" text-anchor="end" class="sql-type">text</text>
+<rect x="857" y="468" width="382" height="24" fill="#ffffff"/>
+<text x="868" y="484" class="overflow">+ 6 more columns</text>
+</g>
+<g aria-label="catalog.product">
+<rect x="48" y="440" width="344" height="156" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M54 440H386V476H54Z" fill="#eef2ff"/>
+<text x="60" y="463" class="table-name">catalog.product</text>
+<text x="380" y="462" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="48" y1="476" x2="392" y2="476" stroke="#d7dbea"/>
+<text x="60" y="492" class="column-name">product_id</text>
+<text x="248" y="492" class="constraint">PK</text>
+<text x="380" y="492" text-anchor="end" class="sql-type">bigint</text>
+<rect x="49" y="500" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="516" class="column-name">product_code</text>
+<text x="248" y="516" class="constraint">UQ NN</text>
+<text x="380" y="516" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="540" class="column-name">product_name</text>
+<text x="248" y="540" class="constraint">NN</text>
+<text x="380" y="540" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="548" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="564" class="column-name">source</text>
+<text x="248" y="564" class="constraint">NN</text>
+<text x="380" y="564" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="572" width="342" height="24" fill="#ffffff"/>
+<text x="60" y="588" class="overflow">+ 6 more columns</text>
+</g>
+<line x1="32" y1="674" x2="1248" y2="674" stroke="#d7dbea"/>
+<text x="40" y="692" class="panel-note">Synthetic store warehouses are location placeholders; they do not imply stock or receipts. Fulfillment and channel remain NULL when unknown.</text>
+</svg></div></section>
+<section aria-labelledby="sales-observation-heading">
+<h2 id="sales-observation-heading">05 · Aggregate sales observation</h2>
+<p class="sub">Keep the source grain intact: store × period × product OR category, with amount and currency only when known.</p>
+<div class="diagram-container">
+<svg viewBox="0 0 1280 720" role="img" aria-labelledby="sales-observation-title sales-observation-desc" xmlns="http://www.w3.org/2000/svg">
+<title id="sales-observation-title">05 · Aggregate sales observation</title>
+<desc id="sales-observation-desc">Four physical tables show aggregate facts attached to one store and exactly one product or category subject.</desc>
+<defs><marker id="sales-observation-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#475569"/></marker></defs>
+<rect width="1280" height="720" fill="#ffffff"/>
+<path d="M 456 332 L 448 332 Q 440 332 440 324 L 440 136 Q 440 128 432 128 L 392 128" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#sales-observation-arrow)"/>
+<rect x="448" y="230" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="478" y="239" text-anchor="middle" class="fk-label">NO ACTION</text>
+<path d="M 456 380 L 424 380 Q 416 380 416 388 L 416 448 Q 416 456 408 456 L 392 456" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#sales-observation-arrow)"/>
+<rect x="348" y="390" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="378" y="399" text-anchor="middle" class="fk-label">NO ACTION</text>
+<path d="M 856 404 L 1252 404 Q 1260 404 1260 396 L 1260 136 Q 1260 128 1252 128 L 1236 128" fill="none" stroke="#475569" stroke-width="1.3" marker-end="url(#sales-observation-arrow)"/>
+<rect x="1060" y="382" width="60" height="12" rx="2" fill="#ffffff"/>
+<text x="1090" y="391" text-anchor="middle" class="fk-label">NO ACTION</text>
+<g aria-label="org.store">
+<rect x="48" y="80" width="344" height="252" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M54 80H386V116H54Z" fill="#f1f3f8"/>
+<text x="60" y="103" class="table-name">org.store</text>
+<text x="380" y="102" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="48" y1="116" x2="392" y2="116" stroke="#d7dbea"/>
+<text x="60" y="132" class="column-name">store_id</text>
+<text x="248" y="132" class="constraint">PK</text>
+<text x="380" y="132" text-anchor="end" class="sql-type">bigint</text>
+<rect x="49" y="140" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="156" class="column-name">store_code</text>
+<text x="248" y="156" class="constraint">UQ NN</text>
+<text x="380" y="156" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="180" class="column-name">store_name</text>
+<text x="248" y="180" class="constraint">NN</text>
+<text x="380" y="180" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="188" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="204" class="column-name">country_code</text>
+<text x="380" y="204" text-anchor="end" class="sql-type">char(2)</text>
+<text x="60" y="228" class="column-name">latitude</text>
+<text x="380" y="228" text-anchor="end" class="sql-type">numeric(9,6)</text>
+<rect x="49" y="236" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="252" class="column-name">longitude</text>
+<text x="380" y="252" text-anchor="end" class="sql-type">numeric(9,6)</text>
+<text x="60" y="276" class="column-name">timezone_name</text>
+<text x="248" y="276" class="constraint">NN</text>
+<text x="380" y="276" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="284" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="300" class="column-name">source</text>
+<text x="248" y="300" class="constraint">NN</text>
+<text x="380" y="300" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="308" width="342" height="24" fill="#ffffff"/>
+<text x="60" y="324" class="overflow">+ 5 more columns</text>
+</g>
+<g aria-label="catalog.product">
+<rect x="48" y="408" width="344" height="252" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M54 408H386V444H54Z" fill="#eef2ff"/>
+<text x="60" y="431" class="table-name">catalog.product</text>
+<text x="380" y="430" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="48" y1="444" x2="392" y2="444" stroke="#d7dbea"/>
+<text x="60" y="460" class="column-name">product_id</text>
+<text x="248" y="460" class="constraint">PK</text>
+<text x="380" y="460" text-anchor="end" class="sql-type">bigint</text>
+<rect x="49" y="468" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="484" class="column-name">product_code</text>
+<text x="248" y="484" class="constraint">UQ NN</text>
+<text x="380" y="484" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="508" class="column-name">product_name</text>
+<text x="248" y="508" class="constraint">NN</text>
+<text x="380" y="508" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="516" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="532" class="column-name">brand_name</text>
+<text x="380" y="532" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="556" class="column-name">manufacturer_id</text>
+<text x="248" y="556" class="constraint">FK</text>
+<text x="380" y="556" text-anchor="end" class="sql-type">bigint</text>
+<rect x="49" y="564" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="580" class="column-name">base_uom_code</text>
+<text x="248" y="580" class="constraint">FK</text>
+<text x="380" y="580" text-anchor="end" class="sql-type">text</text>
+<text x="60" y="604" class="column-name">is_active</text>
+<text x="248" y="604" class="constraint">NN</text>
+<text x="380" y="604" text-anchor="end" class="sql-type">boolean</text>
+<rect x="49" y="612" width="342" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="60" y="628" class="column-name">source</text>
+<text x="248" y="628" class="constraint">NN</text>
+<text x="380" y="628" text-anchor="end" class="sql-type">text</text>
+<rect x="49" y="636" width="342" height="24" fill="#ffffff"/>
+<text x="60" y="652" class="overflow">+ 2 more columns</text>
+</g>
+<g aria-label="catalog.product_category">
+<rect x="900" y="80" width="336" height="228" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M906 80H1230V116H906Z" fill="#eef2ff"/>
+<text x="912" y="103" class="table-name">catalog.product_category</text>
+<text x="1224" y="102" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="900" y1="116" x2="1236" y2="116" stroke="#d7dbea"/>
+<text x="912" y="132" class="column-name">category_id</text>
+<text x="1092" y="132" class="constraint">PK</text>
+<text x="1224" y="132" text-anchor="end" class="sql-type">bigint</text>
+<rect x="901" y="140" width="334" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="912" y="156" class="column-name">taxonomy_scheme</text>
+<text x="1092" y="156" class="constraint">NN</text>
+<text x="1224" y="156" text-anchor="end" class="sql-type">text</text>
+<text x="912" y="180" class="column-name">category_code</text>
+<text x="1092" y="180" class="constraint">NN</text>
+<text x="1224" y="180" text-anchor="end" class="sql-type">text</text>
+<rect x="901" y="188" width="334" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="912" y="204" class="column-name">category_name</text>
+<text x="1092" y="204" class="constraint">NN</text>
+<text x="1224" y="204" text-anchor="end" class="sql-type">text</text>
+<text x="912" y="228" class="column-name">parent_category_id</text>
+<text x="1092" y="228" class="constraint">FK</text>
+<text x="1224" y="228" text-anchor="end" class="sql-type">bigint</text>
+<rect x="901" y="236" width="334" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="912" y="252" class="column-name">source_category_path</text>
+<text x="1224" y="252" text-anchor="end" class="sql-type">text</text>
+<text x="912" y="276" class="column-name">is_active</text>
+<text x="1092" y="276" class="constraint">NN</text>
+<text x="1224" y="276" text-anchor="end" class="sql-type">boolean</text>
+<rect x="901" y="284" width="334" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="912" y="300" class="column-name">source</text>
+<text x="1092" y="300" class="constraint">NN</text>
+<text x="1224" y="300" text-anchor="end" class="sql-type">text</text>
+</g>
+<g aria-label="pos.sales_observation">
+<rect x="456" y="260" width="400" height="252" rx="6" fill="#ffffff" stroke="#1e1b4b" stroke-width="1"/>
+<path d="M462 260H850V296H462Z" fill="#f1f3f8"/>
+<text x="468" y="283" class="table-name">pos.sales_observation</text>
+<text x="844" y="282" text-anchor="end" class="table-tag">TABLE</text>
+<line x1="456" y1="296" x2="856" y2="296" stroke="#d7dbea"/>
+<text x="468" y="312" class="column-name">sales_observation_id</text>
+<text x="712" y="312" class="constraint">PK</text>
+<text x="844" y="312" text-anchor="end" class="sql-type">bigint</text>
+<rect x="457" y="320" width="398" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="336" class="column-name">store_id</text>
+<text x="712" y="336" class="constraint">FK NN</text>
+<text x="844" y="336" text-anchor="end" class="sql-type">bigint</text>
+<text x="468" y="360" class="column-name">subject_kind</text>
+<text x="712" y="360" class="constraint">NN</text>
+<text x="844" y="360" text-anchor="end" class="sql-type">text</text>
+<rect x="457" y="368" width="398" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="384" class="column-name">product_id</text>
+<text x="712" y="384" class="constraint">FK</text>
+<text x="844" y="384" text-anchor="end" class="sql-type">bigint</text>
+<text x="468" y="408" class="column-name">category_id</text>
+<text x="712" y="408" class="constraint">FK</text>
+<text x="844" y="408" text-anchor="end" class="sql-type">bigint</text>
+<rect x="457" y="416" width="398" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="432" class="column-name">period_start</text>
+<text x="712" y="432" class="constraint">NN</text>
+<text x="844" y="432" text-anchor="end" class="sql-type">date</text>
+<text x="468" y="456" class="column-name">period_end</text>
+<text x="712" y="456" class="constraint">NN</text>
+<text x="844" y="456" text-anchor="end" class="sql-type">date</text>
+<rect x="457" y="464" width="398" height="24" fill="rgba(30,27,75,0.025)"/>
+<text x="468" y="480" class="column-name">quantity</text>
+<text x="712" y="480" class="constraint">NN</text>
+<text x="844" y="480" text-anchor="end" class="sql-type">numeric(18,4)</text>
+<rect x="457" y="488" width="398" height="24" fill="#ffffff"/>
+<text x="468" y="504" class="overflow">+ 6 more columns</text>
+</g>
+<line x1="32" y1="674" x2="1248" y2="674" stroke="#d7dbea"/>
+<text x="40" y="692" class="panel-note">CHECK enforces PRODUCT XOR CATEGORY. IRPD transactions and Onyx/Pharma Sales aggregate observations keep their source grain and provenance separate.</text>
+</svg></div></section>
+  <div class="cards">
+    <div class="card"><strong>Observed facts and simulation are distinct</strong><code>source</code> values and the source manifests distinguish publisher-reported records from generated POS rows.</div>
+    <div class="card"><strong>Aggregates keep their grain</strong>Onyx and Pharma Sales observations stay separate from any synthetic order representation.</div>
+    <div class="card"><strong>Forecast source only</strong>The schema supports later forecast/KPI work; inventory decisions and logistics are outside this implementation.</div>
+  </div>
+  <footer>Canonical DDL: schema_full.sql · Versioned migration records: sql/migrations/ · Run evidence: runs/20261104-forecast-schema-v2/ · No downstream forecast module is implemented here.</footer>
+</main></body></html>

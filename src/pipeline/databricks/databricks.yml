@@ -1,0 +1,37 @@
+bundle:
+  name: pharmaflow-lakehouse
+
+variables:
+  catalog:
+    description: Target Unity Catalog name
+    default: pharmaflow_dev
+  alert_email:
+    description: Email for pipeline job failure notifications
+    default: admin@pharmaflow.internal
+  weather_raw_root:
+    description: Root path for Open-Meteo raw files (Managed Volume mirror on Free Edition dev, S3 on Paid/Prod)
+    default: /Volumes/pharmaflow_dev/bronze_weather/weather_raw/open_meteo
+  weather_checkpoint_root:
+    description: Auto Loader checkpoint root directory
+    default: /Volumes/pharmaflow_dev/bronze_weather/weather_raw/_checkpoints
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-46e38b03-6d3f.cloud.databricks.com
+    variables:
+      catalog: pharmaflow_dev
+      weather_raw_root: /Volumes/pharmaflow_dev/bronze_weather/weather_raw/open_meteo
+      weather_checkpoint_root: /Volumes/pharmaflow_dev/bronze_weather/weather_raw/_checkpoints
+
+  prod:
+    mode: production
+    variables:
+      catalog: pharmaflow_prod
+      weather_raw_root: s3://pharmaflow-prod-weather-raw/raw/open_meteo
+      weather_checkpoint_root: s3://pharmaflow-prod-weather-raw/_checkpoints
+
+include:
+  - resources/*.yml

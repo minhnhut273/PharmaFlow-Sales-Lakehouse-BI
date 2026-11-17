@@ -1,0 +1,90 @@
+{
+  "run_id": "lc-longchau-full-20261105-02",
+  "created_at": "2026-11-05T07:18:18.462000+00:00",
+  "source": "LONGCHAU_PUBLIC_PRODUCT_PAGE",
+  "database": "pharmaflow_product_knowledge",
+  "collection": "product_snapshots",
+  "schema_version": 1,
+  "data_file": "documents.ejsonl",
+  "data_sha256": "5ae0972c4535391219be407263ab380f1c7b6459a05111ccdbc37043df2b9356",
+  "rejected_file": "rejected.jsonl",
+  "stats": {
+    "basis_text_empty": 1468,
+    "basis_text_present": 1013,
+    "duplicate_notes_collapsed": 0,
+    "ingredient_items_empty": 11,
+    "ingredient_items_present": 2470,
+    "notes_discovered": 2481,
+    "product_notes": 2481,
+    "snapshots_without_sku": 28,
+    "status_COMPLETE": 2481,
+    "storage_text_empty": 30,
+    "storage_text_present": 2451,
+    "unique_product_keys": 2480,
+    "unique_skus": 2452,
+    "unique_snapshots": 2481
+  },
+  "sample_snapshot_ids": [
+    [
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE",
+      "SKU:00000533",
+      "2026-10-11T12:28:32.320000+00:00",
+      "a6c9cdb5415167d94f799c1fcd956903da492e50bd0a63068525e70ebdbf27de"
+    ],
+    [
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE",
+      "SKU:00000485",
+      "2026-10-03T04:32:34.424000+00:00",
+      "2ba1eb96834562261beb351e4720d2bebc358a0bbdb8b08db9f8efced2eaee8b"
+    ],
+    [
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE",
+      "SKU:00001124",
+      "2026-10-11T14:26:06.741000+00:00",
+      "1f16d942c1bbba0cfcccc790a7b233a2d2ca4f47f25ccca1faeeab87591505e2"
+    ],
+    [
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE",
+      "SKU:00000780",
+      "2026-09-30T04:31:04.148000+00:00",
+      "32c5599019621842e359cbed6678a4525b69dcbbc9216223ce74c8ae297c724c"
+    ],
+    [
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE",
+      "SKU:00000462",
+      "2026-10-06T19:17:43.197000+00:00",
+      "757fc2abf09482285a06e17677b81c10b8e106dbd7107070fc4d179b4af0a178"
+    ],
+    [
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE",
+      "SKU:00000488",
+      "2026-10-03T04:32:56.266000+00:00",
+      "2dd92427ead598221e4ca6a46305a90b81cf137fc812f8bff7c384aa4e2e21fd"
+    ],
+    [
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE",
+      "SKU:00000489",
+      "2026-10-03T04:32:48.970000+00:00",
+      "e4fa624564b87ed4a6ea3272052316c5b9374d31dd592191c7c4f65b55813777"
+    ],
+    [
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE",
+      "SKU:00000497",
+      "2026-10-06T19:18:23.578000+00:00",
+      "b45a9631b7ba8b06f7ef48a7ae6fc58a1438f46d4c89a98170165d056c452db6"
+    ],
+    [
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE",
+      "SKU:00000498",
+      "2026-10-06T19:18:34.075000+00:00",
+      "fc35dfa1f51787f229ff40245c22eab0173cf1be51939dec992f991b5b6b93fa"
+    ],
+    [
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE",
+      "SKU:00000550",
+      "2026-10-06T19:20:16.200000+00:00",
+      "8c319655f9bffe938fa4c31397649181a6a549c2474e02e4d5a5ebb490b8fa31"
+    ]
+  ],
+  "load_status": "PREPARED"
+}

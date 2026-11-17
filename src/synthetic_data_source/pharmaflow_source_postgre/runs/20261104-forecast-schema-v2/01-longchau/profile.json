@@ -1,0 +1,20 @@
+{
+  "category_parent_unresolved_count": 0,
+  "duplicate_captures_merged": 3,
+  "forecast_candidate_supplement_rows": 4,
+  "forecast_candidate_supplement_sha256": "6898dc0659091ad827000903c999d3ff40dbefd41313ba881f94b990ac70813a",
+  "forecast_candidate_supplement_skus_added": 4,
+  "product_categories": 297,
+  "product_identity_conflict_groups_rejected": 0,
+  "product_identity_fallback_to_url_count": 28,
+  "product_mapping_candidates": 869,
+  "product_note_captures": 2481,
+  "product_rows": 2482,
+  "reject_rows": 0,
+  "source_id": "LONGCHAU_PUBLIC_CATALOG",
+  "source_store_manifest_sha256": "98ec58758903ddb3b927e57e21d0db9b2160baa465ee73a707467f385451129d",
+  "store_csv_sha256": "364a880e94fc926e4d89d9346653fccd29c1e5f2ed17cc1e6fb43c3f094426de",
+  "store_rows": 2694,
+  "unique_product_identities": 2478,
+  "unique_product_page_urls": 2478
+}

@@ -1,0 +1,41 @@
+source_id: PHARMA_SALES_DAILY_ATC
+dataset_path: dataset/pharma-sales-data/salesdaily.csv
+grain: day_x_atc_group
+frequency: daily
+currency: null
+quantity_uom_code: null
+quantity_uom_reason: The source README does not define the measurement unit.
+excluded_frequency_files:
+  - saleshourly.csv
+  - salesweekly.csv
+  - salesmonthly.csv
+fields:
+  date: datum
+  atc_groups: [M01AB, M01AE, N02BA, N02BE, N05B, N05C, R03, R06]
+  ignored_derived_columns: [Year, Month, Hour, Weekday Name]
+simulation:
+  scale: 10
+  rounding: ROUND_HALF_UP
+  distribution: EVEN
+  remainder_rule: add_one_to_first_sorted_product_codes
+  only_create_pos_for_nonzero_rounded_amounts: true
+  unmapped_group_policy: preserve_observation_only
+store_warehouse_simulation:
+  create_for_each_demand_store_in_orders: true
+  code_prefix: SIM_STORE_WH
+  warehouse_kind: STORE
+  data_origin: SYNTHETIC
+  fulfillment_location_populated_on_orders: false
+  inventory_or_receipt_rows_created: false
+location:
+  store_code: SIM_PHARMA_SALES_NIS_001
+  display_name: Neven Farma (simulated) - Niš
+  city_name: Niš
+  region_name: Nišava District
+  country_code: RS
+  timezone_name: Europe/Belgrade
+  coordinate_source: SIMULATED_DETERMINISTIC
+source_codes:
+  observations: PHARMA_SALES_DAILY_ATC
+  synthetic_orders: SIMULATED_PHARMA_SALES_ATC_SCALE10
+  synthetic_order_lines: SIMULATED_PHARMA_SALES_ATC_SCALE10

@@ -1,0 +1,116 @@
+{
+  "files": {
+    "assignments.csv": {
+      "rows": 220,
+      "sha256": "69d51ad45799c7192de62a84e150d9eda01ca57dfd23b096f524a04aefbf7781"
+    },
+    "categories.csv": {
+      "rows": 5,
+      "sha256": "aebf4b1f73786b9fbd07e852c4fd53cfad08943c7cb659dbbc47fb4fce6d5f4a"
+    },
+    "lines.csv": {
+      "rows": 62036,
+      "sha256": "36c1264b14342a8c50e9497696a49951f732d215e5cce1c2e14201778d8e0ee3"
+    },
+    "manufacturers.csv": {
+      "rows": 0,
+      "sha256": "f079200d47cfdff145c351cc43ff2c0fd9b360711d69b566fd509315c7a5a9a2"
+    },
+    "observations.csv": {
+      "rows": 62036,
+      "sha256": "7af97b950bac9eb6ffbf8f46aaa3b379a7575e21f4fe082b62ee916ea35b6535"
+    },
+    "orders.csv": {
+      "rows": 42666,
+      "sha256": "59dd9528408db384dc1c5e1cb47c35aebf9a936afe498d5ab8b9ac89d01a70a0"
+    },
+    "packaging.csv": {
+      "rows": 220,
+      "sha256": "dd8f4e58786643ca38be68770400364efd865a2b889bfe001a93f57507f6457a"
+    },
+    "products.csv": {
+      "rows": 220,
+      "sha256": "cc4fe4005404824bd3ac9b00110c3e856fb9c12218c526524e8d7b55e8828d38"
+    },
+    "references.csv": {
+      "rows": 220,
+      "sha256": "62cbc692c5def92ab18a316ab158ccf0061281c7fe70c77372f0b59e50efa2a1"
+    },
+    "rejects.csv": {
+      "rows": 103,
+      "sha256": "5b230602e36ef7b213a794c078ac7e579b1438c938ab6b85d3a1df25df64a27a"
+    },
+    "stores.csv": {
+      "rows": 120,
+      "sha256": "84ad7cb47e5854e059a994dcf73e32fd3e53aa80d19724558cb41d567d139fe9"
+    },
+    "uoms.csv": {
+      "rows": 1,
+      "sha256": "f2cf2a06748c7c0102d041409c05bbe42a6e77c86048175f3339a17774ddc9e1"
+    }
+  },
+  "prepared_at_utc": "2026-11-04T15:00:47+00:00",
+  "prepared_row_counts": {
+    "assignments": 220,
+    "categories": 5,
+    "lines": 62036,
+    "manufacturers": 0,
+    "observations": 62036,
+    "orders": 42666,
+    "packaging": 220,
+    "products": 220,
+    "references": 220,
+    "rejects": 103,
+    "stores": 120,
+    "uoms": 1
+  },
+  "run_id": "20261104-forecast-schema-v2",
+  "source_id": "ONYX_CHALLENGE_PROVENANCE_UNVERIFIED",
+  "source_name": "onyx",
+  "source_profile": {
+    "coordinate_provenance": "source dimension coordinates; workbook says they are perturbed; real-versus-synthetic data provenance unverified",
+    "duplicate_fact_keys": 103,
+    "fact_rows": 62139,
+    "first_date": "2024-01-01",
+    "invalid_fact_rows": 0,
+    "last_date": "2025-12-31",
+    "margin_reconciliation_mismatches": 0,
+    "observation_rows": 62036,
+    "reject_rows": 103,
+    "source_currency": [
+      "EUR"
+    ],
+    "source_id": "ONYX_CHALLENGE_PROVENANCE_UNVERIFIED",
+    "source_pharmacies": 120,
+    "source_products": 220,
+    "synthetic_order_line_rows": 62036,
+    "synthetic_order_rows": 42666,
+    "workbook_sha256": "a6b5418d623f74d8560d6c9b30ded8a0fac293da68da2b2baca1c26c43511671"
+  },
+  "stage": "full",
+  "validation": {
+    "category_keys": 5,
+    "issues": [],
+    "line_keys": 62036,
+    "observation_keys": 62036,
+    "order_keys": 42666,
+    "prepared_directory": "runs/20261104-forecast-schema-v2/03-onyx/prepared/full",
+    "product_keys": 220,
+    "row_counts": {
+      "assignments": 220,
+      "categories": 5,
+      "lines": 62036,
+      "manufacturers": 0,
+      "observations": 62036,
+      "orders": 42666,
+      "packaging": 220,
+      "products": 220,
+      "references": 220,
+      "rejects": 103,
+      "stores": 120,
+      "uoms": 1
+    },
+    "store_keys": 120,
+    "valid": true
+  }
+}

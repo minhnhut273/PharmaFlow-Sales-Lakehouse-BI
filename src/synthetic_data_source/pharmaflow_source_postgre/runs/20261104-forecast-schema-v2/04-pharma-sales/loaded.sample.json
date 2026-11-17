@@ -1,0 +1,23 @@
+{
+  "database": "pharmaflow_source_postgre_v2",
+  "loaded_at_utc": "2026-11-04T15:05:28+00:00",
+  "loaded_counts": {
+    "assignments": 10,
+    "categories": 8,
+    "lines": 253,
+    "manufacturers": 0,
+    "observations": 240,
+    "orders": 29,
+    "packaging": 0,
+    "products": 0,
+    "references": 0,
+    "rejects": 0,
+    "stores": 1,
+    "uoms": 1
+  },
+  "manifest_sha256": "3f5cfcae51518229f65cf76c471a6b200c8998f03804b8cd83971065dde6af25",
+  "mode": "sample",
+  "prepared_directory": "runs/20261104-forecast-schema-v2/04-pharma-sales/prepared/sample",
+  "run_id": "20261104-forecast-schema-v2",
+  "source_name": "pharma_sales"
+}

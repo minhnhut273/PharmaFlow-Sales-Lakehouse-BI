@@ -1,0 +1,26 @@
+{
+  "distinct_sales_units": 20,
+  "duplicate_invoice_line_keys": 0,
+  "invalid_timestamps": 0,
+  "invoice_numbers": 349196,
+  "invoice_timestamp_conflicts": 212,
+  "manifest_sha256": "55449b8e0a83e103fa8f6903276d12f11391d55d1318fb3b016ed9440183920f",
+  "missing_line_total_rows": 0,
+  "nonpositive_quantities": 0,
+  "order_total_rule": "sum valid TotalPrice line values by InvoiceNumber; set NULL if any line TotalPrice is missing",
+  "product_codes": 2972,
+  "product_codes_with_multiple_sales_units": 179,
+  "reject_rows": 0,
+  "sales_processed_sha256": "f600acd5443ddc7c70b537972ffc613a16d8a25cdacb152e3603bd20500e5a12",
+  "simulated_coordinates": {
+    "latitude": "-6.963490",
+    "longitude": "110.413261"
+  },
+  "simulated_store_code": "SIM_IRPD_CENTRAL_JAVA_001",
+  "source_category_values": 7,
+  "source_drug_class_values": 3,
+  "source_id": "IRPD_PUBLISHER_REPORTED_POS",
+  "source_rows": 627389,
+  "stock_source_rows_loaded": 0,
+  "total_price_subtotal_difference_rows": 101
+}

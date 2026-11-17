@@ -1,0 +1,25 @@
+{
+  "category_keys": 5,
+  "issues": [],
+  "line_keys": 100,
+  "observation_keys": 100,
+  "order_keys": 70,
+  "prepared_directory": "runs/20261104-forecast-schema-v2/03-onyx/prepared/sample",
+  "product_keys": 81,
+  "row_counts": {
+    "assignments": 81,
+    "categories": 5,
+    "lines": 100,
+    "manufacturers": 0,
+    "observations": 100,
+    "orders": 70,
+    "packaging": 81,
+    "products": 81,
+    "references": 81,
+    "rejects": 0,
+    "stores": 5,
+    "uoms": 1
+  },
+  "store_keys": 5,
+  "valid": true
+}

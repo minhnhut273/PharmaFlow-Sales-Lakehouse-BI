@@ -1,0 +1,18 @@
+source_file,source_grain,source_field,target_table_column,transformation,data_class,notes
+product detail Markdown,source product page,crawl.other_public_attributes.sku,catalog.product.product_code,Prefix with LC:; reject missing or conflicting SKU,OBSERVED_PUBLIC,Canonical source-scoped identity
+product detail Markdown,source product page,product.title,catalog.product.product_name,Trim and preserve observed title,OBSERVED_PUBLIC,
+product detail Markdown,source product page,product.brand,catalog.product.brand_name,Trim; do not infer manufacturer,OBSERVED_PUBLIC,
+product detail Markdown,source product page,product.manufacturer,catalog.manufacturer.manufacturer_name,Create manufacturer only when provided; link only from explicit manufacturer code,OBSERVED_PUBLIC,Brand and manufacturer remain distinct
+product detail Markdown,source product page,product.unit_or_packing,catalog.product_packaging.display_name,Preserve label; do not infer conversion,OBSERVED_PUBLIC,
+product detail Markdown,source product page,product.unit_or_packing,catalog.product_packaging.quantity_in_base_uom,Leave null unless source proves conversion,OBSERVED_PUBLIC,No unverified package-to-unit conversion
+product detail Markdown,source product page,taxonomy.page_product_categories,catalog.product_category and catalog.product_category_assignment,Preserve source hierarchy and assign product to observed categories,OBSERVED_PUBLIC,Taxonomy scheme LONGCHAU_PUBLIC
+product detail Markdown,source product page,crawl.crawled_at,catalog.product_source_reference.observed_at,Parse as timezone-aware observation timestamp,OBSERVED_PUBLIC,
+product detail Markdown,source product page,canonical_url,raw source evidence only,Retain in original knowledge capture; not copied to compact relational mapping,OBSERVED_PUBLIC,
+store_locations_gps.csv,store locator row,shop_code,org.store.store_code,Prefix with LC: where not already namespaced,OBSERVED_PUBLIC,
+store_locations_gps.csv,store locator row,name,org.store.store_name,Preserve public store name,OBSERVED_PUBLIC,
+store_locations_gps.csv,store locator row,address,org.store.address,Preserve source value,OBSERVED_PUBLIC,
+store_locations_gps.csv,store locator row,ward_name,org.store.city_name,Store the source locality label without asserting city-level precision,OBSERVED_PUBLIC,Source field is ward_name
+store_locations_gps.csv,store locator row,province_name,org.store.region_name,Preserve source value,OBSERVED_PUBLIC,
+store_locations_gps.csv,store locator row,latitude,org.store.latitude,Parse decimal and range-check,OBSERVED_PUBLIC,Coordinates are not independently verified
+store_locations_gps.csv,store locator row,longitude,org.store.longitude,Parse decimal and range-check,OBSERVED_PUBLIC,Coordinates are not independently verified
+store_locations_gps.csv,store locator row,coordinate_source,org.store.source,Use source label LONGCHAU_PUBLIC_STORE_LOCATOR; retain coordinate_source in manifest,OBSERVED_PUBLIC,Coordinate-source detail remains in source evidence

@@ -1,0 +1,22 @@
+{
+  "run_key": "forecast-validation-20261104",
+  "project_id": "round-brook-76208048",
+  "parent_branch_id": "br-icy-lake-b3gg39qb",
+  "parent_branch_name": "production",
+  "parent_timestamp_utc": "2026-11-04T15:20:34Z",
+  "test_branch_id": "br-dry-meadow-b3cfdc97",
+  "test_branch_name": "pharmaflow-forecast-validation-20261104",
+  "test_branch_created_at_utc": "2026-11-04T15:59:11Z",
+  "test_database_id": 774091,
+  "test_database_name": "pharmaflow_source_postgre_v2_test",
+  "test_database_created_at_utc": "2026-11-04T15:59:23Z",
+  "snapshot": {
+    "previous_snapshot_id": "snap-tiny-glade-b3ttso51",
+    "previous_snapshot_created_at_utc": "2026-11-04T14:43:46Z",
+    "new_snapshot_attempt_status": "REJECTED_BY_NEON_QUOTA",
+    "new_snapshot_attempt_message": "snapshots limit exceeded",
+    "attempted_at_utc": null,
+    "no_existing_snapshot_or_database_deleted": true
+  },
+  "purpose": "Isolated schema bootstrap and bounded sample acceptance; production data is not modified."
+}

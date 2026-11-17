@@ -1,0 +1,112 @@
+# Active Workflows / Jobs (Free Edition Serverless).
+# Unimplemented full-platform DAGs (pf_daily, pf_weekly_retrain) are preserved in resources/planned/jobs.yml.
+resources:
+  jobs:
+    pf_weather_sync:
+      name: "[${bundle.target}] pf_weather_sync"
+      schedule:
+        quartz_cron_expression: "0 25 6 * * ?"
+        timezone_id: Asia/Ho_Chi_Minh
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: serverless_default
+          spec:
+            client: "2"
+      tasks:
+        - task_key: bronze_weather_daily
+          environment_key: serverless_default
+          notebook_task:
+            notebook_path: ../src/bronze/weather_autoloader.py
+            base_parameters:
+              mode: daily
+              catalog: ${var.catalog}
+              weather_raw_root: ${var.weather_raw_root}
+              checkpoint_root: ${var.weather_checkpoint_root}
+
+        - task_key: silver_weather
+          depends_on:
+            - task_key: bronze_weather_daily
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.pf_silver_weather.id}
+
+    pf_weather_backfill:
+      name: "[${bundle.target}] pf_weather_historical_backfill"
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: serverless_default
+          spec:
+            client: "2"
+      tasks:
+        - task_key: backfill_weather_bronze
+          environment_key: serverless_default
+          notebook_task:
+            notebook_path: ../src/bronze/weather_autoloader.py
+            base_parameters:
+              mode: historical
+              catalog: ${var.catalog}
+              weather_raw_root: ${var.weather_raw_root}
+              checkpoint_root: ${var.weather_checkpoint_root}
+
+        - task_key: refresh_silver_weather
+          depends_on:
+            - task_key: backfill_weather_bronze
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.pf_silver_weather.id}
+
+    pf_md01_pipeline:
+      name: "[${bundle.target}] pf_md01_sales_pipeline"
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: serverless_default
+          spec:
+            client: "2"
+      tasks:
+        - task_key: bronze_pg
+          environment_key: serverless_default
+          notebook_task:
+            notebook_path: ../src/bronze/pg_snapshot.py
+            base_parameters:
+              catalog: ${var.catalog}
+              source_mode: jdbc
+              run_id: "pg-{{job.run_id}}"
+              tables: all
+              secret_scope: pharmaflow-dev
+              volume_root: /Volumes/${var.catalog}/bronze_pg/pg_raw
+
+        - task_key: bronze_mongo
+          environment_key: serverless_default
+          notebook_task:
+            notebook_path: ../src/bronze/mongo_snapshots.py
+            base_parameters:
+              catalog: ${var.catalog}
+              volume_root: /Volumes/${var.catalog}/bronze_mongo/mongo_raw
+              run_id: "mongo-{{job.run_id}}"
+
+        - task_key: silver_core
+          depends_on:
+            - task_key: bronze_pg
+            - task_key: bronze_mongo
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.pf_silver_core.id}
+
+        - task_key: silver_sales
+          depends_on:
+            - task_key: silver_core
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.pf_silver_sales.id}
+
+        - task_key: gold_md01
+          depends_on:
+            - task_key: silver_sales
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.pf_gold_md01.id}
+
+        - task_key: publish_md01
+          depends_on:
+            - task_key: gold_md01
+          environment_key: serverless_default
+          notebook_task:
+            notebook_path: ../src/ops/publish_md01.py
+            base_parameters:
+              catalog: ${var.catalog}
+              release_id: "md01-{{job.run_id}}"

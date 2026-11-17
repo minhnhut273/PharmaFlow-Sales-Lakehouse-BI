@@ -1,0 +1,8 @@
+# Pinned runtime dependencies bundled into the weather Lambda zip (manylinux2014_x86_64, CPython 3.12).
+# boto3 is bundled (not taken from the Lambda runtime) so S3 IfNoneMatch support is guaranteed.
+# tzdata is bundled because the minimal Lambda image may not ship /usr/share/zoneinfo.
+requests==2.34.2
+PyYAML==6.0.3
+psycopg[binary]==3.3.6
+boto3==1.44.2
+tzdata==2026.4

@@ -1,0 +1,99 @@
+{
+  "files": {
+    "assignments.csv": {
+      "rows": 220,
+      "sha256": "69d51ad45799c7192de62a84e150d9eda01ca57dfd23b096f524a04aefbf7781"
+    },
+    "categories.csv": {
+      "rows": 5,
+      "sha256": "aebf4b1f73786b9fbd07e852c4fd53cfad08943c7cb659dbbc47fb4fce6d5f4a"
+    },
+    "lines.csv": {
+      "rows": 38,
+      "sha256": "b31235adb2ac45416d9f4964fec2a39c6b4067e891d685e75b1557d60656bacf"
+    },
+    "manufacturers.csv": {
+      "rows": 0,
+      "sha256": "f079200d47cfdff145c351cc43ff2c0fd9b360711d69b566fd509315c7a5a9a2"
+    },
+    "observations.csv": {
+      "rows": 38,
+      "sha256": "7843d8ce97bc26e713af9e103179ddb329de0a5757c804473e2697dfe83a0a30"
+    },
+    "orders.csv": {
+      "rows": 25,
+      "sha256": "f45459359caa0b829efeb62429892cdf5fa6352f6bafec7418fd035b30969ce0"
+    },
+    "packaging.csv": {
+      "rows": 220,
+      "sha256": "dd8f4e58786643ca38be68770400364efd865a2b889bfe001a93f57507f6457a"
+    },
+    "products.csv": {
+      "rows": 220,
+      "sha256": "cc4fe4005404824bd3ac9b00110c3e856fb9c12218c526524e8d7b55e8828d38"
+    },
+    "references.csv": {
+      "rows": 220,
+      "sha256": "62cbc692c5def92ab18a316ab158ccf0061281c7fe70c77372f0b59e50efa2a1"
+    },
+    "rejects.csv": {
+      "rows": 103,
+      "sha256": "5b230602e36ef7b213a794c078ac7e579b1438c938ab6b85d3a1df25df64a27a"
+    },
+    "stores.csv": {
+      "rows": 120,
+      "sha256": "84ad7cb47e5854e059a994dcf73e32fd3e53aa80d19724558cb41d567d139fe9"
+    },
+    "uoms.csv": {
+      "rows": 1,
+      "sha256": "f2cf2a06748c7c0102d041409c05bbe42a6e77c86048175f3339a17774ddc9e1"
+    }
+  },
+  "prepared_at_utc": "2026-11-04T15:01:00+00:00",
+  "prepared_row_counts": {
+    "assignments": 220,
+    "categories": 5,
+    "lines": 38,
+    "manufacturers": 0,
+    "observations": 38,
+    "orders": 25,
+    "packaging": 220,
+    "products": 220,
+    "references": 220,
+    "rejects": 103,
+    "stores": 120,
+    "uoms": 1
+  },
+  "run_id": "20261104-forecast-schema-v2",
+  "sample_parameters": {
+    "daily_order_count": 25,
+    "selection": "first daily store keys and their product facts"
+  },
+  "source_name": "onyx",
+  "stage": "sample",
+  "validation": {
+    "category_keys": 5,
+    "issues": [],
+    "line_keys": 38,
+    "observation_keys": 38,
+    "order_keys": 25,
+    "prepared_directory": "runs/20261104-forecast-schema-v2/03-onyx/prepared/sample",
+    "product_keys": 220,
+    "row_counts": {
+      "assignments": 220,
+      "categories": 5,
+      "lines": 38,
+      "manufacturers": 0,
+      "observations": 38,
+      "orders": 25,
+      "packaging": 220,
+      "products": 220,
+      "references": 220,
+      "rejects": 103,
+      "stores": 120,
+      "uoms": 1
+    },
+    "store_keys": 120,
+    "valid": true
+  }
+}

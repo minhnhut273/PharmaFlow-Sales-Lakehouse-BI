@@ -1,0 +1,122 @@
+{
+  "files": {
+    "assignments.csv": {
+      "rows": 1639,
+      "sha256": "f2236297f2c43723c95ecfb946268a4106f6ac8c45d25d9d71d014e45d45388e"
+    },
+    "categories.csv": {
+      "rows": 10,
+      "sha256": "d52ba541ca7bac1e2712e1541edef078bfdee6ee71fd059e50f5e6323b960f64"
+    },
+    "lines.csv": {
+      "rows": 627389,
+      "sha256": "45157e10c1d506d20dabc8752e224f1cb2d4688d874c729774c4671e107695db"
+    },
+    "manufacturers.csv": {
+      "rows": 77,
+      "sha256": "017aab0f3a6848d77b437b1d3e467305cfbc92d949cb3f3b8af0b89fd179de34"
+    },
+    "observations.csv": {
+      "rows": 0,
+      "sha256": "9e946e0b6643d663ce2d631dc5d257e2c34a8a052a5d4319b34ec2331d76732e"
+    },
+    "orders.csv": {
+      "rows": 349196,
+      "sha256": "09084b78288aef9b8b391341ef58b811108acf78abf4109c1c7d6d8f571950db"
+    },
+    "packaging.csv": {
+      "rows": 3159,
+      "sha256": "3ee831147e33138abc1ddc31a7be24408a25e4e333e571af96bf39a1c1a617fb"
+    },
+    "products.csv": {
+      "rows": 2972,
+      "sha256": "f3ae79890781a485ea487869362a3ff5112b691dd7b051ee3546df457d12bd1a"
+    },
+    "references.csv": {
+      "rows": 2972,
+      "sha256": "41a83dbef9097fecc72cbe3efbe10b05142a485cbdb99d48290225728264e806"
+    },
+    "rejects.csv": {
+      "rows": 0,
+      "sha256": "e27fd5f527fc4184d7a4eb7096009ab228f9b8860ed9412c8adf8e92a0c5c29e"
+    },
+    "stores.csv": {
+      "rows": 1,
+      "sha256": "8c300ce1a3c5a893afa28789c0a17fbdb3ccea6cb1ca559a6a47f58f080487ba"
+    },
+    "uoms.csv": {
+      "rows": 20,
+      "sha256": "fd1064ffab684ae5f2eaadbaadef2afae981c29db64b49bf463951b59df6d631"
+    }
+  },
+  "prepared_at_utc": "2026-11-04T14:57:14+00:00",
+  "prepared_row_counts": {
+    "assignments": 1639,
+    "categories": 10,
+    "lines": 627389,
+    "manufacturers": 77,
+    "observations": 0,
+    "orders": 349196,
+    "packaging": 3159,
+    "products": 2972,
+    "references": 2972,
+    "rejects": 0,
+    "stores": 1,
+    "uoms": 20
+  },
+  "run_id": "20261104-forecast-schema-v2",
+  "source_id": "IRPD_PUBLISHER_REPORTED_POS",
+  "source_name": "irpd",
+  "source_profile": {
+    "distinct_sales_units": 20,
+    "duplicate_invoice_line_keys": 0,
+    "invalid_timestamps": 0,
+    "invoice_numbers": 349196,
+    "invoice_timestamp_conflicts": 212,
+    "manifest_sha256": "55449b8e0a83e103fa8f6903276d12f11391d55d1318fb3b016ed9440183920f",
+    "missing_line_total_rows": 0,
+    "nonpositive_quantities": 0,
+    "order_total_rule": "sum valid TotalPrice line values by InvoiceNumber; set NULL if any line TotalPrice is missing",
+    "product_codes": 2972,
+    "product_codes_with_multiple_sales_units": 179,
+    "reject_rows": 0,
+    "sales_processed_sha256": "f600acd5443ddc7c70b537972ffc613a16d8a25cdacb152e3603bd20500e5a12",
+    "simulated_coordinates": {
+      "latitude": "-6.963490",
+      "longitude": "110.413261"
+    },
+    "simulated_store_code": "SIM_IRPD_CENTRAL_JAVA_001",
+    "source_category_values": 7,
+    "source_drug_class_values": 3,
+    "source_id": "IRPD_PUBLISHER_REPORTED_POS",
+    "source_rows": 627389,
+    "stock_source_rows_loaded": 0,
+    "total_price_subtotal_difference_rows": 101
+  },
+  "stage": "full",
+  "validation": {
+    "category_keys": 10,
+    "issues": [],
+    "line_keys": 627389,
+    "observation_keys": 0,
+    "order_keys": 349196,
+    "prepared_directory": "runs/20261104-forecast-schema-v2/02-irpd/prepared/full",
+    "product_keys": 2972,
+    "row_counts": {
+      "assignments": 1639,
+      "categories": 10,
+      "lines": 627389,
+      "manufacturers": 77,
+      "observations": 0,
+      "orders": 349196,
+      "packaging": 3159,
+      "products": 2972,
+      "references": 2972,
+      "rejects": 0,
+      "stores": 1,
+      "uoms": 20
+    },
+    "store_keys": 1,
+    "valid": true
+  }
+}

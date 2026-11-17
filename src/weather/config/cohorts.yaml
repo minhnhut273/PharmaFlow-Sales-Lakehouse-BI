@@ -1,0 +1,48 @@
+schema_version: "1.0"
+cohort_policy_version: "pilot_v1"
+
+default_policy:
+  allowed_statuses:
+    - "ACTIVE"
+  allow_unknown_status: false
+  override_reason: null
+
+source_provenance_map:
+  LONGCHAU_PUBLIC_STORE_LOCATOR:
+    coordinate_provenance: "PUBLIC_STORE_LOCATOR"
+    coordinate_verification_status: "OBSERVED_PUBLIC_UNVERIFIED"
+  ONYX_CHALLENGE_LOCATION_DIMENSION_UNVERIFIED:
+    coordinate_provenance: "CHALLENGE_DATASET_PERTURBED"
+    coordinate_verification_status: "UNVERIFIED_PERTURBED"
+  IRPD_SIMULATED_LOCATION_CENTRAL_JAVA:
+    coordinate_provenance: "SIMULATED_PROVINCE_PROXY"
+    coordinate_verification_status: "SIMULATED"
+  PHARMA_SALES_SIMULATED_LOCATION_NIS:
+    coordinate_provenance: "SIMULATED_CITY_PROXY"
+    coordinate_verification_status: "SIMULATED"
+
+cohorts:
+  pilot:
+    description: "7 cửa hàng đại diện đã duyệt ở P0b (4 Long Châu VN, 1 IRPD Indonesia, 1 Onyx Berlin DST, 1 Pharma Sales Serbia)"
+    store_ids:
+      - 104
+      - 516
+      - 1234
+      - 2137
+      - 5389
+      - 5404
+      - 5631
+    allow_unknown_status: false
+    override_reason: null
+  full_network:
+    description: "Toàn bộ mạng lưới cửa hàng ACTIVE (VN gom cụm lưới 0.111 deg floor = 758 ô + 122 quốc tế = 880 điểm gọi, 4.928 units/ngày)"
+    selection: "all_active"
+    grid_clustering:
+      enabled: true
+      countries:
+        - "VN"
+      method: "floor"
+      step_deg: 0.111
+      coordinate_mode: "centroid"
+    allow_unknown_status: false
+    override_reason: null

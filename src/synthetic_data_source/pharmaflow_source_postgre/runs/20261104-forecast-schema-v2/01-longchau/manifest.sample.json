@@ -1,0 +1,194 @@
+{
+  "dimension_row_counts": {
+    "assignments": 148,
+    "categories": 53,
+    "manufacturers": 39,
+    "packaging": 50,
+    "products": 50,
+    "references": 100,
+    "rejects": 0,
+    "stores": 20,
+    "uoms": 4
+  },
+  "files": {
+    "assignments.csv": {
+      "rows": 148,
+      "sha256": "e710992992e5ba297982a33e729950c921b428a231fac2fff4588f323c5e5282"
+    },
+    "categories.csv": {
+      "rows": 53,
+      "sha256": "4ec1456da6d841af67b9ae2055a4197c56e37bfa40db999f0a2216d600023ed0"
+    },
+    "lines.csv": {
+      "rows": 0,
+      "sha256": "802a36180c9673118e2c861fe3c1f46ddc98cf05b081f3fc80289beac7dd5ad3"
+    },
+    "manufacturers.csv": {
+      "rows": 39,
+      "sha256": "75e2307050d574cb017772f0389b4b0e6a97182c378b1af03e736e4605fd365d"
+    },
+    "observations.csv": {
+      "rows": 0,
+      "sha256": "9e946e0b6643d663ce2d631dc5d257e2c34a8a052a5d4319b34ec2331d76732e"
+    },
+    "orders.csv": {
+      "rows": 0,
+      "sha256": "b8f95ac17081994124d9d7ff36fb46e7aca7fb02204aa635e77b2e7a815d33cf"
+    },
+    "packaging.csv": {
+      "rows": 50,
+      "sha256": "6684a514b20848d526ddf4c57d3d643b1e71f0d95222e3839cec6e44683346aa"
+    },
+    "products.csv": {
+      "rows": 50,
+      "sha256": "8fb6ac50bddea186be856518fde21e47606bd28dbca6651eab121398b0cac1df"
+    },
+    "references.csv": {
+      "rows": 100,
+      "sha256": "dc14a497fdd7690797b426d40f8217fd8795e0470740987cf054988acb5a4287"
+    },
+    "rejects.csv": {
+      "rows": 0,
+      "sha256": "e27fd5f527fc4184d7a4eb7096009ab228f9b8860ed9412c8adf8e92a0c5c29e"
+    },
+    "stores.csv": {
+      "rows": 20,
+      "sha256": "769ca239cb6737d21e79f1406a966282bd15e2c69e0e9c1bf778a9a60abb3b94"
+    },
+    "uoms.csv": {
+      "rows": 4,
+      "sha256": "7e2b9a857f0373152028d5b0719260f39cfd9813be721456f9372fa4bf59c4c6"
+    }
+  },
+  "full_manifest_sha256": "49f9ceec1605342e64ebecf00bc44eb6cbe8b05cf29efbecc90c3f47a11ff1ed",
+  "prepared_at_utc": "2026-11-04T16:21:10+00:00",
+  "prepared_row_counts": {
+    "assignments": 148,
+    "categories": 53,
+    "lines": 0,
+    "manufacturers": 39,
+    "observations": 0,
+    "orders": 0,
+    "packaging": 50,
+    "products": 50,
+    "references": 100,
+    "rejects": 0,
+    "stores": 20,
+    "uoms": 4
+  },
+  "run_id": "20261104-forecast-schema-v2",
+  "sample_parameters": {
+    "product_count": 50,
+    "selected_product_codes": [
+      "LC:00000485",
+      "LC:00000488",
+      "LC:00000489",
+      "LC:00000533",
+      "LC:00000761",
+      "LC:00000780",
+      "LC:00000804",
+      "LC:00001124",
+      "LC:00001125",
+      "LC:00001126",
+      "LC:00001144",
+      "LC:00001145",
+      "LC:00001412",
+      "LC:00001415",
+      "LC:00001455",
+      "LC:00001631",
+      "LC:00001792",
+      "LC:00001836",
+      "LC:00001837",
+      "LC:00002003",
+      "LC:00002147",
+      "LC:00002187",
+      "LC:00002231",
+      "LC:00002243",
+      "LC:00002244",
+      "LC:00002290",
+      "LC:00002291",
+      "LC:00002343",
+      "LC:00002344",
+      "LC:00002393",
+      "LC:00002483",
+      "LC:00002637",
+      "LC:00002639",
+      "LC:00002643",
+      "LC:00002644",
+      "LC:00003137",
+      "LC:00003226",
+      "LC:00003324",
+      "LC:00003327",
+      "LC:00003460",
+      "LC:00003481",
+      "LC:00003482",
+      "LC:00006657",
+      "LC:00007102",
+      "LC:00007820",
+      "LC:00008350",
+      "LC:00018235",
+      "LC:00021045",
+      "LC:00030191",
+      "LC:00050692"
+    ],
+    "selected_store_codes": [
+      "LC:80006",
+      "LC:80044",
+      "LC:80055",
+      "LC:80063",
+      "LC:80067",
+      "LC:80073",
+      "LC:80079",
+      "LC:80083",
+      "LC:80093",
+      "LC:80096",
+      "LC:80104",
+      "LC:80106",
+      "LC:80112",
+      "LC:80115",
+      "LC:80244",
+      "LC:80253",
+      "LC:80262",
+      "LC:80265",
+      "LC:80708",
+      "LC:80715"
+    ],
+    "selection": "50 SKUs across five public taxonomy roots and 20 locations selected across regions; no sales facts",
+    "store_count": 20,
+    "taxonomy_roots": {
+      "cham-soc-ca-nhan": 10,
+      "duoc-my-pham": 10,
+      "thuc-pham-chuc-nang": 10,
+      "thuoc": 10,
+      "trang-thiet-bi-y-te": 10
+    }
+  },
+  "sample_rule_set": "bounded-sample-v2",
+  "source_name": "longchau",
+  "stage": "sample",
+  "validation": {
+    "category_keys": 53,
+    "issues": [],
+    "line_keys": 0,
+    "observation_keys": 0,
+    "order_keys": 0,
+    "prepared_directory": "runs/20261104-forecast-schema-v2/01-longchau/prepared/sample",
+    "product_keys": 50,
+    "row_counts": {
+      "assignments": 148,
+      "categories": 53,
+      "lines": 0,
+      "manufacturers": 39,
+      "observations": 0,
+      "orders": 0,
+      "packaging": 50,
+      "products": 50,
+      "references": 100,
+      "rejects": 0,
+      "stores": 20,
+      "uoms": 4
+    },
+    "store_keys": 20,
+    "valid": true
+  }
+}

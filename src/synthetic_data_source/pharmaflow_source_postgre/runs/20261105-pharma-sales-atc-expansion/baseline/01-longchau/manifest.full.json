@@ -1,0 +1,117 @@
+{
+  "files": {
+    "assignments.csv": {
+      "rows": 7394,
+      "sha256": "9b8899705f21724a14ab68ff611ddc7ed0ab1f5a1f2b06ae8275df0c2c4591a7"
+    },
+    "categories.csv": {
+      "rows": 297,
+      "sha256": "dae3499ed03c7460b78cb8df62b77d45f706b50534fd3b9d586301fb4ef1f749"
+    },
+    "lines.csv": {
+      "rows": 0,
+      "sha256": "802a36180c9673118e2c861fe3c1f46ddc98cf05b081f3fc80289beac7dd5ad3"
+    },
+    "manufacturers.csv": {
+      "rows": 1030,
+      "sha256": "3c5eea2a2ff4bcc4e3c74c9961d51eca8a09b40982ac114653ceefea192a8423"
+    },
+    "observations.csv": {
+      "rows": 0,
+      "sha256": "9e946e0b6643d663ce2d631dc5d257e2c34a8a052a5d4319b34ec2331d76732e"
+    },
+    "orders.csv": {
+      "rows": 0,
+      "sha256": "b8f95ac17081994124d9d7ff36fb46e7aca7fb02204aa635e77b2e7a815d33cf"
+    },
+    "packaging.csv": {
+      "rows": 2450,
+      "sha256": "198492b5ee9d36544e49c6c29a503e5e06c4b5457c901528eee2bcc0b7eee145"
+    },
+    "products.csv": {
+      "rows": 2478,
+      "sha256": "8f303389493d1475d32c29793734ddad8a58a7612decc8732f0b329b50ced278"
+    },
+    "products_for_mapping.csv": {
+      "rows": 865,
+      "sha256": "f144c2a4e9c22de8746ba3f72990499172fee0920764d1d6c4c9e7e94e5c92c5"
+    },
+    "references.csv": {
+      "rows": 4928,
+      "sha256": "4a671154912e7fb6f9f7230f86c5cdc27cf3c7b95f4505c57c3d618213bbc697"
+    },
+    "rejects.csv": {
+      "rows": 0,
+      "sha256": "e27fd5f527fc4184d7a4eb7096009ab228f9b8860ed9412c8adf8e92a0c5c29e"
+    },
+    "stores.csv": {
+      "rows": 2694,
+      "sha256": "4d6361dfa13ecb99879754a15c75ab250c90b4e97271fc150d4bbf077b287fe3"
+    },
+    "uoms.csv": {
+      "rows": 8,
+      "sha256": "25d567e6e920e29b8fd2908dcb5a1449f52cdca3311c8ce6acbab3045f5b2a91"
+    }
+  },
+  "prepared_at_utc": "2026-11-04T14:45:47+00:00",
+  "prepared_row_counts": {
+    "assignments": 7394,
+    "categories": 297,
+    "lines": 0,
+    "manufacturers": 1030,
+    "observations": 0,
+    "orders": 0,
+    "packaging": 2450,
+    "products": 2478,
+    "references": 4928,
+    "rejects": 0,
+    "stores": 2694,
+    "uoms": 8
+  },
+  "run_id": "20261104-forecast-schema-v2",
+  "source_id": "LONGCHAU_PUBLIC_CATALOG",
+  "source_name": "longchau",
+  "source_profile": {
+    "category_parent_unresolved_count": 0,
+    "duplicate_captures_merged": 3,
+    "product_categories": 297,
+    "product_identity_conflict_groups_rejected": 0,
+    "product_identity_fallback_to_url_count": 28,
+    "product_mapping_candidates": 865,
+    "product_note_captures": 2481,
+    "product_rows": 2478,
+    "reject_rows": 0,
+    "source_id": "LONGCHAU_PUBLIC_CATALOG",
+    "source_store_manifest_sha256": "98ec58758903ddb3b927e57e21d0db9b2160baa465ee73a707467f385451129d",
+    "store_csv_sha256": "364a880e94fc926e4d89d9346653fccd29c1e5f2ed17cc1e6fb43c3f094426de",
+    "store_rows": 2694,
+    "unique_product_identities": 2478,
+    "unique_product_page_urls": 2478
+  },
+  "stage": "full",
+  "validation": {
+    "category_keys": 297,
+    "issues": [],
+    "line_keys": 0,
+    "observation_keys": 0,
+    "order_keys": 0,
+    "prepared_directory": "runs/20261104-forecast-schema-v2/01-longchau/prepared/full",
+    "product_keys": 2478,
+    "row_counts": {
+      "assignments": 7394,
+      "categories": 297,
+      "lines": 0,
+      "manufacturers": 1030,
+      "observations": 0,
+      "orders": 0,
+      "packaging": 2450,
+      "products": 2478,
+      "references": 4928,
+      "rejects": 0,
+      "stores": 2694,
+      "uoms": 8
+    },
+    "store_keys": 2694,
+    "valid": true
+  }
+}

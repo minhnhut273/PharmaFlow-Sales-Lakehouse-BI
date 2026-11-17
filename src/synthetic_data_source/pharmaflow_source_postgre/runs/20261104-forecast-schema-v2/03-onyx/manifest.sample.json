@@ -1,0 +1,203 @@
+{
+  "dimension_row_counts": {
+    "assignments": 81,
+    "categories": 5,
+    "manufacturers": 0,
+    "packaging": 81,
+    "products": 81,
+    "references": 81,
+    "rejects": 0,
+    "stores": 5,
+    "uoms": 1
+  },
+  "files": {
+    "assignments.csv": {
+      "rows": 81,
+      "sha256": "3bf34b130ecc81ebced506a52a9037c6168d1458dfe5f681f0dae6063c32c9f0"
+    },
+    "categories.csv": {
+      "rows": 5,
+      "sha256": "aebf4b1f73786b9fbd07e852c4fd53cfad08943c7cb659dbbc47fb4fce6d5f4a"
+    },
+    "lines.csv": {
+      "rows": 100,
+      "sha256": "7abd89e0a1094a1bc6086d61b7dcb53aba984710493fe924181479ef983e2605"
+    },
+    "manufacturers.csv": {
+      "rows": 0,
+      "sha256": "f079200d47cfdff145c351cc43ff2c0fd9b360711d69b566fd509315c7a5a9a2"
+    },
+    "observations.csv": {
+      "rows": 100,
+      "sha256": "c123dc0a9a50663930a0b5ef65a76f321246554377c187ff105e907f0c698904"
+    },
+    "orders.csv": {
+      "rows": 70,
+      "sha256": "0f16cfdf46a0a5be03839f212bb486beb830a00d68d768ff683fb9510b4a32f8"
+    },
+    "packaging.csv": {
+      "rows": 81,
+      "sha256": "65e46ce670503ca413d9f929248791f324b14b4f09d72f5dabf0a98df2b4e6ab"
+    },
+    "products.csv": {
+      "rows": 81,
+      "sha256": "1ab775c9544911c200e3c9e134f9e5b52be7484d58f8cb9ca1d4ceeab3604ec3"
+    },
+    "references.csv": {
+      "rows": 81,
+      "sha256": "cf4a966498e451268ce9baddb8454586ea2da80a7814583c9434ed58736af99d"
+    },
+    "rejects.csv": {
+      "rows": 0,
+      "sha256": "e27fd5f527fc4184d7a4eb7096009ab228f9b8860ed9412c8adf8e92a0c5c29e"
+    },
+    "stores.csv": {
+      "rows": 5,
+      "sha256": "706880cb5077a40153f8ba0b9795ba3af659a44b65c4cc8a2e3eff3e47b8abb5"
+    },
+    "uoms.csv": {
+      "rows": 1,
+      "sha256": "f2cf2a06748c7c0102d041409c05bbe42a6e77c86048175f3339a17774ddc9e1"
+    }
+  },
+  "full_manifest_sha256": "c21792ef5ca6a37112d2831689ebb0750112b15953f2134671cbe75b0cab4396",
+  "prepared_at_utc": "2026-11-04T16:08:24+00:00",
+  "prepared_row_counts": {
+    "assignments": 81,
+    "categories": 5,
+    "lines": 100,
+    "manufacturers": 0,
+    "observations": 100,
+    "orders": 70,
+    "packaging": 81,
+    "products": 81,
+    "references": 81,
+    "rejects": 0,
+    "stores": 5,
+    "uoms": 1
+  },
+  "run_id": "20261104-forecast-schema-v2",
+  "sample_parameters": {
+    "daily_order_count": 70,
+    "days_per_store": 14,
+    "selected_dates_by_store": {
+      "ONYX:PH0002": [
+        "2024-01-01",
+        "2024-01-02",
+        "2024-01-03",
+        "2024-01-06",
+        "2024-01-10",
+        "2024-01-11",
+        "2024-01-12",
+        "2024-01-14",
+        "2024-01-15",
+        "2024-01-16",
+        "2024-01-18",
+        "2024-01-19",
+        "2024-01-20",
+        "2024-01-21"
+      ],
+      "ONYX:PH0003": [
+        "2025-04-20",
+        "2025-04-22",
+        "2025-04-23",
+        "2025-04-24",
+        "2025-04-27",
+        "2025-04-28",
+        "2025-04-29",
+        "2025-04-30",
+        "2025-05-01",
+        "2025-05-03",
+        "2025-05-04",
+        "2025-05-05",
+        "2025-05-06",
+        "2025-05-07"
+      ],
+      "ONYX:PH0007": [
+        "2024-01-01",
+        "2024-01-02",
+        "2024-01-03",
+        "2024-01-04",
+        "2024-01-05",
+        "2024-01-10",
+        "2024-01-12",
+        "2024-01-15",
+        "2024-01-16",
+        "2024-01-22",
+        "2024-01-23",
+        "2024-01-24",
+        "2024-01-27",
+        "2024-01-28"
+      ],
+      "ONYX:PH0010": [
+        "2024-01-01",
+        "2024-01-02",
+        "2024-01-03",
+        "2024-01-05",
+        "2024-01-08",
+        "2024-01-10",
+        "2024-01-12",
+        "2024-01-13",
+        "2024-01-16",
+        "2024-01-17",
+        "2024-01-18",
+        "2024-01-19",
+        "2024-01-22",
+        "2024-01-24"
+      ],
+      "ONYX:PH0013": [
+        "2024-01-10",
+        "2024-01-11",
+        "2024-01-12",
+        "2024-01-15",
+        "2024-01-17",
+        "2024-01-19",
+        "2024-01-24",
+        "2024-02-01",
+        "2024-02-02",
+        "2024-02-04",
+        "2024-02-06",
+        "2024-02-10",
+        "2024-02-11",
+        "2024-02-12"
+      ]
+    },
+    "selected_store_codes": [
+      "ONYX:PH0002",
+      "ONYX:PH0003",
+      "ONYX:PH0007",
+      "ONYX:PH0010",
+      "ONYX:PH0013"
+    ],
+    "selection": "first 14 fact dates for five representative pharmacies",
+    "store_count": 5
+  },
+  "sample_rule_set": "bounded-sample-v2",
+  "source_name": "onyx",
+  "stage": "sample",
+  "validation": {
+    "category_keys": 5,
+    "issues": [],
+    "line_keys": 100,
+    "observation_keys": 100,
+    "order_keys": 70,
+    "prepared_directory": "runs/20261104-forecast-schema-v2/03-onyx/prepared/sample",
+    "product_keys": 81,
+    "row_counts": {
+      "assignments": 81,
+      "categories": 5,
+      "lines": 100,
+      "manufacturers": 0,
+      "observations": 100,
+      "orders": 70,
+      "packaging": 81,
+      "products": 81,
+      "references": 81,
+      "rejects": 0,
+      "stores": 5,
+      "uoms": 1
+    },
+    "store_keys": 5,
+    "valid": true
+  }
+}

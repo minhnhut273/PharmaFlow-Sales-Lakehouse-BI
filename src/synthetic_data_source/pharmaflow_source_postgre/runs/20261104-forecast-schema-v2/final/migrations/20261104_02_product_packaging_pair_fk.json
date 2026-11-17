@@ -1,0 +1,15 @@
+{
+  "applied_at_utc": "2026-11-04T17:09:28+00:00",
+  "database": "pharmaflow_source_postgre_v2",
+  "migration": "20261104_02_product_packaging_pair_fk",
+  "migration_sha256": "b04d461b5a90967b46928a5bf4a3794dd08c8521a60eee4c743c9b240df890ac",
+  "row_counts_before_after": {
+    "product_packaging": 5829,
+    "sales_order_line": 708126
+  },
+  "status": "PASS",
+  "verified_constraints": [
+    "fk_sales_line_product_packaging_pair",
+    "uq_product_packaging_id_product"
+  ]
+}

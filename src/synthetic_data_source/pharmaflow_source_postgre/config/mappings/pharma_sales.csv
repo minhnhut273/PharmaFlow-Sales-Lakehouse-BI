@@ -1,0 +1,9 @@
+source_file,source_grain,source_field,target_table_column,transformation,data_class,notes
+salesdaily.csv,day x ATC group,datum,pos.sales_observation.period_start and period_end,Map to one-day period,OBSERVED_DATASET,
+salesdaily.csv,day x ATC group,ATC group code,catalog.product_category.category_code,Use ATC taxonomy without mapping to a specific SKU unless separately reviewed,OBSERVED_DATASET,Eight source groups
+salesdaily.csv,day x ATC group,ATC daily sales measure,pos.sales_observation.quantity,Preserve numeric measure at source grain,OBSERVED_DATASET,Source README does not define its unit; quantity_uom_code remains null
+salesdaily.csv,day x ATC group,Year/Month/Hour/Weekday Name,not loaded,Use datum as the canonical date and do not duplicate derived date fields,OBSERVED_DATASET,
+ATC candidate config,ATC group and Long Chau product evidence,candidate product codes,catalog.product_category_assignment,Store as CANDIDATE with explicit basis; no unsupported name-only match,DERIVED,Only configured candidates used for optional simulation
+simulation config,positive daily ATC group quantity,ATC quantity and scale 10,synthetic pos.sales_order and pos.sales_order_line,Half-up round then split deterministically across mapped Long Chau candidates,SYNTHETIC,Simulation only; not a source transaction or measured unit
+simulation config,one simulated pharmacy,configured Niš identity and coordinates,org.store,Use deterministic point within configured polygon with Europe/Belgrade timezone,SYNTHETIC,Not a real pharmacy location
+salesdaily.csv,daily ATC aggregate,source measure,synthetic POS line amount and unit price,Leave null because price is not established,NOT_INFERRED,

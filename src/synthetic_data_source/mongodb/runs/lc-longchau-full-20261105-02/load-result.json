@@ -1,0 +1,12 @@
+{
+  "sample_verified": 10,
+  "sample_result": {
+    "already_present": 10
+  },
+  "remaining_result": {
+    "already_present": 2471
+  },
+  "already_present": 2481,
+  "loaded_at": "2026-11-05T08:29:58.204602+00:00",
+  "status": "LOADED"
+}

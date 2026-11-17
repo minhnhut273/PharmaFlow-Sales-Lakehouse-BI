@@ -1,0 +1,8 @@
+{
+  "bootstrapped_at_utc": "2026-11-04T14:46:49+00:00",
+  "database": "pharmaflow_source_postgre_v2",
+  "schema_file": "schema_full.sql",
+  "schema_sha256": "d4c89423866b11b3064a26627b4e6397ab668258658138cf021848a29423fd2f",
+  "statement_count": 114,
+  "table_count": 35
+}

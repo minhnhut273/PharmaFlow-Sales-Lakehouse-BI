@@ -1,0 +1,99 @@
+{
+  "files": {
+    "assignments.csv": {
+      "rows": 10,
+      "sha256": "ec3fc2891a46b8186019c5e651feb19fc4f1e8e4b1d9ee559f5de1ae6fdfffa2"
+    },
+    "categories.csv": {
+      "rows": 8,
+      "sha256": "06f973550f7221d09fbbf725964b806f2faffc4cddbd53c0e167cb170a9c9c46"
+    },
+    "lines.csv": {
+      "rows": 253,
+      "sha256": "944ba54f8aed7ed166015fb615aebfbca291d4fbf8d994d7e6cc80d00c744dee"
+    },
+    "manufacturers.csv": {
+      "rows": 0,
+      "sha256": "f079200d47cfdff145c351cc43ff2c0fd9b360711d69b566fd509315c7a5a9a2"
+    },
+    "observations.csv": {
+      "rows": 240,
+      "sha256": "8808e8c340314587353c09ba7c781c1631a1424713413a448e565efcf0a22b16"
+    },
+    "orders.csv": {
+      "rows": 29,
+      "sha256": "61ffce3ebc6c168d19068dd29962433b18f19800f8dfdae64ce2f7df416c4f8e"
+    },
+    "packaging.csv": {
+      "rows": 0,
+      "sha256": "20dab40064817c695b2d8d867a6ba580353532a4cb9dcf613426b26383ad37dc"
+    },
+    "products.csv": {
+      "rows": 0,
+      "sha256": "4b2f84115673b5c2a40feebaa65988d6db27762fa4352a73a1b05341bdf2911f"
+    },
+    "references.csv": {
+      "rows": 0,
+      "sha256": "a4c49833f69625033f2297ce7e2e597b4560c8691823fcc5779652d28393b140"
+    },
+    "rejects.csv": {
+      "rows": 0,
+      "sha256": "e27fd5f527fc4184d7a4eb7096009ab228f9b8860ed9412c8adf8e92a0c5c29e"
+    },
+    "stores.csv": {
+      "rows": 1,
+      "sha256": "c3a78d7cfdfec498d469794a4dae9abae2c8e14ed9d639804c49b0a6e4ecf456"
+    },
+    "uoms.csv": {
+      "rows": 1,
+      "sha256": "cb0b81300209eefc6bce2ceca5e9c99d00803cc3fe8c495a0f4ac7f96fbc2fe4"
+    }
+  },
+  "prepared_at_utc": "2026-11-04T15:05:17+00:00",
+  "prepared_row_counts": {
+    "assignments": 10,
+    "categories": 8,
+    "lines": 253,
+    "manufacturers": 0,
+    "observations": 240,
+    "orders": 29,
+    "packaging": 0,
+    "products": 0,
+    "references": 0,
+    "rejects": 0,
+    "stores": 1,
+    "uoms": 1
+  },
+  "run_id": "20261104-forecast-schema-v2",
+  "sample_parameters": {
+    "date_count": 30,
+    "selection": "first complete daily category periods"
+  },
+  "source_name": "pharma_sales",
+  "stage": "sample",
+  "validation": {
+    "category_keys": 8,
+    "issues": [],
+    "line_keys": 253,
+    "observation_keys": 240,
+    "order_keys": 29,
+    "prepared_directory": "runs/20261104-forecast-schema-v2/04-pharma-sales/prepared/sample",
+    "product_keys": 2478,
+    "row_counts": {
+      "assignments": 10,
+      "categories": 8,
+      "lines": 253,
+      "manufacturers": 0,
+      "observations": 240,
+      "orders": 29,
+      "packaging": 0,
+      "products": 0,
+      "references": 0,
+      "rejects": 0,
+      "stores": 1,
+      "uoms": 1
+    },
+    "store_keys": 1,
+    "valid": true
+  }
+}

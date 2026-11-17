@@ -1,0 +1,25 @@
+{
+  "category_keys": 297,
+  "issues": [],
+  "line_keys": 0,
+  "observation_keys": 0,
+  "order_keys": 0,
+  "prepared_directory": "runs/20261104-forecast-schema-v2/01-longchau/prepared/full",
+  "product_keys": 2482,
+  "row_counts": {
+    "assignments": 7394,
+    "categories": 297,
+    "lines": 0,
+    "manufacturers": 1034,
+    "observations": 0,
+    "orders": 0,
+    "packaging": 2454,
+    "products": 2482,
+    "references": 4936,
+    "rejects": 0,
+    "stores": 2694,
+    "uoms": 8
+  },
+  "store_keys": 2694,
+  "valid": true
+}

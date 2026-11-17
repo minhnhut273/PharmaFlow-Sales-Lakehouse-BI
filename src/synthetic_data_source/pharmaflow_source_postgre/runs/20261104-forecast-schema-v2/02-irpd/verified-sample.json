@@ -1,0 +1,42 @@
+{
+  "database": "pharmaflow_source_postgre_v2",
+  "mismatches": [],
+  "mode": "sample",
+  "reconciliation": "PASS",
+  "run_id": "20261104-forecast-schema-v2",
+  "source_counts": {
+    "assignments": {
+      "IRPD_PUBLISHER_REPORTED_CLASSIFICATION": 1639
+    },
+    "categories": {
+      "IRPD_PUBLISHER_REPORTED_CLASSIFICATION": 10
+    },
+    "lines": {
+      "IRPD_PUBLISHER_REPORTED_POS": 199
+    },
+    "manufacturers": {
+      "IRPD_PUBLISHER_REPORTED_CATALOG": 77
+    },
+    "observations": {},
+    "orders": {
+      "IRPD_DERIVED_POS_ORDER_TOTAL_FROM_TOTALPRICE_LINES": 100
+    },
+    "packaging": {
+      "IRPD_PUBLISHER_REPORTED_POS": 3159
+    },
+    "products": {
+      "IRPD_PUBLISHER_REPORTED_CATALOG": 2972
+    },
+    "references": {
+      "IRPD_PUBLISHER_REPORTED_CATALOG": 2972
+    },
+    "stores": {
+      "IRPD_SIMULATED_LOCATION_CENTRAL_JAVA": 1
+    },
+    "uoms": {
+      "IRPD_PUBLISHER_REPORTED_POS": 20
+    }
+  },
+  "source_name": "irpd",
+  "verified_at_utc": "2026-11-04T14:57:35+00:00"
+}

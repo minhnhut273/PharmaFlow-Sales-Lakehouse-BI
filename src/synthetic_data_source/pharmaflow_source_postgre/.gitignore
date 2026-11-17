@@ -1,0 +1,12 @@
+/runs/**/prepared/full/*.csv
+/runs/**/prepared/sample/*.csv
+/runs/**/backup/*.dump
+/runs/**/backup/*.backup
+/runs/**/backup/*.tar
+/runs/**/backup/*.sql.gz
+/tools/postgresql-client/postgresql-*-binaries.zip
+/tools/postgresql-client/pgsql/bin/*.exe
+/tools/postgresql-client/pgsql/bin/*.dll
+/tools/postgresql-client/runtime/
+/Relations-DataSource - Shortcut.lnk
+/scripts/__pycache__/

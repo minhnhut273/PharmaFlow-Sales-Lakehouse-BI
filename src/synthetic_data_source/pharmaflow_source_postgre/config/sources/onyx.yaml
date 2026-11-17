@@ -1,0 +1,55 @@
+source_id: ONYX_CHALLENGE_PROVENANCE_UNVERIFIED
+dataset_path: dataset/onyx-pharmacy-sales-challenge/Pharmacy_Data_Challenge_Dataset.xlsx
+fact_sheet: FactSales
+date_sheet: DimDate
+pharmacy_sheet: DimPharmacy
+product_sheet: DimProduct
+grain: date_x_pharmacy_x_product
+currency: EUR
+timezone_by_country:
+  Austria: Europe/Vienna
+  Belgium: Europe/Brussels
+  France: Europe/Paris
+  Germany: Europe/Berlin
+  Italy: Europe/Rome
+  Netherlands: Europe/Amsterdam
+  Poland: Europe/Warsaw
+  Spain: Europe/Madrid
+fields:
+  pharmacy_id: PharmacyID
+  pharmacy_name: PharmacyName
+  pharmacy_city: City
+  pharmacy_region: Region
+  country: Country
+  latitude: Latitude
+  longitude: Longitude
+  product_id: ProductID
+  product_name: ProductName
+  product_brand: Brand
+  product_category: Category
+  pack_size: PackSize
+  fact_date: DateKey
+  quantity: UnitsSold
+  revenue: RevenueEUR
+  cost: CostEUR
+  margin: MarginEUR
+  promotional_flag: PromoFlag
+load_rules:
+  source_coordinates_are_perturbed: true
+  source_provenance_is_verified: false
+  original_daily_facts_retained: true
+  synthetic_pos_time: "12:00:00 local store time"
+  synthetic_pos_grain: one_order_per_pharmacy_per_date_with_positive_sales
+store_warehouse_simulation:
+  create_for_each_demand_store_in_orders: true
+  code_prefix: SIM_STORE_WH
+  warehouse_kind: STORE
+  data_origin: SYNTHETIC
+  fulfillment_location_populated_on_orders: false
+  inventory_or_receipt_rows_created: false
+source_codes:
+  products: ONYX_CHALLENGE_PRODUCT_DIMENSION
+  stores: ONYX_CHALLENGE_LOCATION_DIMENSION_UNVERIFIED
+  observations: ONYX_CHALLENGE_DAILY_SALES_FACT_UNVERIFIED
+  synthetic_orders: SIMULATED_ONYX_DAILY_FACT_TO_POS
+  synthetic_order_lines: SIMULATED_ONYX_DAILY_FACT_TO_POS

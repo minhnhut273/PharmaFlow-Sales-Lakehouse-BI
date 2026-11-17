@@ -1,0 +1,123 @@
+{
+  "dimension_row_counts": {
+    "assignments": 879,
+    "categories": 8,
+    "manufacturers": 58,
+    "packaging": 1225,
+    "products": 1076,
+    "references": 1076,
+    "rejects": 0,
+    "stores": 1,
+    "uoms": 15
+  },
+  "files": {
+    "assignments.csv": {
+      "rows": 879,
+      "sha256": "a88f98a6752c10bf1c255c38b372ae5ee31c7777e53308aa9730bb2b9255401e"
+    },
+    "categories.csv": {
+      "rows": 8,
+      "sha256": "3eade7f17953e2a6f6900b6125d8ea3f33727331c858a6e112a2a651263a710a"
+    },
+    "lines.csv": {
+      "rows": 4641,
+      "sha256": "a9c3d23c91a3c6a1615200b74a9c4156f3f984a593920f3731d038d2e3e84a6e"
+    },
+    "manufacturers.csv": {
+      "rows": 58,
+      "sha256": "9546c2c389ddb048726eafb7d9a7e1d15997deea23a99d04adbd532a08ab8b69"
+    },
+    "observations.csv": {
+      "rows": 0,
+      "sha256": "9e946e0b6643d663ce2d631dc5d257e2c34a8a052a5d4319b34ec2331d76732e"
+    },
+    "orders.csv": {
+      "rows": 2508,
+      "sha256": "8adba78345bff8893e777b1b85ac2a16467c7d0eae4bdf7f2dc9dc2a2a7fea4b"
+    },
+    "packaging.csv": {
+      "rows": 1225,
+      "sha256": "36ee754dcbef1add560fe428c0fd7ec8f6053178fbae188f70d39e09efcc245b"
+    },
+    "products.csv": {
+      "rows": 1076,
+      "sha256": "eee276944c25ea7e40ca9fba9b026d31e7b4e1fa8c3038203c80a40ee81c7962"
+    },
+    "references.csv": {
+      "rows": 1076,
+      "sha256": "e535f92a7e0947b61a18e863e72c0b9980c39233fc2f27aa8cb721356116919a"
+    },
+    "rejects.csv": {
+      "rows": 0,
+      "sha256": "e27fd5f527fc4184d7a4eb7096009ab228f9b8860ed9412c8adf8e92a0c5c29e"
+    },
+    "stores.csv": {
+      "rows": 1,
+      "sha256": "8c300ce1a3c5a893afa28789c0a17fbdb3ccea6cb1ca559a6a47f58f080487ba"
+    },
+    "uoms.csv": {
+      "rows": 15,
+      "sha256": "f2d65b6e699db124e4ca2497f49a93221e141b67def642be40c691e4dabc2fe5"
+    }
+  },
+  "full_manifest_sha256": "9333834d796768b2b5aa822cd945be2bc6a5f446f236ee9d26e7adfe4551453c",
+  "prepared_at_utc": "2026-11-04T16:08:18+00:00",
+  "prepared_row_counts": {
+    "assignments": 879,
+    "categories": 8,
+    "lines": 4641,
+    "manufacturers": 58,
+    "observations": 0,
+    "orders": 2508,
+    "packaging": 1225,
+    "products": 1076,
+    "references": 1076,
+    "rejects": 0,
+    "stores": 1,
+    "uoms": 15
+  },
+  "run_id": "20261104-forecast-schema-v2",
+  "sample_parameters": {
+    "day_count": 7,
+    "invoice_count": 2508,
+    "line_count": 4641,
+    "selected_dates": [
+      "2023-01-02",
+      "2023-01-03",
+      "2023-01-04",
+      "2023-01-05",
+      "2023-01-06",
+      "2023-01-07",
+      "2023-01-08"
+    ],
+    "selection": "complete invoices for the first seven source dates with sales"
+  },
+  "sample_rule_set": "bounded-sample-v2",
+  "source_name": "irpd",
+  "stage": "sample",
+  "validation": {
+    "category_keys": 8,
+    "issues": [],
+    "line_keys": 4641,
+    "observation_keys": 0,
+    "order_keys": 2508,
+    "prepared_directory": "runs/20261104-forecast-schema-v2/02-irpd/prepared/sample",
+    "product_keys": 1076,
+    "row_counts": {
+      "assignments": 879,
+      "categories": 8,
+      "lines": 4641,
+      "manufacturers": 58,
+      "observations": 0,
+      "orders": 2508,
+      "packaging": 1225,
+      "products": 1076,
+      "references": 1076,
+      "rejects": 0,
+      "stores": 1,
+      "uoms": 15
+    },
+    "store_keys": 1,
+    "valid": true
+  }
+}

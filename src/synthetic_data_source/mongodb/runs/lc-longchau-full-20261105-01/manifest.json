@@ -1,0 +1,29 @@
+{
+  "run_id": "lc-longchau-full-20261105-01",
+  "created_at": "2026-11-05T07:14:08.865000+00:00",
+  "source": "LONGCHAU_PUBLIC_PRODUCT_PAGE",
+  "database": "pharmaflow_product_knowledge",
+  "collection": "product_snapshots",
+  "schema_version": 1,
+  "data_file": "documents.ejsonl",
+  "data_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "rejected_file": "rejected.jsonl",
+  "stats": {
+    "basis_text_empty": 0,
+    "basis_text_present": 0,
+    "duplicate_notes_collapsed": 0,
+    "ingredient_items_empty": 0,
+    "ingredient_items_present": 0,
+    "notes_discovered": 2481,
+    "product_notes": 2481,
+    "rejected_notes": 2481,
+    "snapshots_without_sku": 0,
+    "storage_text_empty": 0,
+    "storage_text_present": 0,
+    "unique_product_keys": 0,
+    "unique_skus": 0,
+    "unique_snapshots": 0
+  },
+  "sample_snapshot_ids": [],
+  "load_status": "PREPARED"
+}

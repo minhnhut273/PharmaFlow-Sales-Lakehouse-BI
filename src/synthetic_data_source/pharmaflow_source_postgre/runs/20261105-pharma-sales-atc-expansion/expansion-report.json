@@ -1,0 +1,174 @@
+{
+  "baseline": {
+    "all_sha256_match": true,
+    "files_checked": 26,
+    "longchau_manifest_sha256": "49f9ceec1605342e64ebecf00bc44eb6cbe8b05cf29efbecc90c3f47a11ff1ed",
+    "path": "runs/20261105-pharma-sales-atc-expansion/baseline/",
+    "pharma_sales_manifest_sha256": "b6e712e9529f350a7347a872a21f6d43a90c102fd6faeb29c7f7a6e46f6a254f"
+  },
+  "created_at_utc": "2026-11-05T03:21:23+00:00",
+  "live_verification": {
+    "all_sources_verified": [
+      "longchau",
+      "irpd",
+      "onyx",
+      "pharma_sales"
+    ],
+    "current_row_counts": {
+      "catalog.manufacturer": 1111,
+      "catalog.product": 5674,
+      "catalog.product_category": 320,
+      "catalog.product_category_assignment": 9267,
+      "catalog.product_packaging": 5833,
+      "catalog.product_source_reference": 8128,
+      "catalog.unit_of_measure": 30,
+      "inventory.batch_lot": 0,
+      "inventory.inventory_balance": 0,
+      "inventory.inventory_movement": 0,
+      "inventory.quality_control_event": 0,
+      "inventory.recall_action_event": 0,
+      "inventory.recall_case": 0,
+      "inventory.recall_reconciliation": 0,
+      "inventory.recall_scope_line": 0,
+      "inventory.return_case": 0,
+      "inventory.return_case_event": 0,
+      "inventory.return_case_line": 0,
+      "inventory.stock_take": 0,
+      "inventory.stock_take_line": 0,
+      "inventory.stock_transfer": 0,
+      "inventory.stock_transfer_line": 0,
+      "org.store": 2816,
+      "org.warehouse": 122,
+      "pos.customer_request": 0,
+      "pos.customer_request_line": 0,
+      "pos.sales_channel": 0,
+      "pos.sales_observation": 78884,
+      "pos.sales_order": 393942,
+      "pos.sales_order_line": 714959,
+      "procurement.goods_receipt": 0,
+      "procurement.goods_receipt_line": 0,
+      "procurement.purchase_order": 0,
+      "procurement.purchase_order_line": 0,
+      "procurement.supplier": 0
+    },
+    "longchau_reconciliation": "PASS",
+    "pharma_sales_reconciliation": "PASS",
+    "table_count": 35,
+    "verified_at_utc": "2026-11-05T03:16:55+00:00"
+  },
+  "longchau_delta": {
+    "added_candidate_skus": 4,
+    "after": {
+      "manufacturers": 1034,
+      "mapping_index_rows": 869,
+      "packaging": 2454,
+      "products": 2482,
+      "references": 4936
+    },
+    "base_uom_and_package_conversion": "NULL because the source page does not establish the source transaction unit or package-to-base conversion",
+    "before": {
+      "manufacturers": 1030,
+      "mapping_index_rows": 865,
+      "packaging": 2450,
+      "products": 2478,
+      "references": 4928
+    },
+    "native_longchau_taxonomy_assignments_added": 0,
+    "package_uom": "LC_BOX"
+  },
+  "new_longchau_candidates": [
+    {
+      "assignment_status": "CANDIDATE",
+      "atc_code": "M01AB",
+      "evidence_source_url": "https://nhathuoclongchau.com.vn/thuoc/fenaflam-25mg-dhg-2x10-19845.html",
+      "ingredient_atc_code": "M01AB05",
+      "ingredient_evidence": "Diclofenac kali 25 mg",
+      "matched_ingredient_term": "diclofenac",
+      "product_code": "LC:00018530",
+      "product_name": "Thuốc Fenaflam DHG điều trị các tình trạng viêm đau cấp tính (2 vỉ x 10 viên)",
+      "route_form_evidence": "uống; viên nén bao phim",
+      "source_sku": "00018530"
+    },
+    {
+      "assignment_status": "CANDIDATE",
+      "atc_code": "N02BA",
+      "evidence_source_url": "https://nhathuoclongchau.com.vn/thuoc/aspirin-ph8-4670.html",
+      "ingredient_atc_code": "N02BA01",
+      "ingredient_evidence": "Acid acetylsalicylic (Aspirin) 500 mg",
+      "matched_ingredient_term": "aspirin",
+      "product_code": "LC:00000904",
+      "product_name": "Thuốc Aspirin pH8 Mekophar giảm cơn đau nhẹ và vừa, hạ sốt (20 vỉ x 10 viên)",
+      "route_form_evidence": "uống; viên nén bao phim tan trong ruột",
+      "source_sku": "00000904"
+    },
+    {
+      "assignment_status": "CANDIDATE",
+      "atc_code": "N05B",
+      "evidence_source_url": "https://nhathuoclongchau.com.vn/thuoc/stresam-2156.html",
+      "ingredient_atc_code": "N05BX03",
+      "ingredient_evidence": "Etifoxine 50 mg",
+      "matched_ingredient_term": "etifoxine",
+      "product_code": "LC:00006931",
+      "product_name": "Thuốc Stresam Biocodex điều trị các biểu hiện dạng tâm thể của lo âu (3 vỉ x 20 viên)",
+      "route_form_evidence": "uống; viên nang",
+      "source_sku": "00006931"
+    },
+    {
+      "assignment_status": "CANDIDATE",
+      "atc_code": "N05C",
+      "evidence_source_url": "https://nhathuoclongchau.com.vn/thuoc/eszopiclone-2-mg-minh-dan-3-x10.html",
+      "ingredient_atc_code": "N05CF04",
+      "ingredient_evidence": "Eszopiclone 2 mg",
+      "matched_ingredient_term": "eszopiclone",
+      "product_code": "LC:00048631",
+      "product_name": "Thuốc Eszopiclone 2mg Minh Dân điều trị chứng mất ngủ (3 vỉ x 10 viên)",
+      "route_form_evidence": "uống; viên nén bao phim",
+      "source_sku": "00048631"
+    }
+  ],
+  "pharma_sales_delta": {
+    "after": {
+      "candidate_mappings": 14,
+      "lines": 25534,
+      "observations": 16848,
+      "orders": 2080
+    },
+    "all_assignment_statuses": [
+      "CANDIDATE"
+    ],
+    "before": {
+      "candidate_mappings": 10,
+      "lines": 18701,
+      "observations": 16848,
+      "orders": 2080
+    },
+    "candidate_counts_by_atc": {
+      "M01AB": 1,
+      "M01AE": 2,
+      "N02BA": 1,
+      "N02BE": 2,
+      "N05B": 1,
+      "N05C": 1,
+      "R03": 3,
+      "R06": 3
+    },
+    "line_delta": 6833,
+    "simulation_scale": 10,
+    "simulation_unit": "SIM_PHARMA_SALES_UNIT",
+    "source_quantity_uom": null,
+    "unmapped_atc_groups": []
+  },
+  "references": {
+    "atc": "https://atcddd.fhi.no/atc_ddd_index/",
+    "longchau_product_pages": "The official product-page URL and SKU are stored as DIRECT catalog.product_source_reference rows."
+  },
+  "scope": {
+    "branch_id": "br-icy-lake-b3gg39qb",
+    "database_id": 773750,
+    "inventory_or_logistics_data_changed": false,
+    "neon_environment_created": false,
+    "schema_changed": false,
+    "target_database": "pharmaflow_source_postgre_v2"
+  },
+  "task_id": "20261105-pharma-sales-atc-expansion"
+}

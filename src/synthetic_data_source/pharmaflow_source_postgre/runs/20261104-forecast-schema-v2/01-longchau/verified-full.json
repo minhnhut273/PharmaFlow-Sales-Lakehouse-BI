@@ -1,0 +1,39 @@
+{
+  "database": "pharmaflow_source_postgre_v2",
+  "manifest_sha256": "8133003a346e84ccf27103a282a097316efb03ff666245edbdae8dd748041e5b",
+  "mismatches": [],
+  "mode": "full",
+  "reconciliation": "PASS",
+  "run_id": "20261104-forecast-schema-v2",
+  "source_counts": {
+    "assignments": {
+      "LONGCHAU_PUBLIC_TAXONOMY": 7394
+    },
+    "categories": {
+      "LONGCHAU_PUBLIC_TAXONOMY": 297
+    },
+    "lines": {},
+    "manufacturers": {
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE": 1034
+    },
+    "observations": {},
+    "orders": {},
+    "packaging": {
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE": 2454
+    },
+    "products": {
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE": 2482
+    },
+    "references": {
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE": 4936
+    },
+    "stores": {
+      "LONGCHAU_PUBLIC_STORE_LOCATOR": 2694
+    },
+    "uoms": {
+      "LONGCHAU_PUBLIC_PRODUCT_PAGE": 8
+    }
+  },
+  "source_name": "longchau",
+  "verified_at_utc": "2026-11-05T03:15:01+00:00"
+}

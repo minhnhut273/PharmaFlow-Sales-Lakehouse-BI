@@ -1,0 +1,26 @@
+{
+  "database": "pharmaflow_source_postgre_v2_test",
+  "generated_records": {
+    "simulated_store_warehouses": 0
+  },
+  "loaded_at_utc": "2026-11-04T17:17:50+00:00",
+  "loaded_counts": {
+    "assignments": 148,
+    "categories": 53,
+    "lines": 0,
+    "manufacturers": 39,
+    "observations": 0,
+    "orders": 0,
+    "packaging": 50,
+    "products": 50,
+    "references": 100,
+    "rejects": 0,
+    "stores": 20,
+    "uoms": 4
+  },
+  "manifest_sha256": "a7df36f26f600d22d237f3ac174fc04e0859d6fc60b9f8ef60396e8f4ea27d01",
+  "mode": "sample",
+  "prepared_directory": "runs/20261104-forecast-schema-v2/01-longchau/prepared/sample",
+  "run_id": "20261104-forecast-schema-v2",
+  "source_name": "longchau"
+}

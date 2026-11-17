@@ -1,0 +1,23 @@
+{
+  "database": "pharmaflow_source_postgre_v2",
+  "loaded_at_utc": "2026-11-04T15:01:08+00:00",
+  "loaded_counts": {
+    "assignments": 220,
+    "categories": 5,
+    "lines": 38,
+    "manufacturers": 0,
+    "observations": 38,
+    "orders": 25,
+    "packaging": 220,
+    "products": 220,
+    "references": 220,
+    "rejects": 103,
+    "stores": 120,
+    "uoms": 1
+  },
+  "manifest_sha256": "c9ec1b440a74530f67e52b17348103cbed1efa62969ca061c1657916364f8afd",
+  "mode": "sample",
+  "prepared_directory": "runs/20261104-forecast-schema-v2/03-onyx/prepared/sample",
+  "run_id": "20261104-forecast-schema-v2",
+  "source_name": "onyx"
+}

@@ -1,0 +1,43 @@
+{
+  "database": "pharmaflow_source_postgre_v2",
+  "manifest_sha256": "c21792ef5ca6a37112d2831689ebb0750112b15953f2134671cbe75b0cab4396",
+  "mismatches": [],
+  "mode": "full",
+  "reconciliation": "PASS",
+  "run_id": "20261104-forecast-schema-v2",
+  "source_counts": {
+    "assignments": {
+      "ONYX_CHALLENGE_PRODUCT_DIMENSION": 220
+    },
+    "categories": {
+      "ONYX_CHALLENGE_PRODUCT_DIMENSION": 5
+    },
+    "lines": {
+      "SIMULATED_ONYX_DAILY_FACT_TO_POS": 62036
+    },
+    "manufacturers": {},
+    "observations": {
+      "ONYX_CHALLENGE_DAILY_SALES_FACT_UNVERIFIED": 62036
+    },
+    "orders": {
+      "SIMULATED_ONYX_DAILY_FACT_TO_POS": 42666
+    },
+    "packaging": {
+      "ONYX_CHALLENGE_PRODUCT_DIMENSION": 220
+    },
+    "products": {
+      "ONYX_CHALLENGE_PRODUCT_DIMENSION": 220
+    },
+    "references": {
+      "ONYX_CHALLENGE_PRODUCT_DIMENSION": 220
+    },
+    "stores": {
+      "ONYX_CHALLENGE_LOCATION_DIMENSION_UNVERIFIED": 120
+    },
+    "uoms": {
+      "ONYX_CHALLENGE_DAILY_SALES_FACT_UNVERIFIED": 1
+    }
+  },
+  "source_name": "onyx",
+  "verified_at_utc": "2026-11-04T17:21:25+00:00"
+}

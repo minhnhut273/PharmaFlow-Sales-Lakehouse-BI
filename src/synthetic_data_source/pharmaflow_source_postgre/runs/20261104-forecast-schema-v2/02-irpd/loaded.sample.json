@@ -1,0 +1,23 @@
+{
+  "database": "pharmaflow_source_postgre_v2",
+  "loaded_at_utc": "2026-11-04T14:57:34+00:00",
+  "loaded_counts": {
+    "assignments": 1639,
+    "categories": 10,
+    "lines": 199,
+    "manufacturers": 77,
+    "observations": 0,
+    "orders": 100,
+    "packaging": 3159,
+    "products": 2972,
+    "references": 2972,
+    "rejects": 0,
+    "stores": 1,
+    "uoms": 20
+  },
+  "manifest_sha256": "a7ca679e756f7237b50c4ef7e7f000f0b4e6dbb87d90a4686bd39c87f4511edc",
+  "mode": "sample",
+  "prepared_directory": "runs/20261104-forecast-schema-v2/02-irpd/prepared/sample",
+  "run_id": "20261104-forecast-schema-v2",
+  "source_name": "irpd"
+}
