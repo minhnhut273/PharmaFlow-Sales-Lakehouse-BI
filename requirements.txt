@@ -18,5 +18,9 @@ boto3[crt]>=1.40.70,<2
 # Databricks Asset Bundles & Files/Jobs/SQL API Bridge
 databricks-sdk>=0.167,<1
 
+# BI Dashboard (Streamlit + Plotly)
+streamlit>=1.42,<2
+plotly>=5.24,<7
+
 # Testing
 pytest>=8,<9

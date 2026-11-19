@@ -11,6 +11,7 @@
 [![AWS](https://img.shields.io/badge/AWS-S3%20%7C%20Lambda%20%7C%20EventBridge-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com/)
 [![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?style=for-the-badge&logo=terraform&logoColor=white)](https://www.terraform.io/)
 [![AWS QuickSight](https://img.shields.io/badge/BI-AWS%20Quick%20%26%20Power%20BI-8C4FFF?style=for-the-badge&logo=amazon&logoColor=white)](#-bi-serving--analytics-layer-aws-quick--power-bi)
+[![Streamlit](https://img.shields.io/badge/Dashboard-Streamlit%20%2B%20Plotly-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](#-5-chạy-dashboard-streamlit-multipage-4-trang-tiếng-việt)
 
 <p>
   <a href="#-tổng-quan-dự-án">Tổng quan</a> •
@@ -38,6 +39,7 @@ Dự án giải quyết bài toán tích hợp dữ liệu đa nguồn có cấu
 - 🧱 **Databricks Asset Bundles (DABs) & Lakeflow DLT:** Triển khai Pipeline khai báo (Declarative SQL + PySpark) với quy tắc kiểm soát chất lượng dữ liệu (*Expectations*), giữ nguyên ngữ nghĩa đơn vị tính (`UOM`), múi giờ địa phương (`local_date`), và phân tách rạch ròi nguồn gốc dữ liệu (`OBSERVED` vs `SYNTHETIC` vs `UNVERIFIED`).
 - 🛡️ **Atomic Reconciliation Gate:** Chốt phát hành dữ liệu qua bảng kiểm soát `ops.product_release`, đối soát khớp 100% số lượng và doanh thu giữa tầng Silver và tầng Gold trước khi mở cho tầng BI.
 - 📊 **Automated BI Serving Layer:** Đồng bộ tự động Gold Sales Marts sang **Neon BI Mirror** (`landing_datamart_md01`) kèm 3 Analytical Views tối ưu sẵn cho **AWS QuickSight (SPICE / Direct Query)** và **Power BI**.
+- 🎛️ **4-Page Vietnamese Streamlit BI Dashboard:** Ứng dụng **Streamlit + Plotly** tại `src/streamlit/` tái hiện và nâng cấp bố cục 4 trang của AWS Quick (*Tổng Quan*, *Thời Tiết & Địa Điểm*, *Cửa Hàng & Lợi Nhuận*, *Sản Phẩm & ATC*), hỗ trợ **4 bảng màu tự chọn**, bản đồ Châu Âu (Choropleth ISO-3), lọc chéo ô thời tiết, xuất CSV UTF-8 và **SQL aggregation pushdown** trực tiếp trên PostgreSQL (phản hồi `0.08–0.48s`/query, không kéo 474K dòng về RAM).
 
 ---
 
@@ -56,7 +58,7 @@ Dự án giải quyết bài toán tích hợp dữ liệu đa nguồn có cấu
 | **1. Upstream Data Sources** | 🐘 **Neon PostgreSQL v2**<br/>🍃 **MongoDB Atlas**<br/>🌤️ **Open-Meteo API** | • **PostgreSQL (`pharmaflow_source_postgre_v2`):** Chứa 12/35 bảng Sales/Catalog/Store đang hoạt động (giao dịch bán lẻ IRPD quan sát, dữ liệu tổng hợp Onyx & Pharma Sales).<br/>• **MongoDB (`product_snapshots`):** Lưu 2.481 bản chụp tri thức dược phẩm Long Châu (thành phần, hướng dẫn bảo quản) với chỉ mục SHA-256 duy nhất.<br/>• **Open-Meteo:** Cung cấp chuỗi thời tiết lịch sử (ERA5 `< 2022`, GFS Stitched `≥ 2022`) và dự báo 16 ngày cho **880 điểm lưới** đại diện 2.816 nhà thuốc. |
 | **2. AWS Cloud & Terraform IaC** | ⏰ **EventBridge**<br/>⚡ **AWS Lambda (x4)**<br/>📬 **SQS** & 🗄️ **DynamoDB**<br/>🪣 **Amazon S3**<br/>🔐 **AWS SSM** | • **06:00 VN:** EventBridge kích hoạt **Lambda Planner** đọc tọa độ từ Neon (qua `SSM SecureString`), chia cụm lưới `0.111°`, đẩy task vào **SQS**.<br/>• **Lambda Worker:** Điều phối tải từ Open-Meteo (kèm giới hạn quota ở **DynamoDB**), lưu bytes gốc vào **S3** kèm `accepted.json` và `SHA-256`.<br/>• **06:18 VN:** EventBridge kích hoạt **Lambda Volume Bridge** đồng bộ các tệp `accepted.json` mới từ S3 sang **Databricks Managed Volume** qua Files API. |
 | **3. Databricks Lakehouse** | 🥉 **Bronze Layer**<br/>🥈 **Silver Layer**<br/>🥇 **Gold Layer**<br/>🛡️ **Ops Control** | • **Bronze:** `bronze_pg` (Spark JDBC `REPEATABLE READ` + Volume fallback), `bronze_mongo` (unwrap Extended JSON), `bronze_weather` (Auto Loader kiểm tra `raw_sha256`).<br/>• **Silver (DLT SQL):** `silver_core` (9 bảng Master Data), `silver_sales` (tách biệt `fact_sales_line` và `fact_sales_observation`, quy đổi `local_date`), `silver_weather` (chuẩn hóa metrics ngày).<br/>• **Gold (MD-01 Marts):** Xuất `mart_sales_daily`, `mart_sales_weather_daily` (join 1:1 thời tiết), `kpi_sales_trend`, `mart_sales_observation_period` và đóng dấu release tại `ops.product_release`. |
-| **4. BI Serving & Analytics** | ⚡ **Auto-Sync Job**<br/>🐘 **Neon #2 BI Mirror**<br/>📊 **AWS Quick / Power BI** | • Job `[aux] quick_gold_md01_sync` tự động lắng nghe cập nhật từ `ops.product_release`, thực hiện atomic table swap sang schema `quick_gold_md01` trên Neon #2.<br/>• Cung cấp **3 BI Helper Views** không tốn thêm dung lượng (`bi_sales_weather_enriched`, `bi_weather_impact_summary`, `bi_atc_category_monthly`) cho **4 Dashboard Sheets** trên AWS QuickSight / Power BI. |
+| **4. BI Serving & Analytics** | ⚡ **Auto-Sync Job**<br/>🐘 **Neon #2 BI Mirror**<br/>📊 **AWS Quick / Power BI**<br/>🎛️ **Streamlit BI App** | • Job `[aux] quick_gold_md01_sync` tự động lắng nghe cập nhật từ `ops.product_release`, thực hiện atomic table swap sang schema `quick_gold_md01` trên Neon #2.<br/>• Cung cấp **3 BI Helper Views** không tốn thêm dung lượng (`bi_sales_weather_enriched`, `bi_weather_impact_summary`, `bi_atc_category_monthly`) cho **4 Dashboard Sheets** trên AWS QuickSight / Power BI.<br/>• Ứng dụng **Streamlit Multipage (`src/streamlit/`)** truy vấn SQL pushdown trực tiếp Neon #2, hiển thị 100% tiếng Việt với 4 bảng màu tùy chọn. |
 
 ---
 
@@ -126,12 +128,22 @@ Toàn bộ pipeline đã được triển khai, chạy live trên **Databricks F
 │   │   │   └── ops/                        # publish_md01.py (đối soát & đóng dấu release)
 │   │   └── tests/                          # Unit tests offline cho toàn bộ Databricks logic
 │   │
+│   ├── streamlit/                          # 🎛️ Dashboard BI Multipage (Streamlit + Plotly, 4 trang tiếng Việt)
+│   │   ├── app.py                          # Điểm chạy chính (st.navigation + shared sidebar state)
+│   │   ├── config.py                       # 4 bảng màu tùy chọn, metadata track & bộ ánh xạ tiếng Việt
+│   │   ├── queries.py                      # Bộ sinh SQL pushdown tham số hóa an toàn (%s)
+│   │   ├── db.py                           # Kết nối Neon (-pooler) qua psycopg + @st.cache_data
+│   │   ├── ui.py                           # Giao diện KPI cards, Plotly layout helpers & xuất CSV
+│   │   ├── components/filters.py           # Bộ lọc toàn cục phân tầng đồng bộ qua st.session_state
+│   │   └── pages/01..04_*.py               # 4 trang: Tổng Quan, Thời Tiết, Cửa Hàng, Sản Phẩm & ATC
+│   │
 │   └── sync_quick/                         # 📊 BI Serving Bridge: Gold MD-01 → Neon #2 → AWS QuickSight
 │       ├── sync_gold_to_neon.py            # Sync atomic staging swap & tạo 3 BI Helper Views
 │       ├── setup_databricks_aux_sync.py    # Deploy job tự động lắng nghe ops.product_release
 │       └── test_sync_quick.py              # Unit tests tầng BI sync
 │
 └── tests/
+    ├── test_streamlit_dashboard.py         # ✅ Bộ 21 unit & AppTest kiểm thử toàn bộ Dashboard Streamlit
     └── weather/                            # ✅ Bộ 142 unit tests kiểm thử hệ thống Weather Ingestion
 ```
 
@@ -152,11 +164,15 @@ pip install -r requirements.txt
 ```
 
 ### 3. Hướng dẫn xin & cấu hình Credentials (`.env`)
-Sao chép file mẫu `.env.example` thành `.env` ở thư mục gốc và điền thông tin từ các dịch vụ tương ứng (**tuyệt đối không commit file `.env`**):
+Sao chép file mẫu `.env.example` thành `.env` ở thư mục gốc và điền thông tin từ các dịch vụ tương ứng (**tuyệt đối không commit file `.env` hay `.streamlit/secrets.toml`**):
 
 ```powershell
 Copy-Item .env.example .env
 ```
+
+> **Phân quyền nhanh cho thành viên trong team:**
+> * **Chỉ chạy Dashboard Streamlit (`src/streamlit/app.py`) hoặc notebook phân tích trên Gold:** Chỉ cần **Python `3.12+`** và **2 biến** `QUICK_NEON_DATABASE_URL` + `QUICK_NEON_SCHEMA=quick_gold_md01` (nên cấp role PostgreSQL **chỉ đọc `SELECT`** trên `quick_gold_md01`, không cần AWS, Databricks hay MongoDB).
+> * **Vận hành / phát triển toàn bộ Pipeline (Ingestion, Weather, Databricks, Sync):** Cần đủ 5 nhóm biến trong `.env`, cài thêm **AWS CLI v2** (`aws login`), **Databricks CLI / PAT**, **Terraform** (nếu chỉnh IaC), và được **whitelist IP** trên **MongoDB Atlas Network Access**.
 
 <details>
 <summary><b>📋 Bảng hướng dẫn chi tiết cách lấy từng loại Credential</b></summary>
@@ -183,8 +199,8 @@ Copy-Item .env.example .env
 # 2. Kiểm thử Weather Ingestion Engine (142 tests)
 .\.venv\Scripts\python.exe -B -m pytest tests\weather -v -p no:cacheprovider
 
-# 3. Kiểm thử BI Serving Sync Bridge (6 tests)
-.\.venv\Scripts\python.exe -B -m pytest src\sync_quick\test_sync_quick.py -v -p no:cacheprovider
+# 3. Kiểm thử BI Serving Sync Bridge (6 tests) & Dashboard Streamlit (21 tests)
+.\.venv\Scripts\python.exe -B -m pytest src\sync_quick\test_sync_quick.py tests\test_streamlit_dashboard.py -v -p no:cacheprovider
 
 # 4. Kiểm thử Contract nguồn dữ liệu Postgres & MongoDB
 .\.venv\Scripts\python.exe -B -m pytest src\synthetic_data_source\mongodb\test_product_knowledge.py -v -p no:cacheprovider
@@ -234,9 +250,20 @@ Sau khi đồng bộ xong, mở **Amazon QuickSight (AWS Quick)** → **New Data
 - **Datasets khả dụng:** `bi_sales_weather_enriched`, `bi_weather_impact_summary`, `kpi_sales_trend`, `bi_atc_category_monthly`
 - Xem chi tiết bộ **4 Prompt tạo Dashboard Sheets tự động** tại [src/sync_quick/README.md](src/sync_quick/README.md).
 
+### 5. Chạy Dashboard Streamlit Multipage (4 Trang Tiếng Việt)
+Chỉ cần có `.venv` và 2 biến `QUICK_NEON_DATABASE_URL`, `QUICK_NEON_SCHEMA` trong `.env`:
+
+```powershell
+.\.venv\Scripts\streamlit.exe run src\streamlit\app.py --server.port 8501
+```
+
+Truy cập `http://localhost:8501` để sử dụng 4 trang (**Tổng Quan**, **Thời Tiết & Địa Điểm**, **Cửa Hàng & Lợi Nhuận**, **Sản Phẩm & ATC**), chuyển đổi 4 bảng màu giao diện, lọc đa yếu tố thời tiết và tải CSV trực tiếp. Xem chi tiết tại [src/streamlit/README.md](src/streamlit/README.md).
+
 ---
 
 ## 📖 Tài liệu & Tham khảo
+
+* **Hướng dẫn Dashboard Streamlit (4 trang):** [src/streamlit/README.md](src/streamlit/README.md)
 
 * **Software Design Document (SDD) Databricks Pipeline:** [src/pipeline/databricks/SDD.md](src/pipeline/databricks/SDD.md)
 * **Thiết kế 3 tầng Medallion Lakehouse:** [docs/design/databricks-medallion/02-thiet-ke-medallion.md](docs/design/databricks-medallion/02-thiet-ke-medallion.md)

@@ -20,6 +20,7 @@ tmp/
 .env.*
 !.env.example
 .neon
+**/.streamlit/secrets.toml
 
 # Databricks Local Bundle State
 .databricks/
