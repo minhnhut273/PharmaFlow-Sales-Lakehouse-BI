@@ -21,11 +21,13 @@ class MissingDatabaseConfigError(RuntimeError):
 
 def _find_env_files() -> tuple[Path, ...]:
     here = Path(__file__).resolve()
-    candidates = [
-        here.parents[2] / ".env",  # BTL_BI/.env
-        here.parents[3] / ".env",  # DACN/.env
-        Path.cwd() / ".env",
-    ]
+    candidates: list[Path] = [here.parent / ".env"]  # src/streamlit/.env
+    if len(here.parents) > 2:
+        candidates.append(here.parents[2] / ".env")  # repo root BTL_BI/.env
+    if len(here.parents) > 3:
+        candidates.append(here.parents[3] / ".env")  # parent workspace DACN/.env
+    candidates.append(Path.cwd() / ".env")
+
     seen: set[Path] = set()
     unique: list[Path] = []
     for path in candidates:
@@ -66,7 +68,9 @@ def get_db_settings() -> tuple[str, str]:
     if not dsn:
         raise MissingDatabaseConfigError(
             "Chưa tìm thấy biến môi trường QUICK_NEON_DATABASE_URL. "
-            "Hãy cấu hình trong BTL_BI/.env hoặc DACN/.env trước khi chạy dashboard."
+            "Hãy tạo file .env tại thư mục gốc repo (hoặc src/streamlit/.env) "
+            "chứa QUICK_NEON_DATABASE_URL và QUICK_NEON_SCHEMA=quick_gold_md01 "
+            "trước khi chạy dashboard."
         )
 
     return dsn, validate_schema(schema or DEFAULT_SCHEMA)

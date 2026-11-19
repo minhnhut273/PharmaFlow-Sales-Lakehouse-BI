@@ -130,6 +130,7 @@ Toàn bộ pipeline đã được triển khai, chạy live trên **Databricks F
 │   │
 │   ├── streamlit/                          # 🎛️ Dashboard BI Multipage (Streamlit + Plotly, 4 trang tiếng Việt)
 │   │   ├── app.py                          # Điểm chạy chính (st.navigation + shared sidebar state)
+│   │   ├── requirements.txt                # 5 thư viện gọn nhẹ chỉ dành cho thành viên chạy Streamlit
 │   │   ├── config.py                       # 4 bảng màu tùy chọn, metadata track & bộ ánh xạ tiếng Việt
 │   │   ├── queries.py                      # Bộ sinh SQL pushdown tham số hóa an toàn (%s)
 │   │   ├── db.py                           # Kết nối Neon (-pooler) qua psycopg + @st.cache_data
@@ -152,16 +153,22 @@ Toàn bộ pipeline đã được triển khai, chạy live trên **Databricks F
 ## 🔐 Thiết lập môi trường & Credentials
 
 ### 1. Yêu cầu tiên quyết (Prerequisites)
-* **Python:** `3.12+`
-* **AWS CLI v2** (`aws login` / SSO profile) & **Terraform `1.16+`** (nếu triển khai hạ tầng AWS)
-* **Databricks CLI (`v1.26+`)** (cài đặt qua `winget` / `brew` để chạy Asset Bundles)
+* **Thành viên chỉ chạy Dashboard Streamlit:** Chỉ cần **Git** và **Python `3.12+`** (không cần AWS CLI, Terraform, Databricks hay MongoDB).
+* **Người vận hành / phát triển toàn bộ Pipeline:** Cần thêm **AWS CLI v2** (`aws login` / SSO profile), **Terraform `1.16+`**, và **Databricks CLI (`v1.26+`)**.
 
 ### 2. Cài đặt môi trường ảo Python
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-```
+- **Cách 1 — Nhanh cho thành viên chỉ chạy Streamlit (khuyên dùng, chỉ cài 5 gói nhẹ):**
+  ```powershell
+  python -m venv .venv
+  .\.venv\Scripts\pip.exe install -r src\streamlit\requirements.txt
+  # macOS/Linux: ./.venv/bin/pip install -r src/streamlit/requirements.txt
+  ```
+- **Cách 2 — Đầy đủ cho phát triển toàn bộ Pipeline ETL (AWS, Databricks, MongoDB, Streamlit):**
+  ```powershell
+  python -m venv .venv
+  .\.venv\Scripts\pip.exe install -r requirements.txt
+  # macOS/Linux: ./.venv/bin/pip install -r requirements.txt
+  ```
 
 ### 3. Hướng dẫn xin & cấu hình Credentials (`.env`)
 Sao chép file mẫu `.env.example` thành `.env` ở thư mục gốc và điền thông tin từ các dịch vụ tương ứng (**tuyệt đối không commit file `.env` hay `.streamlit/secrets.toml`**):
@@ -171,8 +178,8 @@ Copy-Item .env.example .env
 ```
 
 > **Phân quyền nhanh cho thành viên trong team:**
-> * **Chỉ chạy Dashboard Streamlit (`src/streamlit/app.py`) hoặc notebook phân tích trên Gold:** Chỉ cần **Python `3.12+`** và **2 biến** `QUICK_NEON_DATABASE_URL` + `QUICK_NEON_SCHEMA=quick_gold_md01` (nên cấp role PostgreSQL **chỉ đọc `SELECT`** trên `quick_gold_md01`, không cần AWS, Databricks hay MongoDB).
-> * **Vận hành / phát triển toàn bộ Pipeline (Ingestion, Weather, Databricks, Sync):** Cần đủ 5 nhóm biến trong `.env`, cài thêm **AWS CLI v2** (`aws login`), **Databricks CLI / PAT**, **Terraform** (nếu chỉnh IaC), và được **whitelist IP** trên **MongoDB Atlas Network Access**.
+> * **Chỉ chạy Dashboard Streamlit (`src/streamlit/app.py`) hoặc notebook phân tích trên Gold:** Chỉ cần **Python `3.12+`**, cài theo `src/streamlit/requirements.txt` và tạo `.env` ở gốc repo (hoặc `src/streamlit/.env`) với **2 biến** `QUICK_NEON_DATABASE_URL` + `QUICK_NEON_SCHEMA=quick_gold_md01` (nên cấp role PostgreSQL **chỉ đọc `SELECT`** trên `quick_gold_md01`).
+> * **Vận hành / phát triển toàn bộ Pipeline (Ingestion, Weather, Databricks, Sync):** Cài `requirements.txt` đầy đủ, điền đủ 5 nhóm biến trong `.env`, cài thêm **AWS CLI v2** (`aws login`), **Databricks CLI / PAT**, **Terraform** (nếu chỉnh IaC), và được **whitelist IP** trên **MongoDB Atlas Network Access**.
 
 <details>
 <summary><b>📋 Bảng hướng dẫn chi tiết cách lấy từng loại Credential</b></summary>
@@ -251,13 +258,27 @@ Sau khi đồng bộ xong, mở **Amazon QuickSight (AWS Quick)** → **New Data
 - Xem chi tiết bộ **4 Prompt tạo Dashboard Sheets tự động** tại [src/sync_quick/README.md](src/sync_quick/README.md).
 
 ### 5. Chạy Dashboard Streamlit Multipage (4 Trang Tiếng Việt)
-Chỉ cần có `.venv` và 2 biến `QUICK_NEON_DATABASE_URL`, `QUICK_NEON_SCHEMA` trong `.env`:
+Thành viên chỉ chạy giao diện BI làm nhanh theo 3 bước:
 
-```powershell
-.\.venv\Scripts\streamlit.exe run src\streamlit\app.py --server.port 8501
+```bash
+git clone https://github.com/minhnhut273/PharmaFlow-Sales-Lakehouse-BI.git
+cd PharmaFlow-Sales-Lakehouse-BI
+python -m venv .venv
 ```
 
-Truy cập `http://localhost:8501` để sử dụng 4 trang (**Tổng Quan**, **Thời Tiết & Địa Điểm**, **Cửa Hàng & Lợi Nhuận**, **Sản Phẩm & ATC**), chuyển đổi 4 bảng màu giao diện, lọc đa yếu tố thời tiết và tải CSV trực tiếp. Xem chi tiết tại [src/streamlit/README.md](src/streamlit/README.md).
+1. **Cài 5 gói cần thiết & tạo file `.env`** ở gốc repo (hoặc `src/streamlit/.env`) gồm `QUICK_NEON_DATABASE_URL` và `QUICK_NEON_SCHEMA=quick_gold_md01`:
+   ```powershell
+   # Windows (PowerShell)
+   .\.venv\Scripts\pip.exe install -r src\streamlit\requirements.txt
+   .\.venv\Scripts\streamlit.exe run src\streamlit\app.py --server.port 8501
+   ```
+   ```bash
+   # macOS / Linux
+   ./.venv/bin/pip install -r src/streamlit/requirements.txt
+   ./.venv/bin/streamlit run src/streamlit/app.py --server.port 8501
+   ```
+
+2. Truy cập `http://localhost:8501` để sử dụng 4 trang (**Tổng Quan**, **Thời Tiết & Địa Điểm**, **Cửa Hàng & Lợi Nhuận**, **Sản Phẩm & ATC**), chuyển đổi 4 bảng màu giao diện, lọc đa yếu tố thời tiết và tải CSV trực tiếp. Xem hướng dẫn sử dụng & xử lý lỗi chi tiết tại [src/streamlit/README.md](src/streamlit/README.md).
 
 ---
 

@@ -459,3 +459,48 @@ def test_app_navigation_entrypoint_renders_cleanly(monkeypatch: pytest.MonkeyPat
         at.run()
         assert not at.exception, f"Exception on app.py: {[e.value for e in at.exception]}"
         assert not at.error
+
+
+def test_streamlit_slim_requirements_contains_only_runtime_deps() -> None:
+    req_path = STREAMLIT_DIR / "requirements.txt"
+    assert req_path.is_file()
+    text = req_path.read_text(encoding="utf-8")
+    lines = [
+        line.strip().lower()
+        for line in text.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+    for pkg in ("streamlit", "plotly", "pandas", "psycopg[binary]", "python-dotenv"):
+        assert any(line.startswith(pkg) for line in lines), f"Missing {pkg} in src/streamlit/requirements.txt"
+    for heavy in ("boto3", "databricks-sdk", "pymongo"):
+        assert all(heavy not in line for line in lines), f"Unexpected ETL package {heavy} in slim requirements"
+
+
+def test_db_find_env_files_and_get_settings_supports_streamlit_local_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake_app_dir = tmp_path / "repo" / "src" / "streamlit"
+    fake_app_dir.mkdir(parents=True)
+    local_env = fake_app_dir / ".env"
+    local_env.write_text(
+        "QUICK_NEON_DATABASE_URL=postgresql://bi_reader:secret@ep-demo-pooler.neon.tech/neondb?sslmode=require\n"
+        "QUICK_NEON_SCHEMA=quick_gold_md01\n",
+        encoding="utf-8",
+    )
+    fake_db_file = fake_app_dir / "db.py"
+    fake_db_file.write_text("# stub", encoding="utf-8")
+
+    monkeypatch.delenv("QUICK_NEON_DATABASE_URL", raising=False)
+    monkeypatch.delenv("QUICK_NEON_SCHEMA", raising=False)
+    monkeypatch.setattr(db, "__file__", str(fake_db_file))
+    monkeypatch.chdir(tmp_path)
+    db.get_db_settings.cache_clear()
+
+    try:
+        found = db._find_env_files()
+        assert found[0] == local_env.resolve()
+        dsn, schema = db.get_db_settings()
+        assert dsn.startswith("postgresql://bi_reader:")
+        assert schema == "quick_gold_md01"
+    finally:
+        db.get_db_settings.cache_clear()
