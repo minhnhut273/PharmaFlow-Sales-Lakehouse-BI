@@ -131,12 +131,13 @@ Toàn bộ pipeline đã được triển khai, chạy live trên **Databricks F
 │   ├── streamlit/                          # 🎛️ Dashboard BI Multipage (Streamlit + Plotly, 4 trang tiếng Việt)
 │   │   ├── app.py                          # Điểm chạy chính (st.navigation + shared sidebar state)
 │   │   ├── requirements.txt                # 5 thư viện gọn nhẹ chỉ dành cho thành viên chạy Streamlit
+│   │   ├── analytics.py                    # Logic kỳ so sánh, tăng trưởng MoM tổng, guard ĐVT & nhận xét tự động
 │   │   ├── config.py                       # 4 bảng màu tùy chọn, metadata track & bộ ánh xạ tiếng Việt
 │   │   ├── queries.py                      # Bộ sinh SQL pushdown tham số hóa an toàn (%s)
 │   │   ├── db.py                           # Kết nối Neon (-pooler) qua psycopg + @st.cache_data
-│   │   ├── ui.py                           # Giao diện KPI cards, Plotly layout helpers & xuất CSV
-│   │   ├── components/filters.py           # Bộ lọc toàn cục phân tầng đồng bộ qua st.session_state
-│   │   └── pages/01..04_*.py               # 4 trang: Tổng Quan, Thời Tiết, Cửa Hàng, Sản Phẩm & ATC
+│   │   ├── ui.py                           # KPI cards kèm delta, thanh phạm vi lọc, scope strip & xuất CSV
+│   │   ├── components/filters.py           # Bộ lọc toàn cục phân tầng đồng bộ (tách biệt bộ lọc Trang 2)
+│   │   └── pages/01..04_*.py               # 4 trang: Tổng Quan, Thời Tiết, Cửa Hàng & Biên LN, Sản Phẩm & ATC
 │   │
 │   └── sync_quick/                         # 📊 BI Serving Bridge: Gold MD-01 → Neon #2 → AWS QuickSight
 │       ├── sync_gold_to_neon.py            # Sync atomic staging swap & tạo 3 BI Helper Views
@@ -144,7 +145,7 @@ Toàn bộ pipeline đã được triển khai, chạy live trên **Databricks F
 │       └── test_sync_quick.py              # Unit tests tầng BI sync
 │
 └── tests/
-    ├── test_streamlit_dashboard.py         # ✅ Bộ 21 unit & AppTest kiểm thử toàn bộ Dashboard Streamlit
+    ├── test_streamlit_dashboard.py         # ✅ Bộ 31 unit & AppTest kiểm thử toàn bộ Dashboard Streamlit
     └── weather/                            # ✅ Bộ 142 unit tests kiểm thử hệ thống Weather Ingestion
 ```
 
@@ -206,7 +207,7 @@ Copy-Item .env.example .env
 # 2. Kiểm thử Weather Ingestion Engine (142 tests)
 .\.venv\Scripts\python.exe -B -m pytest tests\weather -v -p no:cacheprovider
 
-# 3. Kiểm thử BI Serving Sync Bridge (6 tests) & Dashboard Streamlit (21 tests)
+# 3. Kiểm thử BI Serving Sync Bridge (6 tests) & Dashboard Streamlit (31 tests)
 .\.venv\Scripts\python.exe -B -m pytest src\sync_quick\test_sync_quick.py tests\test_streamlit_dashboard.py -v -p no:cacheprovider
 
 # 4. Kiểm thử Contract nguồn dữ liệu Postgres & MongoDB

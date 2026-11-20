@@ -1,4 +1,4 @@
-"""Shared UI theme injection, KPI cards, Plotly styling, and export helpers."""
+"""Shared UI theme injection, KPI cards, scope strips, insights, and Plotly helpers."""
 
 from __future__ import annotations
 
@@ -9,7 +9,16 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from config import DEFAULT_PALETTE_KEY, PALETTES, TRACK_META, ThemePalette, provenance_label
+from config import (
+    DEFAULT_PALETTE_KEY,
+    PALETTES,
+    TRACK_META,
+    ThemePalette,
+    country_label,
+    provenance_label,
+    temp_label,
+    track_label,
+)
 
 
 def get_active_palette() -> ThemePalette:
@@ -71,7 +80,7 @@ def inject_theme_css(palette: ThemePalette) -> None:
             border-left: 5px solid {palette.primary};
             border-radius: 12px;
             padding: 16px 20px;
-            margin-bottom: 14px;
+            margin-bottom: 10px;
             box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
         }}
 
@@ -137,12 +146,92 @@ def inject_theme_css(palette: ThemePalette) -> None:
             color: #92400e;
         }}
 
+        .pf-filter-bar {{
+            background: {palette.card_bg};
+            border: 1px solid #e4e9ef;
+            border-radius: 10px;
+            padding: 8px 14px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.78rem;
+            color: {palette.muted};
+        }}
+
+        .pf-filter-chip {{
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            color: {palette.ink};
+            font-size: 0.75rem;
+            font-weight: 600;
+        }}
+
+        .pf-filter-chip-local {{
+            background: {palette.soft_bg};
+            border-color: {palette.border};
+            color: {palette.primary_dark};
+        }}
+
+        .pf-insight-box {{
+            background: {palette.card_bg};
+            border: 1px solid {palette.border};
+            border-left: 4px solid {palette.accent};
+            border-radius: 10px;
+            padding: 10px 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+        }}
+
+        .pf-insight-title {{
+            font-size: 0.85rem;
+            font-weight: 750;
+            color: {palette.ink};
+            margin-bottom: 4px;
+        }}
+
+        .pf-insight-list {{
+            margin: 0;
+            padding-left: 18px;
+            font-size: 0.82rem;
+            color: {palette.ink};
+            line-height: 1.5;
+        }}
+
+        .pf-insight-note {{
+            margin-top: 5px;
+            font-size: 0.74rem;
+            color: {palette.muted};
+        }}
+
+        .pf-scope-strip {{
+            font-size: 0.75rem;
+            color: {palette.muted};
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 4px 9px;
+            margin: 2px 0 8px 0;
+            line-height: 1.4;
+        }}
+
+        .pf-scope-strip-warn {{
+            background: #fffbeb;
+            border-color: #fde68a;
+            color: #92400e;
+        }}
+
         .pf-kpi-card {{
             background: {palette.card_bg};
             border: 1px solid #e4e9ef;
             border-top: 3px solid {palette.primary};
             border-radius: 12px;
-            padding: 14px 16px 13px 16px;
+            padding: 13px 15px 12px 15px;
             box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
             height: 100%;
             margin-bottom: 10px;
@@ -153,18 +242,18 @@ def inject_theme_css(palette: ThemePalette) -> None:
             justify-content: space-between;
             align-items: center;
             gap: 8px;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
         }}
 
         .pf-kpi-title {{
-            font-size: 0.84rem;
+            font-size: 0.82rem;
             font-weight: 700;
             color: {palette.ink};
             line-height: 1.25;
         }}
 
         .pf-kpi-tag {{
-            font-size: 0.7rem;
+            font-size: 0.69rem;
             font-weight: 700;
             padding: 2px 7px;
             border-radius: 6px;
@@ -174,22 +263,55 @@ def inject_theme_css(palette: ThemePalette) -> None:
         }}
 
         .pf-kpi-value {{
-            font-size: 1.85rem;
+            font-size: 1.65rem;
             font-weight: 800;
-            letter-spacing: -0.03em;
+            letter-spacing: -0.025em;
             color: {palette.ink};
-            line-height: 1.15;
-            margin: 4px 0;
+            line-height: 1.18;
+            margin: 4px 0 5px 0;
+        }}
+
+        .pf-kpi-delta {{
+            display: inline-block;
+            font-size: 0.74rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 6px;
+            margin-bottom: 5px;
+        }}
+
+        .pf-delta-pos {{
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #a7f3d0;
+        }}
+
+        .pf-delta-neg {{
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }}
+
+        .pf-delta-warn {{
+            background: #fffbeb;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }}
+
+        .pf-delta-neutral {{
+            background: #f1f5f9;
+            color: #475569;
+            border: 1px solid #e2e8f0;
         }}
 
         .pf-kpi-sub {{
-            font-size: 0.77rem;
+            font-size: 0.76rem;
             color: {palette.muted};
-            line-height: 1.35;
+            line-height: 1.38;
         }}
 
         .pf-card-head {{
-            margin: 2px 0 8px 0;
+            margin: 2px 0 6px 0;
         }}
 
         .pf-card-title {{
@@ -279,6 +401,97 @@ def render_page_header(
     )
 
 
+def render_active_filter_bar(
+    filters: Any,
+    *,
+    compare_window: Any = None,
+    local_tags: Sequence[str] = (),
+) -> None:
+    """Render concise active global & page-local filters bar for immediate scope transparency."""
+    chips: list[str] = []
+    chips.append(f"Nguồn: {track_label(filters.dataset_track)}")
+    if filters.date_start and filters.date_end:
+        chips.append(f"Ngày: {filters.date_start:%d/%m/%Y}–{filters.date_end:%d/%m/%Y}")
+    if filters.countries:
+        ctry_txt = ", ".join(country_label(c) for c in filters.countries[:3])
+        if len(filters.countries) > 3:
+            ctry_txt += f" (+{len(filters.countries) - 3})"
+        chips.append(f"Quốc gia: {ctry_txt}")
+    if filters.stores:
+        st_txt = ", ".join(filters.stores[:2])
+        if len(filters.stores) > 2:
+            st_txt += f" (+{len(filters.stores) - 2})"
+        chips.append(f"Cửa hàng: {st_txt}")
+    if filters.clean_uoms:
+        chips.append(f"ĐVT: {', '.join(filters.clean_uoms[:3])}{'...' if len(filters.clean_uoms) > 3 else ''}")
+    else:
+        chips.append("ĐVT: Tất cả")
+    if filters.temp_bands:
+        chips.append(f"Nhiệt độ: {', '.join(temp_label(t) for t in filters.temp_bands[:2])}{'...' if len(filters.temp_bands) > 2 else ''}")
+    if compare_window is not None and getattr(compare_window, "valid", False):
+        chips.append(f"So sánh: {compare_window.cur_label} vs {compare_window.prev_label}")
+
+    global_html = "".join(f'<span class="pf-filter-chip">{html.escape(c)}</span>' for c in chips)
+    local_html = "".join(
+        f'<span class="pf-filter-chip pf-filter-chip-local">{html.escape(c)}</span>'
+        for c in local_tags
+        if c
+    )
+    st.markdown(
+        f"""
+        <div class="pf-filter-bar">
+          <span><b>Phạm vi đang lọc:</b></span>
+          {global_html}
+          {local_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_scope_strip(text: str, *, kind: str = "default") -> None:
+    cls = "pf-scope-strip pf-scope-strip-warn" if kind == "warn" else "pf-scope-strip"
+    st.markdown(f'<div class="{cls}">{html.escape(text)}</div>', unsafe_allow_html=True)
+
+
+def _md_bold_to_html(text: str) -> str:
+    """Convert **bold** and `code` markers safely inside escaped HTML."""
+    escaped = html.escape(text)
+    parts = escaped.split("**")
+    out: list[str] = []
+    for idx, part in enumerate(parts):
+        if idx % 2 == 1 and idx < len(parts) - 1:
+            out.append(f"<strong>{part}</strong>")
+        else:
+            out.append(part)
+    joined = "".join(out)
+    code_parts = joined.split("`")
+    final_parts: list[str] = []
+    for idx, part in enumerate(code_parts):
+        if idx % 2 == 1 and idx < len(code_parts) - 1:
+            final_parts.append(f"<code style='font-size:0.9em;background:#f1f5f9;padding:1px 5px;border-radius:4px;'>{part}</code>")
+        else:
+            final_parts.append(part)
+    return "".join(final_parts)
+
+
+def render_insight_box(title: str, bullets: Sequence[str], *, note: str | None = None) -> None:
+    if not bullets and not note:
+        return
+    items = "".join(f"<li>{_md_bold_to_html(b)}</li>" for b in bullets if b)
+    note_html = f'<div class="pf-insight-note">{html.escape(note)}</div>' if note else ""
+    st.markdown(
+        f"""
+        <div class="pf-insight-box">
+          <div class="pf-insight-title">{html.escape(title)}</div>
+          <ul class="pf-insight-list">{items}</ul>
+          {note_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_kpi_card(
     title: str,
     value: str,
@@ -286,10 +499,18 @@ def render_kpi_card(
     *,
     tag: str | None = None,
     accent: str | None = None,
+    delta_text: str | None = None,
+    delta_tone: str = "neutral",
 ) -> None:
     palette = get_active_palette()
     border_color = accent or palette.primary
     tag_html = f'<span class="pf-kpi-tag">{html.escape(tag)}</span>' if tag else ""
+    delta_cls = {
+        "pos": "pf-kpi-delta pf-delta-pos",
+        "neg": "pf-kpi-delta pf-delta-neg",
+        "warn": "pf-kpi-delta pf-delta-warn",
+    }.get(delta_tone, "pf-kpi-delta pf-delta-neutral")
+    delta_html = f'<div class="{delta_cls}">{html.escape(delta_text)}</div>' if delta_text else ""
     st.markdown(
         f"""
         <div class="pf-kpi-card" style="border-top-color: {html.escape(border_color)};">
@@ -298,6 +519,7 @@ def render_kpi_card(
             {tag_html}
           </div>
           <div class="pf-kpi-value">{html.escape(value)}</div>
+          {delta_html}
           <div class="pf-kpi-sub">{html.escape(subtitle)}</div>
         </div>
         """,
@@ -415,4 +637,23 @@ def polish_vertical_bar_headroom(fig: go.Figure, max_y: float | None) -> go.Figu
     if max_y is not None and float(max_y) > 0:
         fig.update_yaxes(range=[0, float(max_y) * 1.18])
     fig.update_traces(cliponaxis=False)
+    return fig
+
+
+def polish_diverging_bar(
+    fig: go.Figure,
+    max_abs: float | None,
+    *,
+    min_bound: float = 1.0,
+    pad_factor: float = 1.38,
+    right_margin: int = 34,
+) -> go.Figure:
+    """Keep diverging horizontal bar labels inside long bars / padded outside short bars cleanly."""
+    bound = max(float(max_abs or 0.0), float(min_bound)) * pad_factor
+    fig.update_xaxes(range=[-bound, bound], zeroline=True, zerolinewidth=1.4)
+    fig.update_yaxes(automargin=True)
+    fig.update_traces(textposition="auto", cliponaxis=False)
+    cur_margin = fig.layout.margin.to_plotly_json() if fig.layout.margin else {}
+    cur_margin["r"] = max(int(cur_margin.get("r") or 14), right_margin)
+    fig.update_layout(margin=cur_margin)
     return fig

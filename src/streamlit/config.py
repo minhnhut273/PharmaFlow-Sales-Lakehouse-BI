@@ -402,3 +402,65 @@ def fmt_currency(value: float | int | None, currency_code: str | None = None, *,
     if currency_code:
         return f"{num} {currency_code}"
     return num
+
+
+def fmt_delta(
+    delta: float | int | None,
+    *,
+    unit: str | None = None,
+    pct: float | None = None,
+    decimals: int = 2,
+    is_pp: bool = False,
+) -> tuple[str, str]:
+    """Format signed period delta + optional % change and return (label, tone)."""
+    if delta is None:
+        return "Chưa đủ 2 kỳ để so sánh", "neutral"
+    d = float(delta)
+    if d != d:
+        return "Chưa đủ 2 kỳ để so sánh", "neutral"
+
+    if abs(d) < 1e-12:
+        tone = "neutral"
+        sign = ""
+    elif d > 0:
+        tone = "pos"
+        sign = "+"
+    else:
+        tone = "neg"
+        sign = "−"
+
+    if is_pp:
+        base = f"{sign}{abs(d):.{decimals}f} điểm %"
+    elif unit:
+        base = f"{sign}{fmt_compact(abs(d), decimals=decimals)} {unit}"
+    else:
+        base = f"{sign}{fmt_compact(abs(d), decimals=decimals)}"
+
+    if pct is not None and pct == pct and not is_pp:
+        pct_sign = "+" if pct > 0 else ("−" if pct < 0 else "")
+        return f"{base} ({pct_sign}{abs(pct) * 100:.2f}%)", tone
+    return base, tone
+
+
+def fmt_metric_state(
+    value: float | int | None,
+    *,
+    supported: bool = True,
+    has_rows: bool = True,
+    formatter: Any = None,
+    unsupported_text: str = "Nguồn không hỗ trợ",
+    empty_text: str = "Không có dữ liệu",
+) -> str:
+    """Distinguish numeric zero, empty filter matches, and source-unsupported metrics."""
+    if not supported:
+        return unsupported_text
+    if not has_rows:
+        return empty_text
+    if value is None:
+        return empty_text
+    v = float(value)
+    if v != v:
+        return empty_text
+    if formatter is not None:
+        return str(formatter(v))
+    return fmt_compact(v)

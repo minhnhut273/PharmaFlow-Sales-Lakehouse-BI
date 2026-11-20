@@ -4,11 +4,11 @@
 
 ---
 
-## 1. Cấu trúc 4 trang
-1. **Tổng Quan (`01_tong_quan.py`)**: 6 thẻ KPI tách theo tiền tệ/đơn vị, biểu đồ tăng trưởng `kpi_sales_trend` (kỳ `MONTH`, tính tăng trưởng trung bình `%`), Donut tỷ trọng quốc gia, Top 15 thương hiệu và bảng đối chiếu `OBSERVED` vs `SYNTHETIC`.
-2. **Thời Tiết & Địa Điểm (`02_thoi_tiet_dia_diem.py`)**: Bộ lọc đa yếu tố `Mức mưa`, `Mức độ ẩm`, 4 nút chọn nhanh ô thời tiết + bộ chọn `Ô Nhiệt độ × Ô Mức mưa` đánh dấu trực tiếp trên bản đồ nhiệt toàn chiều rộng, so sánh ngày thường/cuối tuần, Scatter nhiệt độ, bảng chi tiết ngày (+ mở rộng theo Cửa hàng & Đơn vị tính) và Top 15 thuốc + Thứ trong tuần.
-3. **Cửa Hàng & Lợi Nhuận (`03_cua_hang_loi_nhuan.py`)**: Bản đồ Châu Âu (Choropleth ISO-3) + Heatmap 8 quốc gia EU × 12 tháng, Top 20 cửa hàng, Gauge khuyến mãi %, Scatter/Bar lợi nhuận thương hiệu, bảng hiệu suất cửa hàng có tìm kiếm/CSV, và ma trận bong bóng 120 cửa hàng EU.
-4. **Sản Phẩm & ATC (`04_san_pham_atc.py`)**: Bảng chi tiết sản phẩm có tìm kiếm/CSV, Treemap Thương hiệu–Sản phẩm, Histogram đơn giá tính trên PostgreSQL (`WIDTH_BUCKET`), Line & Heatmap 8 nhóm ATC toàn kỳ `2014–2019`, Top 15 Nhà sản xuất (`IRPD — IDR`), và xếp hạng 8 nhóm thuốc ATC.
+## 1. Cấu trúc 4 trang & Mô-đun phân tích (`analytics.py`)
+1. **Tổng Quan (`01_tong_quan.py`)**: 6 thẻ KPI kèm biến động so với kỳ so sánh tương thích (`Tóm tắt điều hành` tự sinh theo rule), tăng trưởng tổng MoM tính từ tổng kỳ cùng phạm vi (tự ngắt đường khi thiếu tháng hoặc tháng chưa đủ ngày), biểu đồ đóng góp biến động số học (`Quốc gia` / `Thương hiệu` / `Sản phẩm`), bảng tách ĐVT (khi gặp đa ĐVT như IRPD) và bảng đối chiếu `OBSERVED` vs `SYNTHETIC`.
+2. **Thời Tiết & Địa Điểm (`02_thoi_tiet_dia_diem.py`)**: Bộ lọc cục bộ **chỉ áp dụng Trang 2** (`Mức mưa`, `Mức độ ẩm`, chọn nhanh ô `Nhiệt độ × Mức mưa`), chỉ số chuẩn hóa theo **Cửa hàng-Ngày có bán** (`active_store_days`, cảnh báo ô `n < 30`, nêu rõ không gồm ngày bán = 0), mùa vụ thời tiết (`apparent_temp_mean` oi bức, mưa, nhiệt độ TB) theo tháng và bảng tra cứu ngày ở cuối trang.
+3. **Cửa Hàng & Biên Lợi Nhuận (`03_cua_hang_loi_nhuan.py`)**: Biến động cùng cửa hàng (*Same-Store*), danh sách cửa hàng cần xem xét (*Watchlist* theo rule doanh thu/biên LN gia quyền/suy giảm), ma trận doanh thu × biên lợi nhuận gia quyền (số cửa hàng động theo bộ lọc), bản đồ & mùa vụ EU, tỷ trọng sản lượng có khuyến mãi + bảng so sánh mô tả (không suy diễn nhân quả) và bảng tra cứu cuối trang.
+4. **Sản Phẩm & ATC (`04_san_pham_atc.py`)**: Sản phẩm tăng/giảm mạnh ở đúng grain `Sản phẩm × ĐVT`, dịch chuyển cơ cấu (*Mix Shift — điểm %*), Treemap, Histogram đơn giá cấp dòng mart (khóa an toàn khi trộn đa ĐVT), Top 15 Nhà sản xuất (`IRPD — OBSERVED`) và chuỗi quan sát 8 nhóm ATC (`PHARMA_SALES_DAILY_ATC · OBSERVED`) kèm thanh phạm vi rõ ràng.
 
 ---
 
@@ -80,9 +80,11 @@ Sau khi chạy, mở trình duyệt tại **`http://localhost:8501`**.
   - Chọn **Bảng màu giao diện** gồm 4 preset (`PharmaFlow Teal`, `AWS Quick Classic`, `Ocean Blue`, `Warm Amber`).
   - Lọc phân tầng theo **Nhóm dữ liệu (`Track`) → Quốc gia → Cửa hàng → Đơn vị tính (`UOM`) → Khoảng ngày bán → Mức nhiệt độ**.
   - Có nút **Đặt lại toàn bộ bộ lọc** ở cuối sidebar.
-- **Nguyên tắc toàn vẹn dữ liệu hiển thị:**
-  - Không gộp chung tiền tệ khác loại (`EUR` của `ONYX_EU_SYNTHETIC` vs `IDR` của `IRPD_ID_OBSERVED`) hoặc đơn vị tính hỗn hợp (`multi-UOM` trên `IRPD_ID_OBSERVED` — app có banner cảnh báo riêng khi chưa lọc 1 UOM cụ thể).
-  - Tách biệt nhãn nguồn gốc dữ liệu **`OBSERVED` (Quan sát thực tế)** và **`SYNTHETIC` (Mô phỏng)** trên KPI & bảng đối chiếu.
+- **Nguyên tắc toàn vẹn dữ liệu & Giới hạn Data Contract:**
+  - **Không trộn tiền tệ & Đa ĐVT:** Tách biệt `EUR` (`ONYX_EU_SYNTHETIC`), `IDR` (`IRPD_ID_OBSERVED`) và nguồn không tiền tệ (`SERBIA_RS_SYNTHETIC`). Vì cột `base_qty` hiện `NULL` (thiếu hệ số quy đổi ĐVT), app khóa cộng gộp sản lượng & đơn giá bình quân khi đang gộp nhiều ĐVT (`IRPD`), cho phép chọn 1 ĐVT hoặc đối chiếu qua doanh thu/bảng tách ĐVT.
+  - **Số đơn hàng (Distinct Order):** Gold mirror đang ở grain `Sản phẩm × Cửa hàng × Ngày` (`SUM(order_count)` sẽ cộng trùng đơn nhiều mặt hàng), nên KPI hiển thị **`Chưa khả dụng`** và thay bằng chỉ số cộng được chính xác là **`Số dòng POS` (`SUM(line_count)`)** và **`CH-ngày có bán`**.
+  - **Biên LN & Đơn giá gia quyền:** Dùng `SUM(margin)/SUM(revenue)` và `SUM(revenue)/SUM(qty)` làm KPI điều hành; trung bình theo dòng mart chỉ giữ làm thông tin phụ. Phân biệt rõ `0`, `Không có dữ liệu` và `Nguồn không hỗ trợ`.
+  - **Phạm vi Sales BI & Thời tiết:** Gold mart chỉ chứa ngày có bán (`sold_qty > 0`, không gồm ngày bán = 0); mẫu từ nguồn `SYNTHETIC` được gắn nhãn mô phỏng và không suy diễn nhân quả hay đề xuất tồn kho/điều chuyển (thuộc module Distribution/Inventory).
 - **Tương tác nổi bật trên từng trang:**
   - **Trang 2 (Thời Tiết & Địa Điểm):** Dùng 4 nút chọn nhanh hoặc cặp dropdown **`Ô Nhiệt độ` × `Ô Mức mưa`** để khoanh đen ô trên Heatmap toàn chiều rộng và lọc chéo các biểu đồ bên dưới.
   - **Trang 3 & Trang 4:** Có ô tìm kiếm trực tiếp theo **Cửa hàng / Sản phẩm** và nút **Tải CSV (UTF-8)** giữ đúng dấu tiếng Việt khi mở bằng Excel.

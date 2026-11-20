@@ -1,4 +1,4 @@
-"""Shared sidebar filters, palette selector, and cascading session state."""
+"""Shared sidebar filters, palette selector, comparison selector, and isolated page state."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from typing import Any
 
 import streamlit as st
 
+from analytics import COMPARE_MODE_LABELS, COMPARE_MODE_ORDER, evaluate_uom_compatibility
 from config import (
     DEFAULT_PALETTE_KEY,
     DEFAULT_TRACK,
@@ -17,9 +18,26 @@ from config import (
     temp_label,
     track_label,
 )
-from db import MissingDatabaseConfigError, get_active_schema, run_query_df
+import db
 from queries import FilterState, sql_available_tracks, sql_filter_options, sql_release_state
 from ui import get_active_palette, inject_theme_css
+
+_PAGE_LOCAL_KEYS: tuple[str, ...] = (
+    "p2_rain_regimes",
+    "p2_humidity_bands",
+    "p2_cell_temp",
+    "p2_cell_rain",
+    "p2_metric_mode",
+    "p2_weather_line",
+    "p2_daily_store_uom",
+    "p3_store_search",
+    "p4_product_search",
+    "p4_atc_apply_date",
+    "p1_summary_all_tracks",
+    "p1_trend_metric",
+    "p1_driver_dim",
+    "p1_show_series_ref",
+)
 
 
 def _ensure_defaults() -> None:
@@ -29,22 +47,27 @@ def _ensure_defaults() -> None:
     st.session_state.setdefault("f_stores", [])
     st.session_state.setdefault("f_uoms", [])
     st.session_state.setdefault("f_temp_bands", [])
-    st.session_state.setdefault("f_rain_regimes", [])
-    st.session_state.setdefault("f_humidity_bands", [])
-    st.session_state.setdefault("f_heatmap_cell", None)
+    st.session_state.setdefault("f_compare_mode", COMPARE_MODE_ORDER[0])
 
 
 def reset_all_filters() -> None:
+    """Clear every global and page-local filter key cleanly."""
     st.session_state["f_track"] = DEFAULT_TRACK
     st.session_state["f_countries"] = []
     st.session_state["f_stores"] = []
     st.session_state["f_uoms"] = []
     st.session_state["f_temp_bands"] = []
-    st.session_state["f_rain_regimes"] = []
-    st.session_state["f_humidity_bands"] = []
-    st.session_state["f_heatmap_cell"] = None
+    st.session_state["f_compare_mode"] = COMPARE_MODE_ORDER[0]
     st.session_state.pop("f_date_range", None)
     st.session_state.pop("f_track_prev", None)
+    st.session_state.pop("_track_bounds", None)
+    for key in _PAGE_LOCAL_KEYS:
+        st.session_state.pop(key, None)
+
+
+def set_global_uoms(uoms: list[str]) -> None:
+    """Callback helper for 1-click single-UOM selection buttons across pages."""
+    st.session_state["f_uoms"] = list(uoms)
 
 
 def _prune_selection(state_key: str, valid_options: list[str]) -> list[str]:
@@ -56,28 +79,34 @@ def _prune_selection(state_key: str, valid_options: list[str]) -> list[str]:
     return pruned
 
 
+def get_track_bounds() -> dict[str, Any]:
+    return dict(st.session_state.get("_track_bounds") or {})
+
+
 def render_sidebar_and_get_filters() -> FilterState:
-    """Render shared sidebar palette switcher + cascading filters, returning FilterState."""
+    """Render shared sidebar palette switcher + cascading global filters."""
     _ensure_defaults()
 
     try:
-        schema = get_active_schema()
+        schema = db.get_active_schema()
         release_sql, release_params = sql_release_state(schema)
-        release_df = run_query_df(release_sql, release_params)
+        release_df = db.run_query_df(release_sql, release_params)
         tracks_sql, tracks_params = sql_available_tracks(schema)
-        tracks_df = run_query_df(tracks_sql, tracks_params)
-    except MissingDatabaseConfigError as exc:
+        tracks_df = db.run_query_df(tracks_sql, tracks_params)
+    except db.MissingDatabaseConfigError as exc:
         inject_theme_css(get_active_palette())
         st.error(str(exc))
         st.stop()
     except Exception as exc:
         inject_theme_css(get_active_palette())
-        st.error(f"Không thể kết nối Neon BI Mirror ({type(exc).__name__}). Hãy kiểm tra cấu hình mạng và `QUICK_NEON_DATABASE_URL`.")
+        st.error(
+            f"Không thể kết nối Neon BI Mirror ({type(exc).__name__}). "
+            "Hãy kiểm tra cấu hình mạng và `QUICK_NEON_DATABASE_URL`."
+        )
         st.stop()
 
     palette_keys = list(PALETTES.keys())
     with st.sidebar:
-        palette = get_active_palette()
         release_text = "Chưa có bản ghi release"
         if not release_df.empty:
             row = release_df.iloc[0]
@@ -89,7 +118,7 @@ def render_sidebar_and_get_filters() -> FilterState:
             f"""
             <div class="pf-sidebar-brand">
               <div class="pf-sidebar-title">💊 PharmaFlow BI</div>
-              <div class="pf-sidebar-meta">Bán lẻ Dược phẩm & Thời tiết · Gold MD-01</div>
+              <div class="pf-sidebar-meta">Bán lẻ Dược phẩm & Thời tiết · Sales MD-01</div>
               <div class="pf-sidebar-meta">{release_text}</div>
             </div>
             """,
@@ -124,12 +153,22 @@ def render_sidebar_and_get_filters() -> FilterState:
             options=track_options,
             format_func=track_label,
             key="f_track",
-            help="Luôn tách nhóm dữ liệu để tránh cộng gộp EUR với IDR và nhiều đơn vị tính.",
+            help="Luôn tách nguồn dữ liệu để không cộng gộp EUR với IDR, hay OBSERVED với SYNTHETIC.",
         )
 
-        # Fetch cascading option lists scoped by selected track
-        opts_sql, opts_params = sql_filter_options(schema, selected_track)
-        opts_df = run_query_df(opts_sql, opts_params)
+        prev_track = st.session_state.get("f_track_prev")
+        track_switched = prev_track is not None and prev_track != selected_track
+        if track_switched:
+            st.session_state["f_countries"] = []
+            st.session_state["f_stores"] = []
+            st.session_state["f_uoms"] = []
+            st.session_state["f_temp_bands"] = []
+            for key in _PAGE_LOCAL_KEYS:
+                st.session_state.pop(key, None)
+
+        pre_countries = () if track_switched else tuple(st.session_state.get("f_countries", ()))
+        opts_sql, opts_params = sql_filter_options(schema, selected_track, pre_countries)
+        opts_df = db.run_query_df(opts_sql, opts_params)
 
         countries_avail: list[str] = []
         uoms_avail: list[str] = []
@@ -147,14 +186,8 @@ def render_sidebar_and_get_filters() -> FilterState:
             uoms_avail = list(opt_row.get("uoms") or [])
             stores_avail = list(opt_row.get("stores") or [])
 
-        # Reset track-scoped subfilters cleanly when user switches dataset track
-        prev_track = st.session_state.get("f_track_prev")
-        if prev_track is not None and prev_track != selected_track:
-            st.session_state["f_countries"] = []
-            st.session_state["f_stores"] = []
-            st.session_state["f_uoms"] = []
+        if track_switched:
             st.session_state["f_date_range"] = (min_date, max_date)
-            st.session_state["f_heatmap_cell"] = None
         st.session_state["f_track_prev"] = selected_track
 
         _prune_selection("f_countries", countries_avail)
@@ -184,18 +217,17 @@ def render_sidebar_and_get_filters() -> FilterState:
             key="f_stores",
         )
         selected_uoms = st.multiselect(
-            "Đơn vị tính",
+            "Đơn vị tính (ĐVT)",
             options=uoms_avail,
             placeholder="Tất cả đơn vị",
             key="f_uoms",
         )
 
-        # Smart multi-UOM warning for IRPD Indonesia
-        track_meta = TRACK_META.get(selected_track)
-        if track_meta and track_meta.multi_uom and not selected_uoms:
+        uom_guard = evaluate_uom_compatibility(selected_track, selected_uoms, uoms_avail)
+        if uom_guard.is_multi_uom_blocked:
             st.warning(
-                f"Nguồn này có **{len(uoms_avail)} đơn vị tính** khác nhau (`tab`, `pcs`, `fls`...). "
-                "Nên chọn 1 đơn vị tính để so sánh sản lượng chính xác.",
+                f"Nguồn đang có **{uom_guard.uom_count} ĐVT** và thiếu hệ số quy đổi `base_qty`. "
+                "Chọn **1 ĐVT** (như `tab`, `pcs`, `fls`) để mở khóa so sánh sản lượng & đơn giá.",
                 icon="⚠️",
             )
 
@@ -219,21 +251,31 @@ def render_sidebar_and_get_filters() -> FilterState:
             key="f_temp_bands",
         )
 
+        compare_mode = st.selectbox(
+            "Kỳ so sánh biến động",
+            options=list(COMPARE_MODE_ORDER),
+            format_func=lambda k: COMPARE_MODE_LABELS.get(k, k),
+            key="f_compare_mode",
+            help="Tự động bỏ qua tháng chưa đủ ngày để tránh so sánh lệch kỳ.",
+        )
+
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
-            if st.button("Đặt lại bộ lọc", width="stretch", on_click=reset_all_filters):
-                pass
+            st.button("Đặt lại bộ lọc", width="stretch", on_click=reset_all_filters)
         with col_btn2:
             if st.button("Làm mới cache", width="stretch"):
-                run_query_df.clear()
+                db.run_query_df.clear()
                 st.rerun()
 
-    # Apply theme CSS after palette selection resolves
-    inject_theme_css(palette)
+    st.session_state["_track_bounds"] = {
+        "min_date": min_date,
+        "max_date": max_date,
+        "uoms_avail": tuple(uoms_avail),
+        "countries_avail": tuple(countries_avail),
+        "stores_avail": tuple(stores_avail),
+    }
 
-    cell = st.session_state.get("f_heatmap_cell")
-    cell_temp = cell.get("temp_band") if isinstance(cell, dict) else None
-    cell_rain = cell.get("rain_regime") if isinstance(cell, dict) else None
+    inject_theme_css(palette)
 
     return FilterState(
         dataset_track=selected_track,
@@ -243,10 +285,7 @@ def render_sidebar_and_get_filters() -> FilterState:
         date_start=date_start,
         date_end=date_end,
         temp_bands=tuple(selected_temps),
-        rain_regimes=tuple(st.session_state.get("p2_rain_regimes", ())),
-        humidity_bands=tuple(st.session_state.get("p2_humidity_bands", ())),
-        heatmap_temp_band=cell_temp,
-        heatmap_rain_regime=cell_rain,
+        compare_mode=str(compare_mode),
     )
 
 
