@@ -100,25 +100,25 @@ def render_sidebar_and_get_filters() -> FilterState:
     except Exception as exc:
         inject_theme_css(get_active_palette())
         st.error(
-            f"Không thể kết nối Neon BI Mirror ({type(exc).__name__}). "
+            f"Không thể kết nối cơ sở dữ liệu BI ({type(exc).__name__}). "
             "Hãy kiểm tra cấu hình mạng và `QUICK_NEON_DATABASE_URL`."
         )
         st.stop()
 
     palette_keys = list(PALETTES.keys())
     with st.sidebar:
-        release_text = "Chưa có bản ghi release"
+        release_text = "Chưa ghi nhận bản cập nhật dữ liệu"
         if not release_df.empty:
             row = release_df.iloc[0]
             ts = row.get("synced_at_utc")
             ts_str = ts.strftime("%d/%m/%Y %H:%M UTC") if hasattr(ts, "strftime") else str(ts or "")
-            release_text = f"Release: {row.get('release_id', '—')} · {ts_str}"
+            release_text = f"Cập nhật: {row.get('release_id', '—')} · {ts_str}"
 
         st.markdown(
             f"""
             <div class="pf-sidebar-brand">
               <div class="pf-sidebar-title">💊 PharmaFlow BI</div>
-              <div class="pf-sidebar-meta">Bán lẻ Dược phẩm & Thời tiết · Sales MD-01</div>
+              <div class="pf-sidebar-meta">Phân tích Bán hàng & Thời tiết</div>
               <div class="pf-sidebar-meta">{release_text}</div>
             </div>
             """,
@@ -153,7 +153,7 @@ def render_sidebar_and_get_filters() -> FilterState:
             options=track_options,
             format_func=track_label,
             key="f_track",
-            help="Luôn tách nguồn dữ liệu để không cộng gộp EUR với IDR, hay OBSERVED với SYNTHETIC.",
+            help="Luôn tách từng nguồn dữ liệu để không cộng gộp EUR với IDR, hay dữ liệu thực tế với dữ liệu mô phỏng.",
         )
 
         prev_track = st.session_state.get("f_track_prev")
@@ -226,8 +226,8 @@ def render_sidebar_and_get_filters() -> FilterState:
         uom_guard = evaluate_uom_compatibility(selected_track, selected_uoms, uoms_avail)
         if uom_guard.is_multi_uom_blocked:
             st.warning(
-                f"Nguồn đang có **{uom_guard.uom_count} ĐVT** và thiếu hệ số quy đổi `base_qty`. "
-                "Chọn **1 ĐVT** (như `tab`, `pcs`, `fls`) để mở khóa so sánh sản lượng & đơn giá.",
+                f"Nguồn đang có **{uom_guard.uom_count} đơn vị tính** và chưa có hệ số quy đổi chung. "
+                "Chọn **1 ĐVT** (như `tab`, `pcs`, `fls`) để mở khóa so sánh sản lượng và đơn giá.",
                 icon="⚠️",
             )
 

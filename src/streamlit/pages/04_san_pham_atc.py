@@ -62,12 +62,12 @@ def render_page(filters: FilterState) -> None:
 
     render_page_header(
         "Sản Phẩm, Cơ Cấu Bán & Nhóm Thuốc ATC",
-        "Nhận diện sản phẩm tăng/giảm mạnh, dịch chuyển cơ cấu danh mục, nhà sản xuất IRPD (OBSERVED) và chuỗi quan sát 8 nhóm thuốc ATC.",
+        "Nhận diện sản phẩm tăng/giảm mạnh trên toàn danh mục, dịch chuyển cơ cấu, nhà sản xuất IRPD (Thực tế) và chuỗi quan sát 8 nhóm thuốc ATC.",
         dataset_track=filters.dataset_track,
         extra_pills=[
-            ("Phân rã biến động & Mix Shift", "default"),
-            ("NSX: IRPD (OBSERVED)", "observed"),
-            ("ATC: Quan sát 2014–2019", "observed"),
+            ("Biến động & Dịch chuyển cơ cấu", "default"),
+            ("NSX: IRPD (Thực tế)", "observed"),
+            ("ATC: 2014–2019 (Thực tế)", "observed"),
         ],
     )
 
@@ -89,10 +89,11 @@ def render_page(filters: FilterState) -> None:
     )
     render_active_filter_bar(filters, compare_window=cmp_window)
 
-    # Product variance + Mix shift across comparison periods
+    # Product variance + Mix shift across full filtered catalog
     prod_var_df = pd.DataFrame()
     c_col = "cur_rev" if use_rev else "cur_qty"
     p_col = "prev_rev" if use_rev else "prev_qty"
+    var_metric_supported = has_rev if use_rev else True
     if cmp_window.valid and cmp_window.cur_start and cmp_window.prev_start:
         pv_sql, pv_params = sql_dimension_variance(
             schema,
@@ -102,11 +103,16 @@ def render_page(filters: FilterState) -> None:
             cur_end=cmp_window.cur_end,
             prev_start=cmp_window.prev_start,
             prev_end=cmp_window.prev_end,
-            limit=500,
+            limit=None,
         )
         pv_raw = db.run_query_df(pv_sql, pv_params)
         if not pv_raw.empty:
-            prod_var_df = compute_variance_and_contributions(pv_raw, cur_col=c_col, prev_col=p_col)
+            prod_var_df = compute_variance_and_contributions(
+                pv_raw,
+                cur_col=c_col,
+                prev_col=p_col,
+                metric_supported=var_metric_supported,
+            )
             prod_var_df["label"] = prod_var_df.apply(
                 lambda r: f"{r['product_name']} ({r['clean_uom']})" if r.get("clean_uom") else str(r["product_name"]),
                 axis=1,
@@ -129,9 +135,9 @@ def render_page(filters: FilterState) -> None:
     with st.container(border=True):
         render_chart_header(
             f"Biến Động & Dịch Chuyển Cơ Cấu Sản Phẩm ({cmp_window.cur_label} vs {cmp_window.prev_label})",
-            f"Phân tích tại đúng grain Sản phẩm × ĐVT theo {metric_label} — xem top tăng/giảm tuyệt đối và dịch chuyển tỷ trọng (điểm %)",
+            f"Tính trên toàn bộ danh mục theo {metric_label} (tách theo ĐVT) — chọn Top tăng/giảm và dịch chuyển tỷ trọng (điểm %)",
         )
-        t_prod_mov, t_prod_mix = st.tabs(["Sản phẩm tăng / giảm mạnh nhất", "Dịch chuyển cơ cấu (Mix Shift — điểm %)"])
+        t_prod_mov, t_prod_mix = st.tabs(["Sản phẩm tăng / giảm mạnh nhất", "Dịch chuyển cơ cấu (tỷ trọng — điểm %)"])
 
         with t_prod_mov:
             if not cmp_window.valid or prod_var_df.empty:
@@ -226,6 +232,21 @@ def render_page(filters: FilterState) -> None:
                     polish_diverging_bar(fig_mx, float(mix_comb["mix_shift_pp"].abs().max()), min_bound=0.5, pad_factor=1.35)
                     st.plotly_chart(fig_mx, width="stretch", theme=None, config=plotly_config())
 
+        if cmp_window.valid and not prod_var_df.empty:
+            tot_prev_cat = float(pd.to_numeric(prod_var_df[p_col], errors="coerce").fillna(0.0).sum())
+            tot_cur_cat = float(pd.to_numeric(prod_var_df[c_col], errors="coerce").fillna(0.0).sum())
+            pct_suffix = (
+                f", {((tot_cur_cat - tot_prev_cat) / tot_prev_cat * 100.0):+.2f}%"
+                if tot_prev_cat > 0
+                else ""
+            )
+            prev_only_cnt = int((prod_var_df["presence_status"] == "Chỉ phát sinh kỳ trước").sum())
+            new_cur_cnt = int((prod_var_df["presence_status"] == "Mới phát sinh kỳ này").sum())
+            st.caption(
+                f"Tính trên toàn bộ {len(prod_var_df):,} sản phẩm × ĐVT hợp lệ (tổng kỳ trước {fmt_compact(tot_prev_cat)} → kỳ này {fmt_compact(tot_cur_cat)}{pct_suffix}; "
+                f"gồm {prev_only_cnt:,} nhóm chỉ phát sinh kỳ trước và {new_cur_cnt:,} nhóm mới kỳ này); biểu đồ hiển thị tối đa Top 8 tăng và Top 8 giảm."
+            )
+
     # Row 2: Brand-Product Treemap (6) + Unit Price Histogram (6, multi-UOM guarded)
     col_tree, col_hist = st.columns([6, 6], gap="medium")
 
@@ -264,8 +285,8 @@ def render_page(filters: FilterState) -> None:
     with col_hist:
         with st.container(border=True):
             render_chart_header(
-                "Phân Bố Đơn Giá Cấp Dòng Mart (SP × CH × Ngày)",
-                "Mỗi đơn vị đếm là 1 dòng tổng hợp sản phẩm × cửa hàng × ngày (không trộn nhiều ĐVT)",
+                "Phân Bố Đơn Giá Theo Dòng Bán",
+                "Mỗi đơn vị đếm là 1 dòng tổng hợp sản phẩm × cửa hàng × ngày (chỉ tính khi chọn 1 ĐVT)",
             )
             if not has_rev:
                 render_empty_state("Nguồn dữ liệu hiện tại không ghi nhận doanh thu và đơn giá tiền tệ.")
@@ -309,14 +330,14 @@ def render_page(filters: FilterState) -> None:
                         color_discrete_sequence=[palette.primary, palette.accent],
                     )
                     fig_hs.update_traces(
-                        hovertemplate="Khoảng đơn giá: %{x}<br>Số dòng mart (SP×CH×ngày): %{y:,.0f}<extra></extra>"
+                        hovertemplate="Khoảng đơn giá: %{x}<br>Số dòng dữ liệu: %{y:,.0f}<extra></extra>"
                     )
                     style_plotly(
                         fig_hs,
                         palette,
                         height=370,
                         xaxis_title=f"Khoảng đơn giá ({ccy}/{uom_guard.single_uom or 'ĐVT'})",
-                        yaxis_title="Số dòng mart",
+                        yaxis_title="Số dòng dữ liệu",
                     )
                     polish_vertical_bar_headroom(fig_hs, float(hs_df.groupby("bin_label")["obs_count"].sum().max()))
                     fig_hs.update_xaxes(tickangle=-35)
@@ -327,16 +348,16 @@ def render_page(filters: FilterState) -> None:
     is_irpd_selected = filters.dataset_track == "IRPD_ID_OBSERVED"
     with st.container(border=True):
         render_chart_header(
-            "Top 15 Nhà Sản Xuất Theo Doanh Thu (IRPD Indonesia — OBSERVED)",
-            "Nguồn ONYX EU hiện để trống manufacturer_name; doanh thu IDR cộng hợp lệ xuyên ĐVT (đếm Số dòng POS & CH-ngày)",
+            "Top 15 Nhà Sản Xuất Theo Doanh Thu (IRPD Indonesia — Thực Tế)",
+            "Nguồn ONYX EU chưa ghi nhận thông tin nhà sản xuất; doanh thu IDR cộng hợp lệ xuyên ĐVT",
         )
         if is_irpd_selected:
             render_scope_strip(
-                "Nguồn: IRPD Indonesia — Thực tế (OBSERVED · IDR) · Đang áp dụng bộ lọc ngày/ĐVT/nhiệt độ của Sidebar."
+                "Nguồn: IRPD Indonesia — Thực tế (IDR) · Đang áp dụng bộ lọc ngày/ĐVT/nhiệt độ của thanh bên."
             )
         else:
             render_scope_strip(
-                "Nguồn độc lập: IRPD Indonesia (OBSERVED · IDR) · Không áp dụng bộ lọc ngày/ĐVT của nguồn khác đang chọn ở Sidebar.",
+                "Nguồn độc lập: IRPD Indonesia — Thực tế (IDR) · Không áp dụng bộ lọc ngày/ĐVT của nguồn khác đang chọn ở thanh bên.",
                 kind="warn",
             )
         mf_sql, mf_params = sql_irpd_top_manufacturers(schema, filters, limit=15)
@@ -407,7 +428,7 @@ def render_page(filters: FilterState) -> None:
             else f"Hiển thị toàn kỳ quan sát {atc_span}; không áp dụng bộ lọc nguồn chính ở Sidebar"
         )
         render_scope_strip(
-            f"Nguồn: {atc_src} · Loại: Thực tế (OBSERVED) · Khu vực: {atc_ctry} · Grain: Nhóm ATC × Kỳ · {atc_filter_txt}.",
+            f"Nguồn độc lập: Chuỗi quan sát 8 nhóm ATC ({atc_ctry}) · Dữ liệu thực tế · {atc_filter_txt}.",
             kind="default" if apply_date_to_atc else "warn",
         )
 
@@ -515,7 +536,7 @@ def render_page(filters: FilterState) -> None:
     with st.container(border=True):
         render_chart_header(
             "Bảng Tra Cứu Chi Tiết Sản Phẩm (Sản Phẩm × ĐVT × Nguồn)",
-            "Đặt bên dưới các phân tích chính; dùng Đơn giá & Biên LN gia quyền thay cho trung bình cộng dòng mart",
+            "Đặt bên dưới các phân tích chính; dùng Đơn giá & Biên lợi nhuận gia quyền thay cho trung bình cộng theo dòng",
         )
         prod_search = st.text_input(
             "Tìm nhanh theo tên sản phẩm, thương hiệu hoặc đơn vị tính",
@@ -557,6 +578,14 @@ def render_page(filters: FilterState) -> None:
                 },
             )
             render_csv_download(disp_df, "chi_tiet_san_pham.csv", key="p4_csv_products")
+
+    with st.expander("Định nghĩa chỉ số & nguồn dữ liệu"):
+        st.markdown(
+            f"- **Phạm vi phân tích biến động & dịch chuyển cơ cấu:** Tổng hợp đầy đủ toàn bộ danh mục hợp lệ trong 2 kỳ từ `bi_sales_weather_enriched` (không cắt giới hạn trước khi tính tổng, đóng góp điểm % và dịch chuyển tỷ trọng), bao gồm cả các sản phẩm chỉ phát sinh ở kỳ trước hoặc mới phát sinh ở kỳ này.\n"
+            f"- **Bảo vệ đơn vị tính (`clean_uom`):** Các bảng xếp hạng và cơ cấu giữ nguyên cặp `Sản phẩm × ĐVT`; khi nguồn có nhiều ĐVT và thiếu hệ số quy đổi `base_qty`, bảng biến động tự động chuyển sang Doanh thu.\n"
+            f"- **Nhà sản xuất IRPD:** Chỉ nguồn `IRPD_ID_OBSERVED` ghi nhận trường `manufacturer_name` (ONYX và Serbia không có).\n"
+            f"- **Chuỗi quan sát nhóm thuốc ATC:** Đọc từ `{atc_src}` (`bi_atc_category_monthly`, grain `Nhóm ATC × Kỳ`, 2014–2019), dùng để theo dõi xu hướng nhóm điều trị độc lập với dữ liệu giao dịch từng SKU."
+        )
 
 
 render_page(get_current_filters())

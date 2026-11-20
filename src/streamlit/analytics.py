@@ -43,6 +43,30 @@ class UomGuard:
     message: str
 
 
+@dataclass(frozen=True)
+class MatrixSourceMeta:
+    track_id: str
+    label_vi: str
+    provenance_class: str
+    provenance_vi: str
+    currency_code: str
+    matches_sidebar_track: bool
+    scope_note: str
+
+
+@dataclass(frozen=True)
+class WatchlistResult:
+    status: str  # "alerts" | "reference_low_margin" | "no_alerts" | "insufficient_data"
+    df: pd.DataFrame
+    total_matched: int
+    displayed_count: int
+    evaluated_count: int
+    supports_margin: bool
+    title: str
+    subtitle: str
+    empty_message: str = ""
+
+
 def _month_bounds(ym: date) -> tuple[date, date]:
     last_day = calendar.monthrange(ym.year, ym.month)[1]
     return date(ym.year, ym.month, 1), date(ym.year, ym.month, last_day)
@@ -476,7 +500,7 @@ def evaluate_uom_compatibility(
             single_uom=None,
             message=(
                 f"Phạm vi đang lọc gồm {max(count, 2)} đơn vị tính khác nhau ({', '.join(uoms_tuple[:5])}{'...' if count > 5 else ''}) "
-                "và cột quy đổi base_qty hiện NULL trong Gold mirror. Không thể cộng gộp sản lượng hay tính đơn giá bình quân xuyên ĐVT — "
+                "và chưa có hệ số quy đổi chung về cùng đơn vị chuẩn. Không thể cộng gộp sản lượng hay tính đơn giá bình quân xuyên ĐVT — "
                 "hãy chọn 1 đơn vị tính hoặc xem bảng tách theo từng ĐVT bên dưới."
             ),
         )
@@ -496,8 +520,16 @@ def compute_variance_and_contributions(
     *,
     cur_col: str = "cur_val",
     prev_col: str = "prev_val",
+    metric_supported: bool = True,
+    total_cur_override: float | None = None,
+    total_prev_override: float | None = None,
 ) -> pd.DataFrame:
-    """Add period delta, %, additive contribution (percentage points), and mix shift (pp)."""
+    """Add period delta, %, additive contribution (percentage points), and mix shift (pp).
+
+    When ``metric_supported`` is False, or when a row recorded sales lines in a period
+    while the metric value itself is missing/null, the row is flagged rather than coerced
+    to zero so zero sales, missing metric data, and unsupported metrics remain distinct.
+    """
     if df is None or df.empty:
         out = df.copy() if df is not None else pd.DataFrame()
         for col in ("delta", "pct_change", "contrib_pp", "share_cur", "share_prev", "mix_shift_pp", "presence_status"):
@@ -505,38 +537,82 @@ def compute_variance_and_contributions(
         return out
 
     out = df.copy()
-    cur_s = pd.to_numeric(out[cur_col], errors="coerce").fillna(0.0)
-    prev_s = pd.to_numeric(out[prev_col], errors="coerce").fillna(0.0)
-    out[cur_col] = cur_s
-    out[prev_col] = prev_s
-    out["delta"] = cur_s - prev_s
+    raw_cur = pd.to_numeric(out[cur_col], errors="coerce")
+    raw_prev = pd.to_numeric(out[prev_col], errors="coerce")
 
-    total_cur = float(cur_s.sum())
-    total_prev = float(prev_s.sum())
+    if not metric_supported:
+        out[cur_col] = raw_cur
+        out[prev_col] = raw_prev
+        for col in ("delta", "pct_change", "contrib_pp", "share_cur", "share_prev", "mix_shift_pp"):
+            out[col] = pd.Series([None] * len(out), index=out.index, dtype="float64")
+        out["presence_status"] = "Nguồn không hỗ trợ chỉ số"
+        return out
 
-    def _pct(c: float, p: float) -> float | None:
-        if p > 0:
-            return (c - p) / p
-        return None
+    has_line_cols = "cur_lines" in out.columns and "prev_lines" in out.columns and cur_col not in ("cur_lines", "prev_lines")
+    if has_line_cols:
+        cur_lines_s = pd.to_numeric(out["cur_lines"], errors="coerce").fillna(0.0)
+        prev_lines_s = pd.to_numeric(out["prev_lines"], errors="coerce").fillna(0.0)
+        missing_cur_mask = (cur_lines_s > 0) & raw_cur.isna()
+        missing_prev_mask = (prev_lines_s > 0) & raw_prev.isna()
+    else:
+        missing_cur_mask = pd.Series(False, index=out.index)
+        missing_prev_mask = pd.Series(False, index=out.index)
 
-    def _presence(c: float, p: float) -> str:
+    cur_s = raw_cur.fillna(0.0)
+    prev_s = raw_prev.fillna(0.0)
+    out[cur_col] = cur_s.where(~missing_cur_mask, other=float("nan"))
+    out[prev_col] = prev_s.where(~missing_prev_mask, other=float("nan"))
+
+    total_cur = float(total_cur_override) if total_cur_override is not None else float(cur_s.where(~missing_cur_mask, 0.0).sum())
+    total_prev = float(total_prev_override) if total_prev_override is not None else float(prev_s.where(~missing_prev_mask, 0.0).sum())
+
+    deltas: list[float | None] = []
+    pcts: list[float | None] = []
+    contribs: list[float | None] = []
+    shares_cur: list[float | None] = []
+    shares_prev: list[float | None] = []
+    mix_shifts: list[float | None] = []
+    presences: list[str] = []
+
+    for c_val, p_val, m_cur, m_prev in zip(cur_s, prev_s, missing_cur_mask, missing_prev_mask):
+        if m_cur or m_prev:
+            deltas.append(None)
+            pcts.append(None)
+            contribs.append(None)
+            shares_cur.append(None)
+            shares_prev.append(None)
+            mix_shifts.append(None)
+            presences.append("Thiếu dữ liệu chỉ số")
+            continue
+
+        c = float(c_val)
+        p = float(p_val)
+        d = c - p
+        deltas.append(d)
+        pcts.append((d / p) if p > 0 else None)
+        contribs.append((d / total_prev) * 100.0 if total_prev > 0 else None)
+        sc = (c / total_cur) if total_cur > 0 else None
+        sp = (p / total_prev) if total_prev > 0 else None
+        shares_cur.append(sc)
+        shares_prev.append(sp)
+        mix_shifts.append(((sc - sp) * 100.0) if (sc is not None and sp is not None) else None)
+
         if c > 0 and p > 0:
-            return "Cả 2 kỳ"
-        if c > 0 and p <= 0:
-            return "Mới phát sinh kỳ này"
-        if c <= 0 and p > 0:
-            return "Ngừng phát sinh kỳ này"
-        return "Không phát sinh"
+            presences.append("Cả 2 kỳ")
+        elif c > 0 and p <= 0:
+            presences.append("Mới phát sinh kỳ này")
+        elif c <= 0 and p > 0:
+            presences.append("Chỉ phát sinh kỳ trước")
+        else:
+            presences.append("Không phát sinh")
 
-    out["pct_change"] = [_pct(c, p) for c, p in zip(cur_s, prev_s)]
-    out["contrib_pp"] = [(d / total_prev) * 100.0 if total_prev > 0 else None for d in out["delta"]]
-    out["share_cur"] = [c / total_cur if total_cur > 0 else None for c in cur_s]
-    out["share_prev"] = [p / total_prev if total_prev > 0 else None for p in prev_s]
-    out["mix_shift_pp"] = [
-        (sc - sp) * 100.0 if (sc is not None and sp is not None) else None
-        for sc, sp in zip(out["share_cur"], out["share_prev"])
-    ]
-    out["presence_status"] = [_presence(c, p) for c, p in zip(cur_s, prev_s)]
+    out["delta"] = pd.Series(deltas, index=out.index, dtype="float64")
+    out["pct_change"] = pd.Series(pcts, index=out.index, dtype="float64")
+    out["contrib_pp"] = pd.Series(contribs, index=out.index, dtype="float64")
+    out["share_cur"] = pd.Series(shares_cur, index=out.index, dtype="float64")
+    out["share_prev"] = pd.Series(shares_prev, index=out.index, dtype="float64")
+    out["mix_shift_pp"] = pd.Series(mix_shifts, index=out.index, dtype="float64")
+    out["presence_status"] = presences
     return out
 
 
@@ -549,6 +625,22 @@ def flag_small_sample(store_days: int | float | None, *, threshold: int = SMALL_
 # ---------------------------------------------------------------------------
 # Rule-Based Insights (Strict Distinction: Arithmetic Contribution != Cause)
 # ---------------------------------------------------------------------------
+
+def _fmt_signed(
+    value: float | int,
+    unit: str | None = None,
+    *,
+    is_pp: bool = False,
+    decimals: int = 2,
+) -> str:
+    """Format a signed magnitude without ever emitting double-sign strings like '+-'."""
+    v = float(value)
+    sign = "+" if v > 0 else ("−" if v < 0 else "")
+    if is_pp:
+        return f"{sign}{abs(v):.{decimals}f} điểm %"
+    mag = fmt_currency(abs(v), unit) if unit else fmt_compact(abs(v), decimals=decimals)
+    return f"{sign}{mag}"
+
 
 def build_overview_insights(
     *,
@@ -564,7 +656,7 @@ def build_overview_insights(
     uom_guard: UomGuard,
 ) -> list[str]:
     bullets: list[str] = []
-    prov_tag = "Mô phỏng (SYNTHETIC)" if provenance_class == "SYNTHETIC" else "Quan sát thực tế (OBSERVED)"
+    prov_tag = "Dữ liệu mô phỏng" if provenance_class == "SYNTHETIC" else "Quan sát thực tế"
 
     if window.valid and cur_total is not None and prev_total is not None and prev_total > 0:
         diff = cur_total - prev_total
@@ -572,11 +664,9 @@ def build_overview_insights(
         direction = "tăng" if diff > 0 else ("giảm" if diff < 0 else "đi ngang")
         fmt_cur = fmt_currency(cur_total, metric_unit) if metric_unit else fmt_compact(cur_total)
         fmt_prev = fmt_currency(prev_total, metric_unit) if metric_unit else fmt_compact(prev_total)
-        fmt_diff = fmt_currency(abs(diff), metric_unit) if metric_unit else fmt_compact(abs(diff))
-        sign = "+" if diff > 0 else ("−" if diff < 0 else "")
         bullets.append(
             f"**Biến động kỳ {window.cur_label} so với {window.prev_label} ({prov_tag}):** "
-            f"{metric_label} {direction} **{sign}{fmt_diff}** ({pct * 100:+.2f}%), từ {fmt_prev} lên {fmt_cur}."
+            f"{metric_label} {direction} **{_fmt_signed(diff, metric_unit)}** ({pct * 100:+.2f}%), từ {fmt_prev} lên {fmt_cur}."
         )
     elif window.note:
         bullets.append(f"**Kỳ so sánh ({meta_label}):** {window.note}")
@@ -584,29 +674,33 @@ def build_overview_insights(
     if driver_df is not None and not driver_df.empty and "delta" in driver_df.columns:
         valid_drv = driver_df.dropna(subset=["delta"])
         if not valid_drv.empty:
-            top_pos = valid_drv.sort_values("delta", ascending=False).iloc[0]
-            top_neg = valid_drv.sort_values("delta", ascending=True).iloc[0]
+            pos_drv = valid_drv[valid_drv["delta"] > 0].sort_values("delta", ascending=False)
+            neg_drv = valid_drv[valid_drv["delta"] < 0].sort_values("delta", ascending=True)
             parts: list[str] = []
-            if float(top_pos["delta"]) > 0:
+            if not pos_drv.empty:
+                top_pos = pos_drv.iloc[0]
                 pp_txt = f" ({top_pos['contrib_pp']:+.2f} điểm %)" if pd.notna(top_pos.get("contrib_pp")) else ""
-                val_txt = fmt_currency(top_pos["delta"], metric_unit) if metric_unit else fmt_compact(top_pos["delta"])
-                parts.append(f"tăng mạnh nhất: **{top_pos[driver_name_col]}** (+{val_txt}{pp_txt})")
-            if float(top_neg["delta"]) < 0:
+                parts.append(f"tăng mạnh nhất: **{top_pos[driver_name_col]}** ({_fmt_signed(top_pos['delta'], metric_unit)}{pp_txt})")
+            if not neg_drv.empty:
+                top_neg = neg_drv.iloc[0]
                 pp_txt = f" ({top_neg['contrib_pp']:+.2f} điểm %)" if pd.notna(top_neg.get("contrib_pp")) else ""
-                val_txt = fmt_currency(top_neg["delta"], metric_unit) if metric_unit else fmt_compact(top_neg["delta"])
-                parts.append(f"giảm mạnh nhất: **{top_neg[driver_name_col]}** ({val_txt}{pp_txt})")
+                parts.append(f"giảm mạnh nhất: **{top_neg[driver_name_col]}** ({_fmt_signed(top_neg['delta'], metric_unit)}{pp_txt})")
             if parts:
                 bullets.append(
                     f"**Đóng góp số học lớn nhất (không suy diễn nguyên nhân):** {'; '.join(parts)}."
                 )
+            else:
+                bullets.append(
+                    f"**Đóng góp biến động:** Toàn bộ nhóm trong phạm vi đang có chênh lệch bằng 0 giữa {window.prev_label} và {window.cur_label}."
+                )
 
     if uom_guard.is_multi_uom_blocked:
         bullets.append(
-            f"**Lưu ý đơn vị tính ({meta_label}):** Nguồn đang gồm **{uom_guard.uom_count} đơn vị tính** và thiếu hệ số quy đổi `base_qty`; dashboard tạm khóa cộng tổng sản lượng và so sánh qua doanh thu hoặc bảng tách từng ĐVT."
+            f"**Lưu ý đơn vị tính ({meta_label}):** Nguồn đang gồm **{uom_guard.uom_count} đơn vị tính** và chưa có hệ số quy đổi chung; dashboard tạm khóa cộng tổng sản lượng để tránh cộng gộp sai ĐVT."
         )
     elif provenance_class == "SYNTHETIC":
         bullets.append(
-            "**Giới hạn diễn giải:** Số liệu nguồn này là **mô phỏng POS (`SYNTHETIC`)**; kết quả đơn hàng cấp hóa đơn (distinct `sales_order_id`) chưa khả dụng ở Gold mirror do grain là `Sản phẩm × Cửa hàng × Ngày`."
+            "**Giới hạn dữ liệu nguồn:** Số liệu nguồn này là **dữ liệu mô phỏng**; chưa có dữ liệu đếm số đơn hàng duy nhất (mới có số dòng bán theo sản phẩm, cửa hàng và ngày)."
         )
     return bullets[:3]
 
@@ -625,79 +719,387 @@ def build_weather_insights(
     if hm_df is not None and not hm_df.empty and metric_col in hm_df.columns:
         valid = hm_df.dropna(subset=[metric_col]).copy()
         adequate = valid[valid["active_store_days"].fillna(0) >= SMALL_SAMPLE_STORE_DAYS]
-        target_df = adequate if len(adequate) >= 2 else valid
-        if len(target_df) >= 2:
-            hi = target_df.sort_values(metric_col, ascending=False).iloc[0]
-            lo = target_df.sort_values(metric_col, ascending=True).iloc[0]
+        if len(adequate) >= 2:
+            hi = adequate.sort_values(metric_col, ascending=False).iloc[0]
+            lo = adequate.sort_values(metric_col, ascending=True).iloc[0]
             hi_txt = fmt_currency(hi[metric_col], metric_unit) if metric_unit else f"{float(hi[metric_col]):,.2f}"
             lo_txt = fmt_currency(lo[metric_col], metric_unit) if metric_unit else f"{float(lo[metric_col]):,.2f}"
             hi_lbl = f"{temp_label(str(hi['temp_band']))} × {rain_label(str(hi['rain_regime']))}"
             lo_lbl = f"{temp_label(str(lo['temp_band']))} × {rain_label(str(lo['rain_regime']))}"
-            diff_pct_txt = ""
-            if float(lo[metric_col]) > 0:
-                diff_pct = (float(hi[metric_col]) - float(lo[metric_col])) / float(lo[metric_col]) * 100.0
-                diff_pct_txt = f" (chênh +{diff_pct:.1f}% trên các nhóm đủ mẫu `n ≥ {SMALL_SAMPLE_STORE_DAYS}` CH-ngày)" if not adequate.empty else f" (chênh +{diff_pct:.1f}%)"
+            if float(hi[metric_col]) == float(lo[metric_col]):
+                bullets.append(
+                    f"**Mối liên hệ quan sát (trên {len(adequate)} nhóm đạt ngưỡng sàng lọc cỡ mẫu n ≥ {SMALL_SAMPLE_STORE_DAYS} CH-ngày):** "
+                    f"Các nhóm đủ mẫu đang có cùng mức {metric_noun} **{hi_txt}**."
+                )
+            else:
+                diff_pct_txt = ""
+                if float(lo[metric_col]) > 0:
+                    diff_pct = (float(hi[metric_col]) - float(lo[metric_col])) / float(lo[metric_col]) * 100.0
+                    diff_pct_txt = f" (chênh {diff_pct:+.1f}%)"
+                bullets.append(
+                    f"**Mối liên hệ quan sát (trên {len(adequate)} nhóm đạt ngưỡng sàng lọc cỡ mẫu n ≥ {SMALL_SAMPLE_STORE_DAYS} CH-ngày):** "
+                    f"Nhóm `{hi_lbl}` đạt {metric_noun} **{hi_txt}** (n={int(hi['active_store_days']):,}), "
+                    f"cao hơn nhóm `{lo_lbl}` ở mức **{lo_txt}** (n={int(lo['active_store_days']):,}){diff_pct_txt}."
+                )
+        else:
             bullets.append(
-                f"**Mối liên hệ quan sát (đã chuẩn hóa theo CH-ngày có bán):** Nhóm `{hi_lbl}` đạt {metric_noun} **{hi_txt}** (n={int(hi['active_store_days']):,}), "
-                f"cao hơn nhóm `{lo_lbl}` ở mức **{lo_txt}** (n={int(lo['active_store_days']):,}){diff_pct_txt}."
+                f"**Chưa đủ 2 nhóm đạt ngưỡng sàng lọc cỡ mẫu (n ≥ {SMALL_SAMPLE_STORE_DAYS} CH-ngày) để so sánh:** "
+                f"Hiện chỉ có **{len(adequate)}/{len(valid)}** ô Nhiệt độ × Mức mưa đạt mức tối thiểu này, nên hệ thống không xếp hạng chênh lệch."
             )
         small_cnt = int((valid["active_store_days"].fillna(0) < SMALL_SAMPLE_STORE_DAYS).sum())
         if small_cnt > 0:
             bullets.append(
-                f"**Cảnh báo cỡ mẫu nhỏ:** Có **{small_cnt}** ô Nhiệt độ × Mức mưa có ít hơn `{SMALL_SAMPLE_STORE_DAYS}` cửa hàng-ngày — không nên kết luận quy luật từ các ô này."
+                f"**Lưu ý sàng lọc cỡ mẫu:** Có **{small_cnt}** ô dưới ngưỡng {SMALL_SAMPLE_STORE_DAYS} cửa hàng-ngày "
+                "(đây là quy tắc sàng lọc độ phủ quan sát, không phải bằng chứng ý nghĩa thống kê hay tác động nhân quả)."
             )
 
     cov_pct = (active_store_days / possible_store_days * 100.0) if possible_store_days > 0 else None
-    cov_txt = f" ({cov_pct:.1f}% của {possible_store_days:,} CH × ngày hoạt động trong phạm vi lọc)" if cov_pct is not None else ""
-    prov_note = "Dữ liệu đang xem thuộc nhóm **mô phỏng (`SYNTHETIC`)**" if provenance_class == "SYNTHETIC" else "Dữ liệu đang xem là **quan sát thực tế (`OBSERVED`)**"
+    cov_txt = f" ({cov_pct:.1f}% của {possible_store_days:,} CH × ngày trong phạm vi lọc)" if cov_pct is not None else ""
+    prov_note = "Dữ liệu đang xem thuộc nhóm **mô phỏng**" if provenance_class == "SYNTHETIC" else "Dữ liệu đang xem là **quan sát thực tế**"
     bullets.append(
-        f"**Độ phủ & giới hạn nhân quả:** Gold mart chỉ lưu ngày có phát sinh bán (`sold_qty > 0`, tổng **{active_store_days:,}** CH-ngày{cov_txt}); **không bao gồm ngày bán bằng 0**. {prov_note}, chỉ phản ánh tương quan quan sát chứ chưa kiểm định tác động nhân quả."
+        f"**Phạm vi quan sát & độ phủ:** Chỉ tính ngày có phát sinh bán (tổng **{active_store_days:,}** cửa hàng-ngày{cov_txt}); **không bao gồm ngày bán bằng 0**. {prov_note}, chỉ phản ánh mối liên hệ quan sát chứ chưa kết luận quan hệ nhân quả."
     )
     return bullets[:3]
+
+
+def resolve_matrix_source_meta(
+    matrix_df: pd.DataFrame | None,
+    *,
+    active_track: str | None,
+    default_track: str = "ONYX_EU_SYNTHETIC",
+) -> MatrixSourceMeta:
+    """Resolve provenance, currency, and filter scope for the store matrix from its own query."""
+    def _first_nonempty(col: str) -> str | None:
+        if matrix_df is None or matrix_df.empty or col not in matrix_df.columns:
+            return None
+        vals = matrix_df[col].dropna().astype(str).str.strip()
+        vals = vals[vals != ""]
+        return str(vals.iloc[0]) if not vals.empty else None
+
+    resolved_track = _first_nonempty("dataset_track") or default_track
+    fallback_meta = TRACK_META.get(resolved_track) or TRACK_META.get(default_track)
+
+    prov = _first_nonempty("provenance_class") or (fallback_meta.provenance_class if fallback_meta else "SYNTHETIC")
+    ccy = _first_nonempty("currency_code") or (fallback_meta.currency_code if fallback_meta and fallback_meta.currency_code else "EUR")
+    prov_vi = "Mô phỏng" if prov == "SYNTHETIC" else "Thực tế"
+
+    if resolved_track == "ONYX_EU_SYNTHETIC":
+        label_vi = "ONYX Châu Âu — Mô phỏng"
+    elif fallback_meta:
+        label_vi = f"{fallback_meta.short_vi} — {prov_vi}"
+    else:
+        label_vi = f"{resolved_track} — {prov_vi}"
+
+    matches = resolved_track == active_track
+    if matches:
+        scope_note = "Áp dụng đầy đủ bộ lọc ngày, quốc gia, cửa hàng, ĐVT và nhiệt độ của thanh bên."
+    else:
+        scope_note = (
+            f"Phần tham chiếu riêng từ nguồn {label_vi} ({ccy}); "
+            "không áp dụng bộ lọc ngày/quốc gia/cửa hàng/ĐVT/nhiệt độ của nguồn đang chọn ở thanh bên."
+        )
+
+    return MatrixSourceMeta(
+        track_id=resolved_track,
+        label_vi=label_vi,
+        provenance_class=prov,
+        provenance_vi=prov_vi,
+        currency_code=ccy,
+        matches_sidebar_track=matches,
+        scope_note=scope_note,
+    )
+
+
+def build_store_watchlist(
+    store_var_df: pd.DataFrame | None,
+    matrix_df: pd.DataFrame | None,
+    *,
+    window: ComparisonWindow,
+    supports_margin: bool,
+    cur_col: str,
+    prev_col: str,
+    max_alert_rows: int = 20,
+    max_reference_rows: int = 10,
+    max_non_margin_rows: int = 15,
+) -> WatchlistResult:
+    """Classify store watchlist state explicitly: alerts vs low-margin reference vs no alerts vs insufficient data."""
+    if supports_margin:
+        if not window.valid or store_var_df is None or store_var_df.empty or matrix_df is None or matrix_df.empty:
+            return WatchlistResult(
+                status="insufficient_data",
+                df=pd.DataFrame(),
+                total_matched=0,
+                displayed_count=0,
+                evaluated_count=0,
+                supports_margin=True,
+                title="Cửa Hàng Cần Xem Xét (Chưa Đủ Dữ Liệu)",
+                subtitle="Cần đủ dữ liệu 2 kỳ so sánh và biên lợi nhuận để đánh giá tiêu chí cảnh báo.",
+                empty_message="Chưa đủ dữ liệu so sánh 2 kỳ hoặc dữ liệu biên lợi nhuận để đánh giá.",
+            )
+
+        left_cols = [c for c in ("store_code", "store_name", "country_code", "line_amount", "weighted_margin_pct", "line_count") if c in matrix_df.columns]
+        right_cols = [c for c in ("store_code", "delta", "pct_change", "mrg_pp_delta", "presence_status", cur_col, prev_col) if c in store_var_df.columns]
+        merged_w = matrix_df[left_cols].merge(store_var_df[right_cols], on="store_code", how="left")
+        if merged_w.empty:
+            return WatchlistResult(
+                status="insufficient_data",
+                df=pd.DataFrame(),
+                total_matched=0,
+                displayed_count=0,
+                evaluated_count=0,
+                supports_margin=True,
+                title="Cửa Hàng Cần Xem Xét (Chưa Đủ Dữ Liệu)",
+                subtitle="Không ghép được cửa hàng giữa kỳ so sánh và ma trận biên lợi nhuận.",
+                empty_message="Chưa có cửa hàng đủ dữ liệu để đánh giá trong phạm vi lọc.",
+            )
+
+        med_rev = float(pd.to_numeric(matrix_df["line_amount"], errors="coerce").median())
+        med_mrg = float(pd.to_numeric(matrix_df["weighted_margin_pct"], errors="coerce").median())
+        reasons: list[str] = []
+        for _, r in merged_w.iterrows():
+            flags: list[str] = []
+            rev_v = float(r.get("line_amount") or 0.0) if pd.notna(r.get("line_amount")) else 0.0
+            mrg_v = float(r.get("weighted_margin_pct") or 0.0) if pd.notna(r.get("weighted_margin_pct")) else None
+            if rev_v >= med_rev and mrg_v is not None and mrg_v < med_mrg:
+                flags.append("DT ≥ trung vị · Biên LN < trung vị")
+            if pd.notna(r.get("pct_change")) and r.get("presence_status") == "Cả 2 kỳ" and float(r["pct_change"]) <= -0.15:
+                flags.append("Giảm ≥ 15% kỳ so sánh")
+            if pd.notna(r.get("mrg_pp_delta")) and float(r["mrg_pp_delta"]) <= -1.5:
+                flags.append("Biên LN giảm ≥ 1.5 điểm %")
+            reasons.append("; ".join(flags))
+
+        merged_w["Lý do cần xem xét"] = reasons
+        flagged = merged_w[merged_w["Lý do cần xem xét"] != ""].copy()
+        evaluated_count = len(merged_w)
+
+        if not flagged.empty:
+            total_matched = len(flagged)
+            shown = (
+                flagged.sort_values(["pct_change", "weighted_margin_pct"], ascending=[True, True], na_position="last")
+                .head(max_alert_rows)
+                .copy()
+            )
+            displayed_count = len(shown)
+            if total_matched > displayed_count:
+                subtitle = (
+                    f"{total_matched} cửa hàng cần xem xét; hiển thị {displayed_count} cửa hàng ưu tiên theo mức suy giảm và biên LN thấp."
+                )
+            else:
+                subtitle = (
+                    f"Phát hiện {total_matched} cửa hàng vượt tiêu chí cảnh báo (DT ≥ trung vị nhưng biên LN thấp hơn trung vị, hoặc suy giảm lớn kỳ so sánh)."
+                )
+            return WatchlistResult(
+                status="alerts",
+                df=shown,
+                total_matched=total_matched,
+                displayed_count=displayed_count,
+                evaluated_count=evaluated_count,
+                supports_margin=True,
+                title="Cửa Hàng Cần Xem Xét (Vượt Tiêu Chí Cảnh Báo)",
+                subtitle=subtitle,
+            )
+
+        ref = (
+            merged_w.sort_values(["weighted_margin_pct", "pct_change"], ascending=[True, True], na_position="last")
+            .head(max_reference_rows)
+            .copy()
+        )
+        displayed_count = len(ref)
+        ref["Lý do cần xem xét"] = f"Tham khảo: Top {displayed_count} biên LN thấp nhất (chưa vượt tiêu chí cảnh báo)"
+        return WatchlistResult(
+            status="reference_low_margin",
+            df=ref,
+            total_matched=0,
+            displayed_count=displayed_count,
+            evaluated_count=evaluated_count,
+            supports_margin=True,
+            title="Danh Sách Tham Khảo (Chưa Có Cảnh Báo)",
+            subtitle=(
+                f"Không có cửa hàng vượt tiêu chí cảnh báo trên {evaluated_count} CH đánh giá; "
+                f"hiển thị Top {displayed_count} biên lợi nhuận thấp nhất để tham khảo thêm."
+            ),
+        )
+
+    # Non-margin sources (IRPD / Serbia): evaluate same-store period declines only
+    if not window.valid or store_var_df is None or store_var_df.empty or "delta" not in store_var_df.columns:
+        return WatchlistResult(
+            status="insufficient_data",
+            df=pd.DataFrame(),
+            total_matched=0,
+            displayed_count=0,
+            evaluated_count=0,
+            supports_margin=False,
+            title="Cửa Hàng Cần Xem Xét (Chưa Đủ Dữ Liệu)",
+            subtitle="Chưa đủ dữ liệu so sánh cùng cửa hàng để đánh giá (nguồn hiện tại không hỗ trợ biên lợi nhuận).",
+            empty_message="Chưa đủ dữ liệu so sánh 2 kỳ để đánh giá suy giảm cửa hàng.",
+        )
+
+    both = store_var_df[(store_var_df["presence_status"] == "Cả 2 kỳ") & store_var_df["delta"].notna()].copy()
+    if both.empty:
+        return WatchlistResult(
+            status="insufficient_data",
+            df=pd.DataFrame(),
+            total_matched=0,
+            displayed_count=0,
+            evaluated_count=0,
+            supports_margin=False,
+            title="Cửa Hàng Cần Xem Xét (Chưa Đủ Dữ Liệu)",
+            subtitle="Chưa có cửa hàng phát sinh bán đủ cả 2 kỳ để đánh giá (nguồn không hỗ trợ biên lợi nhuận).",
+            empty_message="Chưa có cửa hàng phát sinh bán đồng thời cả 2 kỳ trong phạm vi lọc.",
+        )
+
+    evaluated_count = len(both)
+    declining = both[both["delta"] < 0].copy()
+    if not declining.empty:
+        total_matched = len(declining)
+        declining["Lý do cần xem xét"] = "Suy giảm so với kỳ trước (nguồn không hỗ trợ biên LN)"
+        shown = declining.sort_values("delta", ascending=True).head(max_non_margin_rows).copy()
+        displayed_count = len(shown)
+        if total_matched > displayed_count:
+            subtitle = (
+                f"{total_matched} cửa hàng cần xem xét; hiển thị {displayed_count} cửa hàng suy giảm sâu nhất "
+                "(nguồn không hỗ trợ biên lợi nhuận)."
+            )
+        else:
+            subtitle = (
+                f"Phát hiện {total_matched} cửa hàng suy giảm giữa {window.prev_label} và {window.cur_label} "
+                "(nguồn không hỗ trợ biên lợi nhuận)."
+            )
+        return WatchlistResult(
+            status="alerts",
+            df=shown,
+            total_matched=total_matched,
+            displayed_count=displayed_count,
+            evaluated_count=evaluated_count,
+            supports_margin=False,
+            title="Cửa Hàng Suy Giảm Cần Xem Xét",
+            subtitle=subtitle,
+        )
+
+    return WatchlistResult(
+        status="no_alerts",
+        df=pd.DataFrame(),
+        total_matched=0,
+        displayed_count=0,
+        evaluated_count=evaluated_count,
+        supports_margin=False,
+        title="Cửa Hàng Cần Xem Xét (Không Có Cảnh Báo)",
+        subtitle=f"Không có cửa hàng suy giảm trong {evaluated_count} CH phát sinh cả 2 kỳ (nguồn không hỗ trợ biên lợi nhuận).",
+        empty_message=f"Không ghi nhận cửa hàng suy giảm trong {evaluated_count} CH phát sinh cả 2 kỳ {window.cur_label} vs {window.prev_label}.",
+    )
 
 
 def build_store_insights(
     *,
     var_df: pd.DataFrame,
-    watchlist_df: pd.DataFrame,
+    watchlist_df: pd.DataFrame | None = None,
     matrix_df: pd.DataFrame,
     window: ComparisonWindow,
     metric_label: str,
     metric_unit: str | None,
     provenance_class: str,
+    watchlist_result: WatchlistResult | None = None,
+    matrix_meta: MatrixSourceMeta | None = None,
 ) -> list[str]:
+    del provenance_class  # Matrix source provenance is resolved strictly from matrix query metadata
     bullets: list[str] = []
-    if var_df is not None and not var_df.empty and window.valid:
-        both = var_df[var_df["presence_status"] == "Cả 2 kỳ"]
+    if window.valid:
+        both = (
+            var_df[var_df["presence_status"] == "Cả 2 kỳ"].dropna(subset=["delta"])
+            if (var_df is not None and not var_df.empty and "delta" in var_df.columns)
+            else pd.DataFrame()
+        )
         if len(both) > 1:
-            top_up = both.sort_values("delta", ascending=False).iloc[0]
-            top_dn = both.sort_values("delta", ascending=True).iloc[0]
-            up_val = fmt_currency(top_up["delta"], metric_unit) if metric_unit else fmt_compact(top_up["delta"])
-            dn_val = fmt_currency(top_dn["delta"], metric_unit) if metric_unit else fmt_compact(top_dn["delta"])
-            bullets.append(
-                f"**Biến động cùng cửa hàng ({len(both)} CH phát sinh cả 2 kỳ {window.cur_label} vs {window.prev_label}):** "
-                f"Tăng mạnh nhất **{top_up['store_name']}** (+{up_val}); giảm sâu nhất **{top_dn['store_name']}** ({dn_val})."
-            )
+            pos_both = both[both["delta"] > 0].sort_values("delta", ascending=False)
+            neg_both = both[both["delta"] < 0].sort_values("delta", ascending=True)
+            scope_hdr = f"**Biến động cùng cửa hàng ({len(both)} CH phát sinh cả 2 kỳ {window.cur_label} vs {window.prev_label}):** "
+            if not pos_both.empty and not neg_both.empty:
+                top_up = pos_both.iloc[0]
+                top_dn = neg_both.iloc[0]
+                bullets.append(
+                    f"{scope_hdr}Tăng mạnh nhất **{top_up['store_name']}** ({_fmt_signed(top_up['delta'], metric_unit)}); "
+                    f"giảm sâu nhất **{top_dn['store_name']}** ({_fmt_signed(top_dn['delta'], metric_unit)})."
+                )
+            elif not pos_both.empty:
+                top_up = pos_both.iloc[0]
+                bullets.append(
+                    f"{scope_hdr}Không có cửa hàng giảm ({len(pos_both)}/{len(both)} CH tăng); "
+                    f"tăng mạnh nhất **{top_up['store_name']}** ({_fmt_signed(top_up['delta'], metric_unit)})."
+                )
+            elif not neg_both.empty:
+                top_dn = neg_both.iloc[0]
+                bullets.append(
+                    f"{scope_hdr}Không có cửa hàng tăng ({len(neg_both)}/{len(both)} CH giảm); "
+                    f"giảm sâu nhất **{top_dn['store_name']}** ({_fmt_signed(top_dn['delta'], metric_unit)})."
+                )
+            else:
+                bullets.append(
+                    f"{scope_hdr}{metric_label} của tất cả {len(both)} cửa hàng không đổi (chênh lệch = 0)."
+                )
         elif len(both) == 1:
             only = both.iloc[0]
-            val_txt = fmt_currency(only["delta"], metric_unit) if metric_unit else fmt_compact(only["delta"])
+            d = float(only["delta"])
             pct_txt = f" ({only['pct_change'] * 100:+.2f}%)" if pd.notna(only.get("pct_change")) else ""
+            if d > 0:
+                chg = f"tăng **{_fmt_signed(d, metric_unit)}**{pct_txt}"
+            elif d < 0:
+                chg = f"giảm **{_fmt_signed(d, metric_unit)}**{pct_txt}"
+            else:
+                chg = "đi ngang (**0**)"
             bullets.append(
-                f"**Cửa hàng duy nhất trong nguồn ({only['store_name']}):** {metric_label} thay đổi **{val_txt}**{pct_txt} giữa {window.prev_label} và {window.cur_label}."
+                f"**Cửa hàng duy nhất phát sinh cả 2 kỳ ({only['store_name']}):** {metric_label} {chg} giữa {window.prev_label} và {window.cur_label}."
             )
+        else:
+            bullets.append(
+                f"**Biến động cùng cửa hàng ({window.cur_label} vs {window.prev_label}):** Chưa có cửa hàng nào phát sinh đồng thời cả 2 kỳ trong phạm vi đang lọc."
+            )
+    elif window.note:
+        bullets.append(f"**So sánh cửa hàng:** {window.note}")
 
-    if watchlist_df is not None and not watchlist_df.empty:
+    if watchlist_result is not None:
+        if watchlist_result.status == "alerts":
+            if watchlist_result.total_matched > watchlist_result.displayed_count:
+                cnt_txt = f"{watchlist_result.total_matched} cửa hàng cần xem xét; hiển thị {watchlist_result.displayed_count}"
+            else:
+                cnt_txt = f"{watchlist_result.total_matched} cửa hàng"
+            if watchlist_result.supports_margin:
+                bullets.append(
+                    f"**Nhóm vượt tiêu chí cảnh báo ({cnt_txt}):** Lọc theo tiêu chí định lượng (doanh thu từ trung vị trở lên nhưng biên lợi nhuận thấp hơn trung vị, hoặc sụt giảm lớn kỳ so sánh) — cần kiểm tra thêm tồn kho và giá vốn trước khi quyết định."
+                )
+            else:
+                bullets.append(
+                    f"**Nhóm suy giảm cần xem xét ({cnt_txt}):** Các cửa hàng phát sinh cả 2 kỳ có chênh lệch giảm (nguồn hiện tại không hỗ trợ dữ liệu giá vốn và biên lợi nhuận) — cần đối chiếu thêm tồn kho trước khi quyết định."
+                )
+        elif watchlist_result.status == "reference_low_margin":
+            bullets.append(
+                f"**Chưa có cửa hàng vượt tiêu chí cảnh báo (trên {watchlist_result.evaluated_count} CH đánh giá):** Bảng hiển thị Top **{watchlist_result.displayed_count}** cửa hàng có biên lợi nhuận thấp nhất để **tham khảo thêm**, không phải danh sách cảnh báo suy giảm."
+            )
+        elif watchlist_result.status == "no_alerts":
+            bullets.append(
+                f"**Không có cửa hàng cảnh báo ({watchlist_result.evaluated_count} CH đánh giá):** Không ghi nhận cửa hàng suy giảm trong nhóm phát sinh cả 2 kỳ (nguồn hiện tại không hỗ trợ đánh giá biên lợi nhuận)."
+            )
+        else:
+            bullets.append(
+                "**Nhóm cần xem xét (chưa đủ dữ liệu):** Chưa đủ dữ liệu so sánh 2 kỳ hợp lệ để đánh giá tiêu chí cảnh báo cửa hàng."
+            )
+    elif watchlist_df is not None and not watchlist_df.empty:
         bullets.append(
-            f"**Nhóm cần rà soát ({len(watchlist_df)} cửa hàng):** Lọc theo rule định lượng (doanh thu trên trung vị nhưng biên LN gia quyền dưới trung vị, hoặc suy giảm lớn kỳ so sánh) — cần đối chiếu thêm tồn kho/giá vốn trước khi ra quyết định vận hành."
+            f"**Nhóm cần rà soát ({len(watchlist_df)} cửa hàng):** Lọc theo tiêu chí định lượng — cần kiểm tra thêm tồn kho và giá vốn trước khi quyết định."
         )
 
     if matrix_df is not None and not matrix_df.empty:
+        m_meta = matrix_meta or resolve_matrix_source_meta(matrix_df, active_track=None)
         med_rev = float(matrix_df["line_amount"].median())
         med_mrg = float(matrix_df["weighted_margin_pct"].median())
         low_mrg_hi_rev = matrix_df[(matrix_df["line_amount"] >= med_rev) & (matrix_df["weighted_margin_pct"] < med_mrg)]
-        bullets.append(
-            f"**Phân tầng ma trận ONYX EU (Mô phỏng — {len(matrix_df)} CH đang lọc):** Trung vị doanh thu **{med_rev:,.0f} EUR**, biên LN gia quyền **{med_mrg:.2f}%**; có **{len(low_mrg_hi_rev)} CH** doanh thu cao nhưng biên LN thấp hơn trung vị (lưu ý Sales BI chưa gồm KPI tồn kho/điều chuyển Distribution)."
-        )
+        if m_meta.matches_sidebar_track:
+            bullets.append(
+                f"**Phân tầng hiệu suất ({m_meta.label_vi} · {len(matrix_df)} CH theo bộ lọc hiện tại):** Trung vị doanh thu **{med_rev:,.0f} {m_meta.currency_code}**, biên LN gia quyền **{med_mrg:.2f}%**; có **{len(low_mrg_hi_rev)} CH** doanh thu từ trung vị trở lên nhưng biên lợi nhuận thấp hơn trung vị (dữ liệu bán hàng chưa gồm tồn kho hoặc điều chuyển kho)."
+            )
+        else:
+            bullets.append(
+                f"**Tham chiếu riêng — Ma trận {m_meta.label_vi} ({len(matrix_df)} CH toàn nguồn · không áp dụng bộ lọc nguồn thanh bên):** Trung vị doanh thu **{med_rev:,.0f} {m_meta.currency_code}**, biên LN gia quyền **{med_mrg:.2f}%**; có **{len(low_mrg_hi_rev)} CH** doanh thu từ trung vị trở lên nhưng biên lợi nhuận thấp hơn trung vị (chỉ nguồn ONYX có dữ liệu giá vốn và biên lợi nhuận)."
+            )
     return bullets[:3]
 
 
@@ -711,38 +1113,51 @@ def build_product_insights(
     provenance_class: str,
 ) -> list[str]:
     bullets: list[str] = []
-    if var_df is not None and not var_df.empty and window.valid:
-        top_up = var_df.sort_values("delta", ascending=False).iloc[0]
-        top_dn = var_df.sort_values("delta", ascending=True).iloc[0]
-        parts: list[str] = []
-        if float(top_up["delta"]) > 0:
-            v_txt = fmt_currency(top_up["delta"], metric_unit) if metric_unit else fmt_compact(top_up["delta"])
-            pp_txt = f" ({top_up['contrib_pp']:+.2f} điểm %)" if pd.notna(top_up.get("contrib_pp")) else ""
-            parts.append(f"tăng mạnh nhất **{top_up['label']}** (+{v_txt}{pp_txt})")
-        if float(top_dn["delta"]) < 0:
-            v_txt = fmt_currency(top_dn["delta"], metric_unit) if metric_unit else fmt_compact(top_dn["delta"])
-            pp_txt = f" ({top_dn['contrib_pp']:+.2f} điểm %)" if pd.notna(top_dn.get("contrib_pp")) else ""
-            parts.append(f"giảm sâu nhất **{top_dn['label']}** ({v_txt}{pp_txt})")
-        if parts:
-            bullets.append(
-                f"**Đóng góp biến động sản phẩm ({metric_label} · {window.cur_label} vs {window.prev_label}):** {'; '.join(parts)}."
-            )
+    if var_df is not None and not var_df.empty and window.valid and "delta" in var_df.columns:
+        valid_var = var_df.dropna(subset=["delta"])
+        if not valid_var.empty:
+            pos_d = valid_var[valid_var["delta"] > 0].sort_values("delta", ascending=False)
+            neg_d = valid_var[valid_var["delta"] < 0].sort_values("delta", ascending=True)
+            parts: list[str] = []
+            if not pos_d.empty:
+                top_up = pos_d.iloc[0]
+                pp_txt = f" ({top_up['contrib_pp']:+.2f} điểm %)" if pd.notna(top_up.get("contrib_pp")) else ""
+                parts.append(f"tăng mạnh nhất **{top_up['label']}** ({_fmt_signed(top_up['delta'], metric_unit)}{pp_txt})")
+            if not neg_d.empty:
+                top_dn = neg_d.iloc[0]
+                pp_txt = f" ({top_dn['contrib_pp']:+.2f} điểm %)" if pd.notna(top_dn.get("contrib_pp")) else ""
+                parts.append(f"giảm sâu nhất **{top_dn['label']}** ({_fmt_signed(top_dn['delta'], metric_unit)}{pp_txt})")
+            if parts:
+                bullets.append(
+                    f"**Đóng góp biến động trên toàn danh mục ({len(valid_var):,} nhóm · {metric_label} · {window.cur_label} vs {window.prev_label}):** {'; '.join(parts)}."
+                )
+            else:
+                bullets.append(
+                    f"**Đóng góp biến động ({len(valid_var):,} nhóm · {window.cur_label} vs {window.prev_label}):** Chênh lệch tất cả sản phẩm bằng 0."
+                )
 
         mix_df = var_df.dropna(subset=["mix_shift_pp"])
         if not mix_df.empty:
-            up_mix = mix_df.sort_values("mix_shift_pp", ascending=False).iloc[0]
-            dn_mix = mix_df.sort_values("mix_shift_pp", ascending=True).iloc[0]
-            bullets.append(
-                f"**Dịch chuyển cơ cấu danh mục:** Tăng tỷ trọng nhiều nhất là **{up_mix['label']}** ({up_mix['mix_shift_pp']:+.2f} điểm %); "
-                f"thu hẹp tỷ trọng nhiều nhất là **{dn_mix['label']}** ({dn_mix['mix_shift_pp']:+.2f} điểm %)."
-            )
+            pos_mix = mix_df[mix_df["mix_shift_pp"] > 0].sort_values("mix_shift_pp", ascending=False)
+            neg_mix = mix_df[mix_df["mix_shift_pp"] < 0].sort_values("mix_shift_pp", ascending=True)
+            mix_parts: list[str] = []
+            if not pos_mix.empty:
+                up_mix = pos_mix.iloc[0]
+                mix_parts.append(f"tăng tỷ trọng mạnh nhất là **{up_mix['label']}** ({up_mix['mix_shift_pp']:+.2f} điểm %)")
+            if not neg_mix.empty:
+                dn_mix = neg_mix.iloc[0]
+                mix_parts.append(f"thu hẹp tỷ trọng nhiều nhất là **{dn_mix['label']}** ({dn_mix['mix_shift_pp']:+.2f} điểm %)")
+            if mix_parts:
+                bullets.append(f"**Dịch chuyển cơ cấu danh mục:** {'; '.join(mix_parts)}.")
+            else:
+                bullets.append("**Dịch chuyển cơ cấu danh mục:** Tỷ trọng các sản phẩm giữ nguyên giữa hai kỳ.")
 
     if uom_guard.is_multi_uom_blocked:
         bullets.append(
-            f"**Guard đa ĐVT:** Nguồn đang chứa {uom_guard.uom_count} đơn vị tính nên xếp hạng sản phẩm & cơ cấu đang đo theo **Doanh thu ({metric_unit})**, không cộng gộp sản lượng hay đơn giá xuyên ĐVT."
+            f"**Lưu ý nhiều đơn vị tính:** Nguồn đang chứa {uom_guard.uom_count} đơn vị tính nên bảng xếp hạng & cơ cấu được tính theo **Doanh thu ({metric_unit})**, không cộng gộp sản lượng hay đơn giá xuyên ĐVT."
         )
     elif provenance_class == "SYNTHETIC":
         bullets.append(
-            "**Ngữ cảnh nguồn:** Danh mục sản phẩm trên track mô phỏng phản ánh dữ liệu tổng hợp (`SYNTHETIC`), tách riêng với luồng quan sát Nhà sản xuất IRPD (`OBSERVED`) và nhóm ATC 2014–2019 (`OBSERVED`)."
+            "**Ngữ cảnh nguồn:** Danh mục sản phẩm đang xem là **dữ liệu mô phỏng**, tách biệt với dữ liệu bán hàng thực tế IRPD và chuỗi ATC 2014–2019."
         )
     return bullets[:3]

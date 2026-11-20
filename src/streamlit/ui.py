@@ -262,22 +262,46 @@ def inject_theme_css(palette: ThemePalette) -> None:
             white-space: nowrap;
         }}
 
+        .pf-kpi-period {{
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: {palette.primary_dark};
+            margin-bottom: 2px;
+        }}
+
         .pf-kpi-value {{
             font-size: 1.65rem;
             font-weight: 800;
             letter-spacing: -0.025em;
             color: {palette.ink};
             line-height: 1.18;
-            margin: 4px 0 5px 0;
+            margin: 3px 0 4px 0;
+        }}
+
+        .pf-kpi-compare-box {{
+            margin-top: 8px;
+            padding-top: 7px;
+            border-top: 1px dashed #dce4ec;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }}
+
+        .pf-kpi-compare-val {{
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: {palette.ink};
+            line-height: 1.3;
         }}
 
         .pf-kpi-delta {{
             display: inline-block;
-            font-size: 0.74rem;
+            align-self: flex-start;
+            font-size: 0.73rem;
             font-weight: 700;
             padding: 2px 7px;
             border-radius: 6px;
-            margin-bottom: 5px;
+            margin-bottom: 2px;
         }}
 
         .pf-delta-pos {{
@@ -501,16 +525,36 @@ def render_kpi_card(
     accent: str | None = None,
     delta_text: str | None = None,
     delta_tone: str = "neutral",
+    period_label: str | None = None,
+    compare_label: str | None = None,
 ) -> None:
     palette = get_active_palette()
     border_color = accent or palette.primary
     tag_html = f'<span class="pf-kpi-tag">{html.escape(tag)}</span>' if tag else ""
+    period_html = f'<div class="pf-kpi-period">{html.escape(period_label)}</div>' if period_label else ""
     delta_cls = {
         "pos": "pf-kpi-delta pf-delta-pos",
         "neg": "pf-kpi-delta pf-delta-neg",
         "warn": "pf-kpi-delta pf-delta-warn",
     }.get(delta_tone, "pf-kpi-delta pf-delta-neutral")
     delta_html = f'<div class="{delta_cls}">{html.escape(delta_text)}</div>' if delta_text else ""
+
+    if compare_label or period_label:
+        cmp_val_html = f'<div class="pf-kpi-compare-val">{html.escape(compare_label)}</div>' if compare_label else ""
+        compare_section = f'<div class="pf-kpi-compare-box">{cmp_val_html}{delta_html}</div>' if (compare_label or delta_html) else ""
+        body_html = (
+            f"{period_html}"
+            f'<div class="pf-kpi-value">{html.escape(value)}</div>'
+            f'<div class="pf-kpi-sub">{html.escape(subtitle)}</div>'
+            f"{compare_section}"
+        )
+    else:
+        body_html = (
+            f'<div class="pf-kpi-value">{html.escape(value)}</div>'
+            f"{delta_html}"
+            f'<div class="pf-kpi-sub">{html.escape(subtitle)}</div>'
+        )
+
     st.markdown(
         f"""
         <div class="pf-kpi-card" style="border-top-color: {html.escape(border_color)};">
@@ -518,9 +562,7 @@ def render_kpi_card(
             <span class="pf-kpi-title">{html.escape(title)}</span>
             {tag_html}
           </div>
-          <div class="pf-kpi-value">{html.escape(value)}</div>
-          {delta_html}
-          <div class="pf-kpi-sub">{html.escape(subtitle)}</div>
+          {body_html}
         </div>
         """,
         unsafe_allow_html=True,

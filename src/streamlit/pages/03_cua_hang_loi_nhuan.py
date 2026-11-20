@@ -9,9 +9,11 @@ import streamlit as st
 
 from analytics import (
     build_store_insights,
+    build_store_watchlist,
     compute_variance_and_contributions,
     evaluate_uom_compatibility,
     resolve_comparison_periods,
+    resolve_matrix_source_meta,
 )
 from components.filters import get_current_filters, get_track_bounds
 from config import (
@@ -26,6 +28,7 @@ from config import (
 )
 import db
 from queries import (
+    EU_STORE_MATRIX_TRACK,
     FilterState,
     sql_dimension_variance,
     sql_eu_brand_margin_and_profit,
@@ -65,11 +68,11 @@ def render_page(filters: FilterState) -> None:
     track_max_date = bounds.get("max_date")
     uoms_avail = bounds.get("uoms_avail") or ()
 
-    is_onyx_selected = filters.dataset_track == "ONYX_EU_SYNTHETIC"
+    is_onyx_selected = filters.dataset_track == EU_STORE_MATRIX_TRACK
     eu_scope_text = (
-        f"Nguồn: {track_label('ONYX_EU_SYNTHETIC')} · Áp dụng đầy đủ bộ lọc ngày/quốc gia/cửa hàng/nhiệt độ của Sidebar."
+        f"Nguồn: {track_label(EU_STORE_MATRIX_TRACK)} · Áp dụng đầy đủ bộ lọc ngày/quốc gia/cửa hàng/ĐVT/nhiệt độ của thanh bên."
         if is_onyx_selected
-        else "Nguồn độc lập: ONYX Châu Âu — Mô phỏng (EUR) · Không áp dụng bộ lọc nguồn khác; dùng toàn dải ONYX EU (2024–2025) để so sánh biên LN & khuyến mãi."
+        else "Phần tham chiếu riêng: ONYX Châu Âu — Mô phỏng (EUR) · Không áp dụng bộ lọc ngày/quốc gia/cửa hàng/ĐVT/nhiệt độ của nguồn đang chọn ở thanh bên."
     )
 
     render_page_header(
@@ -77,8 +80,8 @@ def render_page(filters: FilterState) -> None:
         "Đánh giá biến động cùng cửa hàng, định vị doanh thu × biên lợi nhuận gia quyền và nhận diện cửa hàng cần xem xét.",
         dataset_track=filters.dataset_track,
         extra_pills=[
-            ("Sales BI · Chưa gồm tồn kho / điều chuyển", "warn"),
-            ("Margin & Promo: ONYX EU", "synthetic"),
+            ("Chưa gồm tồn kho / điều chuyển", "warn"),
+            ("Ma trận LN & KM: ONYX EU — Mô phỏng", "synthetic"),
         ],
     )
 
@@ -112,11 +115,16 @@ def render_page(filters: FilterState) -> None:
             cur_end=cmp_window.cur_end,
             prev_start=cmp_window.prev_start,
             prev_end=cmp_window.prev_end,
-            limit=500,
+            limit=None,
         )
         sv_raw = db.run_query_df(sv_sql, sv_params)
         if not sv_raw.empty:
-            store_var_df = compute_variance_and_contributions(sv_raw, cur_col=c_col, prev_col=p_col)
+            store_var_df = compute_variance_and_contributions(
+                sv_raw,
+                cur_col=c_col,
+                prev_col=p_col,
+                metric_supported=True,
+            )
             store_var_df["mrg_pp_delta"] = (
                 pd.to_numeric(store_var_df["cur_weighted_margin_pct"], errors="coerce")
                 - pd.to_numeric(store_var_df["prev_weighted_margin_pct"], errors="coerce")
@@ -124,40 +132,21 @@ def render_page(filters: FilterState) -> None:
 
     mx_sql, mx_params = sql_eu_store_matrix(schema, filters)
     mx_df = db.run_query_df(mx_sql, mx_params)
+    matrix_meta = resolve_matrix_source_meta(
+        mx_df,
+        active_track=filters.dataset_track,
+        default_track=EU_STORE_MATRIX_TRACK,
+    )
 
-    # Build transparent rule-based Watchlist on active track stores
-    watchlist_df = pd.DataFrame()
-    if not store_var_df.empty and is_onyx_selected and not mx_df.empty:
-        med_rev = float(mx_df["line_amount"].median())
-        med_mrg = float(mx_df["weighted_margin_pct"].median())
-        merged_w = mx_df[["store_code", "store_name", "country_code", "line_amount", "weighted_margin_pct", "line_count"]].merge(
-            store_var_df[["store_code", "delta", "pct_change", "mrg_pp_delta", "presence_status", c_col, p_col]],
-            on="store_code",
-            how="left",
-        )
-        reasons: list[str] = []
-        for _, r in merged_w.iterrows():
-            flags: list[str] = []
-            if float(r["line_amount"] or 0) >= med_rev and float(r["weighted_margin_pct"] or 0) < med_mrg:
-                flags.append("DT ≥ trung vị · Biên LN < trung vị")
-            if pd.notna(r.get("pct_change")) and r.get("presence_status") == "Cả 2 kỳ" and float(r["pct_change"]) <= -0.15:
-                flags.append("Giảm ≥ 15% kỳ so sánh")
-            if pd.notna(r.get("mrg_pp_delta")) and float(r["mrg_pp_delta"]) <= -1.5:
-                flags.append("Biên LN giảm ≥ 1.5 điểm %")
-            reasons.append("; ".join(flags))
-        merged_w["Lý do cần xem xét"] = reasons
-        flagged = merged_w[merged_w["Lý do cần xem xét"] != ""].copy()
-        if flagged.empty:
-            merged_w = merged_w.sort_values(["weighted_margin_pct", "pct_change"], ascending=[True, True]).head(10).copy()
-            merged_w["Lý do cần xem xét"] = "Top 10 biên LN thấp nhất (chưa vượt ngưỡng cảnh báo suy giảm)"
-            watchlist_df = merged_w
-        else:
-            watchlist_df = flagged.sort_values(["pct_change", "weighted_margin_pct"], ascending=[True, True]).head(20)
-    elif not store_var_df.empty:
-        declining = store_var_df[(store_var_df["presence_status"] == "Cả 2 kỳ") & (store_var_df["delta"] < 0)].copy()
-        if not declining.empty:
-            declining["Lý do cần xem xét"] = "Suy giảm so với kỳ trước"
-            watchlist_df = declining.sort_values("delta", ascending=True).head(15)
+    watchlist_res = build_store_watchlist(
+        store_var_df,
+        mx_df,
+        window=cmp_window,
+        supports_margin=is_onyx_selected,
+        cur_col=c_col,
+        prev_col=p_col,
+    )
+    watchlist_df = watchlist_res.df
 
     render_insight_box(
         "Nhận xét biến động & chất lượng biên lợi nhuận cửa hàng",
@@ -169,6 +158,8 @@ def render_page(filters: FilterState) -> None:
             metric_label=var_metric_label,
             metric_unit=var_unit,
             provenance_class=prov_class,
+            watchlist_result=watchlist_res,
+            matrix_meta=matrix_meta,
         ),
         note=cmp_window.note or None,
     )
@@ -186,12 +177,16 @@ def render_page(filters: FilterState) -> None:
                 render_empty_state(cmp_window.note or "Chưa có dữ liệu so sánh cửa hàng trong khoảng lọc.")
             else:
                 both = store_var_df[store_var_df["presence_status"] == "Cả 2 kỳ"].copy()
-                if len(both) <= 1:
-                    row_single = both.iloc[0] if len(both) == 1 else store_var_df.iloc[0]
+                if len(both) == 0:
+                    render_empty_state("Không có cửa hàng nào phát sinh bán đồng thời ở cả 2 kỳ so sánh.")
+                elif len(both) == 1:
+                    row_single = both.iloc[0]
+                    d_s = float(row_single["delta"])
+                    d_sign = "+" if d_s > 0 else ("−" if d_s < 0 else "")
                     st.info(
-                        f"Nguồn `{track_label(filters.dataset_track)}` chỉ có **1 cửa hàng** (`{row_single['store_name']}`). "
+                        f"Có **1 cửa hàng** phát sinh cả 2 kỳ trong nguồn `{track_label(filters.dataset_track)}` (`{row_single['store_name']}`). "
                         f"Kỳ trước: **{fmt_compact(row_single[p_col])}**, kỳ này: **{fmt_compact(row_single[c_col])}** "
-                        f"(chênh lệch: **{row_single['delta']:+,.0f}**"
+                        f"(chênh lệch: **{d_sign}{fmt_compact(abs(d_s))}**"
                         + (f", **{row_single['pct_change'] * 100:+.2f}%**" if pd.notna(row_single.get("pct_change")) else "")
                         + ")."
                     )
@@ -243,25 +238,39 @@ def render_page(filters: FilterState) -> None:
     with col_watch:
         with st.container(border=True):
             render_chart_header(
-                "Cửa Hàng Cần Xem Xét (Rule Minh Bạch)",
-                "Ưu tiên cửa hàng DT ≥ trung vị nhưng biên LN thấp hơn trung vị, hoặc suy giảm mạnh kỳ so sánh",
+                watchlist_res.title,
+                watchlist_res.subtitle,
             )
+            if watchlist_res.status == "reference_low_margin":
+                render_scope_strip(
+                    "Chưa có cửa hàng vượt tiêu chí cảnh báo — danh sách bên dưới chỉ mang tính tham khảo (Top biên lợi nhuận thấp nhất).",
+                    kind="default",
+                )
             if watchlist_df.empty:
-                render_empty_state("Không có cửa hàng vượt ngưỡng cảnh báo trong phạm vi lọc hiện tại.")
+                render_empty_state(
+                    watchlist_res.empty_message
+                    or "Không có cửa hàng vượt ngưỡng cảnh báo trong phạm vi lọc hiện tại."
+                )
             else:
+                reason_col_lbl = (
+                    "Ghi chú tham khảo"
+                    if watchlist_res.status == "reference_low_margin"
+                    else "Lý do cần xem xét"
+                )
                 if is_onyx_selected and "weighted_margin_pct" in watchlist_df.columns:
                     w_disp = pd.DataFrame(
                         {
                             "Cửa hàng": watchlist_df["store_name"],
                             "Quốc gia": watchlist_df["country_code"].map(country_label),
-                            "Doanh thu (EUR)": safe_round(watchlist_df["line_amount"], 0),
+                            f"Doanh thu ({matrix_meta.currency_code})": safe_round(watchlist_df["line_amount"], 0),
                             "Biên LN gia quyền (%)": safe_round(watchlist_df["weighted_margin_pct"], 2),
                             "Biến động kỳ (%)": safe_round(pd.to_numeric(watchlist_df["pct_change"], errors="coerce") * 100.0, 2),
-                            "Lý do cần xem xét": watchlist_df["Lý do cần xem xét"],
+                            reason_col_lbl: watchlist_df["Lý do cần xem xét"],
                         }
                     )
+                    rev_col_w = f"Doanh thu ({matrix_meta.currency_code})"
                     w_cfg = {
-                        "Doanh thu (EUR)": st.column_config.NumberColumn(format="%,.0f"),
+                        rev_col_w: st.column_config.NumberColumn(format="%,.0f"),
                         "Biên LN gia quyền (%)": st.column_config.NumberColumn(format="%.2f%%"),
                         "Biến động kỳ (%)": st.column_config.NumberColumn(format="%+.2f%%"),
                     }
@@ -273,7 +282,7 @@ def render_page(filters: FilterState) -> None:
                             val_col_lbl: safe_round(watchlist_df[c_col], 0),
                             "Chênh lệch": safe_round(watchlist_df["delta"], 0),
                             "Biến động (%)": safe_round(pd.to_numeric(watchlist_df["pct_change"], errors="coerce") * 100.0, 2),
-                            "Lý do cần xem xét": watchlist_df["Lý do cần xem xét"],
+                            reason_col_lbl: watchlist_df["Lý do cần xem xét"],
                         }
                     )
                     w_cfg = {
@@ -284,14 +293,17 @@ def render_page(filters: FilterState) -> None:
                 st.dataframe(w_disp, width="stretch", hide_index=True, height=320, column_config=w_cfg)
                 render_csv_download(w_disp, "cua_hang_can_xem_xet.csv", key="p3_csv_watchlist")
 
-    # Row 2: Full-width Store Efficiency Bubble Matrix (dynamic store count & weighted margin)
+    # Row 2: Full-width Store Efficiency Bubble Matrix (explicit independent source provenance & EUR)
     with st.container(border=True):
         n_mx = len(mx_df)
         render_chart_header(
-            f"Ma Trận Doanh Thu × Biên Lợi Nhuận Gia Quyền ({n_mx} Cửa Hàng ONYX EU)",
+            f"Ma Trận Doanh Thu × Biên Lợi Nhuận Gia Quyền ({n_mx} Cửa Hàng · {matrix_meta.label_vi} · {matrix_meta.currency_code})",
             "Đường nét đứt = trung vị theo tập cửa hàng đang hiển thị; kích thước bong bóng = sản lượng bán",
         )
-        render_scope_strip(eu_scope_text, kind="default" if is_onyx_selected else "warn")
+        render_scope_strip(
+            f"Nguồn: {matrix_meta.label_vi} ({matrix_meta.currency_code}) · {matrix_meta.scope_note}",
+            kind="default" if matrix_meta.matches_sidebar_track else "warn",
+        )
         if mx_df.empty:
             render_empty_state()
         else:
@@ -484,8 +496,8 @@ def render_page(filters: FilterState) -> None:
 
                     pr_disp = pd.DataFrame(
                         {
-                            "Nhóm dòng mart": ["Có khuyến mãi" if bool(r["has_promotion"]) else "Không khuyến mãi" for _, r in pr_df.iterrows()],
-                            "Số dòng mart": pr_df["mart_rows"],
+                            "Nhóm giao dịch": ["Có khuyến mãi" if bool(r["has_promotion"]) else "Không khuyến mãi" for _, r in pr_df.iterrows()],
+                            "Số dòng dữ liệu": pr_df["mart_rows"],
                             "Sản lượng": safe_round(pr_df["sold_qty"], 0),
                             "Biên LN gia quyền (%)": safe_round(pr_df["weighted_margin_pct"], 2),
                             "Đơn giá GQ (EUR)": safe_round(pr_df["weighted_unit_price"], 2),
@@ -571,7 +583,7 @@ def render_page(filters: FilterState) -> None:
     with st.container(border=True):
         render_chart_header(
             "Bảng Tra Cứu Chi Tiết Từng Cửa Hàng",
-            "Hiển thị Số dòng POS, CH-ngày có bán, Biên LN gia quyền vs TB dòng mart (Distinct Order chưa khả dụng ở mirror)",
+            "Hiển thị Số dòng bán, Cửa hàng-ngày có bán, Biên lợi nhuận gia quyền vs TB theo dòng (chưa có dữ liệu đếm đơn duy nhất)",
         )
         store_search = st.text_input(
             "Tìm nhanh theo mã, tên cửa hàng hoặc quốc gia",
@@ -601,7 +613,7 @@ def render_page(filters: FilterState) -> None:
                     rev_label: safe_round(st_df["line_amount"], 2),
                     mrg_label: safe_round(st_df["margin_amount"], 2),
                     "Biên LN gia quyền (%)": safe_round(st_df["weighted_margin_pct"], 2),
-                    "TB dòng mart (%)": safe_round(st_df["row_avg_margin_pct"], 2),
+                    "Biên LN TB theo dòng (%)": safe_round(st_df["row_avg_margin_pct"], 2),
                 }
             )
             st.dataframe(
@@ -616,10 +628,18 @@ def render_page(filters: FilterState) -> None:
                     rev_label: st.column_config.NumberColumn(format="%,.2f"),
                     mrg_label: st.column_config.NumberColumn(format="%,.2f"),
                     "Biên LN gia quyền (%)": st.column_config.NumberColumn(format="%.2f%%"),
-                    "TB dòng mart (%)": st.column_config.NumberColumn(format="%.2f%%"),
+                    "Biên LN TB theo dòng (%)": st.column_config.NumberColumn(format="%.2f%%"),
                 },
             )
             render_csv_download(disp_df, "hieu_suat_cua_hang.csv", key="p3_csv_stores")
+
+    with st.expander("Định nghĩa chỉ số & nguồn dữ liệu"):
+        st.markdown(
+            "- **Biến động cùng cửa hàng:** Chỉ xếp hạng các cửa hàng có phát sinh bán ở cả 2 kỳ so sánh (`Cả 2 kỳ`), tính trên toàn bộ cửa hàng hợp lệ trước khi cắt Top tăng/giảm để hiển thị.\n"
+            "- **Ma trận & Khuyến mãi ONYX EU (`SYNTHETIC`):** Chỉ nguồn ONYX Châu Âu ghi nhận giá vốn, lợi nhuận gộp (`margin_amount`) và cờ khuyến mãi (`has_promotion`). Tỷ trọng sản lượng có khuyến mãi là thống kê mô tả, không đo lường uplift hay hiệu quả ROI do thiếu nhóm đối chứng.\n"
+            "- **Biên lợi nhuận gia quyền:** `SUM(margin_amount) / SUM(line_amount)`; khác với trung bình cộng theo từng dòng mart (`SP × CH × Ngày`).\n"
+            "- **Giới hạn phạm vi Sales:** Dữ liệu tại đây không bao gồm tồn kho hiện hữu, hàng hết hạn hoặc điều chuyển giữa các cửa hàng."
+        )
 
 
 render_page(get_current_filters())

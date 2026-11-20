@@ -285,7 +285,7 @@ def render_page(global_filters: FilterState) -> None:
         render_kpi_card(
             "Quy Mô Quan Sát (Cửa Hàng-Ngày)",
             f"{fmt_int(active_sd)} CH-ngày",
-            "Chỉ tính ngày có bán (sold_qty > 0); không gồm ngày bán bằng 0.",
+            "Chỉ tính ngày có phát sinh bán (không gồm ngày bán bằng 0).",
             tag="Mẫu số",
             accent=palette.primary,
             delta_text=f"{active_stores} CH · {active_dates} ngày · Phủ {cov_pct:.1f}%",
@@ -688,7 +688,7 @@ def render_page(global_filters: FilterState) -> None:
     with st.container(border=True):
         render_chart_header(
             "Bảng Tra Cứu Thời Tiết & Bán Hàng Theo Ngày",
-            "Bảng chi tiết đặt sau các phát hiện chính (hiển thị Số dòng POS & CH có bán; Distinct Order chưa khả dụng ở mirror)",
+            "Bảng chi tiết đặt sau các phân tích chính (hiển thị Số dòng bán & CH có bán; chưa có dữ liệu đếm đơn duy nhất)",
         )
         by_store_uom = st.toggle(
             "Mở rộng chi tiết theo từng Cửa hàng & Đơn vị tính",
@@ -790,6 +790,15 @@ def render_page(global_filters: FilterState) -> None:
                 column_config=col_cfg,
             )
             render_csv_download(show_df, "thoi_tiet_ban_hang_theo_ngay.csv", key="p2_csv_daily")
+
+    with st.expander("Định nghĩa chỉ số & nguồn dữ liệu"):
+        st.markdown(
+            "- **Nguồn dữ liệu:** `bi_sales_weather_enriched` tại grain `Sản phẩm × Cửa hàng × Ngày`, kết hợp dữ liệu thời tiết ngày theo cửa hàng từ Open-Meteo.\n"
+            "- **Phạm vi quan sát (`sold_qty > 0`):** Bảng chỉ lưu các ngày có phát sinh giao dịch bán (`active_store_days` = số cặp `(cửa hàng, ngày)` có bán), **không gồm các ngày đóng cửa hoặc ngày bán bằng 0**.\n"
+            "- **Tỷ lệ độ phủ:** `active_store_days / (số cửa hàng hoạt động × số ngày trong phạm vi lọc)`.\n"
+            "- **Sàng lọc cỡ mẫu (`n ≥ 30` cửa hàng-ngày):** Chỉ dùng để lọc các ô có quá ít lượt quan sát trước khi xếp hạng mô tả; không thay thế kiểm định ý nghĩa thống kê hay kết luận tác động nhân quả.\n"
+            "- **Đơn hàng duy nhất (`Distinct Order`):** Chưa khả dụng tại Gold mirror do dữ liệu đã tổng hợp theo `SP × CH × Ngày`."
+        )
 
 
 render_page(get_current_filters())

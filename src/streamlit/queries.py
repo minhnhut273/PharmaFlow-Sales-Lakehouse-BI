@@ -11,6 +11,7 @@ from config import DEFAULT_TRACK, TRACK_META
 
 _IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 DEFAULT_SCHEMA = "quick_gold_md01"
+EU_STORE_MATRIX_TRACK = "ONYX_EU_SYNTHETIC"
 
 
 def validate_schema(name: str) -> str:
@@ -325,9 +326,13 @@ def sql_dimension_variance(
     prev_start: date,
     prev_end: date,
     search_text: str = "",
-    limit: int = 500,
+    limit: int | None = None,
 ) -> tuple[str, tuple[Any, ...]]:
-    """Compute side-by-side cur vs prev totals for variance, contribution, and mix shift."""
+    """Compute side-by-side cur vs prev totals for variance, contribution, and mix shift.
+
+    Defaults to ``limit=None`` so contribution and mix-shift denominators cover the full
+    filtered catalog across both periods (including prior-only items and unlabelled groups).
+    """
     s = validate_schema(schema)
     span_start = min(cur_start, prev_start)
     span_end = max(cur_end, prev_end)
@@ -337,24 +342,39 @@ def sql_dimension_variance(
     cleaned_search = (search_text or "").strip()
 
     if dim_kind == "country":
-        select_dims = "country_code"
-        group_dims = "country_code"
-        extra.append("country_code IS NOT NULL")
+        select_dims = "COALESCE(NULLIF(TRIM(country_code), ''), 'Chưa xác định') AS country_code"
+        group_dims = "COALESCE(NULLIF(TRIM(country_code), ''), 'Chưa xác định')"
+        nonnull_expr = "COUNT(NULLIF(TRIM(country_code), ''))::bigint AS nonnull_label_rows"
     elif dim_kind == "brand":
-        select_dims = "brand_name"
-        group_dims = "brand_name"
-        extra.append("brand_name IS NOT NULL")
+        select_dims = "COALESCE(NULLIF(TRIM(brand_name), ''), 'Chưa xác định') AS brand_name"
+        group_dims = "COALESCE(NULLIF(TRIM(brand_name), ''), 'Chưa xác định')"
+        nonnull_expr = "COUNT(NULLIF(TRIM(brand_name), ''))::bigint AS nonnull_label_rows"
     elif dim_kind == "store":
-        select_dims = "store_code, store_name, country_code"
-        group_dims = "store_code, store_name, country_code"
+        select_dims = (
+            "COALESCE(NULLIF(TRIM(store_code), ''), 'Chưa xác định') AS store_code, "
+            "COALESCE(NULLIF(TRIM(store_name), ''), 'Chưa xác định') AS store_name, "
+            "COALESCE(NULLIF(TRIM(country_code), ''), 'Chưa xác định') AS country_code"
+        )
+        group_dims = (
+            "COALESCE(NULLIF(TRIM(store_code), ''), 'Chưa xác định'), "
+            "COALESCE(NULLIF(TRIM(store_name), ''), 'Chưa xác định'), "
+            "COALESCE(NULLIF(TRIM(country_code), ''), 'Chưa xác định')"
+        )
+        nonnull_expr = "COUNT(NULLIF(TRIM(store_name), ''))::bigint AS nonnull_label_rows"
         if cleaned_search:
             extra.append("(store_code ILIKE %s OR store_name ILIKE %s OR country_code ILIKE %s)")
             like = f"%{cleaned_search}%"
             extra_params.extend([like, like, like])
     elif dim_kind == "product":
-        select_dims = "product_name, clean_uom"
-        group_dims = "product_name, clean_uom"
-        extra.append("product_name IS NOT NULL")
+        select_dims = (
+            "COALESCE(NULLIF(TRIM(product_name), ''), 'Chưa xác định') AS product_name, "
+            "COALESCE(NULLIF(TRIM(clean_uom), ''), 'Chưa xác định') AS clean_uom"
+        )
+        group_dims = (
+            "COALESCE(NULLIF(TRIM(product_name), ''), 'Chưa xác định'), "
+            "COALESCE(NULLIF(TRIM(clean_uom), ''), 'Chưa xác định')"
+        )
+        nonnull_expr = "COUNT(NULLIF(TRIM(product_name), ''))::bigint AS nonnull_label_rows"
         if cleaned_search:
             extra.append("(product_name ILIKE %s OR brand_name ILIKE %s OR clean_uom ILIKE %s)")
             like = f"%{cleaned_search}%"
@@ -368,9 +388,16 @@ def sql_dimension_variance(
         extra_conditions=extra,
     )
 
+    limit_sql = ""
+    limit_params: list[Any] = []
+    if limit is not None:
+        limit_sql = "\n    LIMIT %s"
+        limit_params.append(int(limit))
+
     sql = f"""
     SELECT
       {select_dims},
+      {nonnull_expr},
       COALESCE(SUM(CASE WHEN local_date BETWEEN %s AND %s THEN sold_qty END), 0)::double precision AS cur_qty,
       COALESCE(SUM(CASE WHEN local_date BETWEEN %s AND %s THEN sold_qty END), 0)::double precision AS prev_qty,
       SUM(CASE WHEN local_date BETWEEN %s AND %s THEN line_amount END)::double precision AS cur_rev,
@@ -394,12 +421,8 @@ def sql_dimension_variance(
     FROM "{s}"."bi_sales_weather_enriched"
     {where_sql}
     GROUP BY {group_dims}
-    ORDER BY COALESCE(
-      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN line_amount END),
-      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN sold_qty END)
-    ) DESC NULLS LAST,
-    SUM(sold_qty) DESC
-    LIMIT %s
+    ORDER BY COALESCE(SUM(ABS(line_amount)), SUM(ABS(sold_qty))) DESC NULLS LAST,
+    SUM(sold_qty) DESC{limit_sql}
     """.strip()
 
     win_params: list[Any] = [
@@ -411,8 +434,7 @@ def sql_dimension_variance(
         cur_start, cur_end, cur_start, cur_end,    # cur margin
         prev_start, prev_end, prev_start, prev_end,  # prev margin
     ]
-    order_params = [cur_start, cur_end, cur_start, cur_end, int(limit)]
-    return sql, tuple([*win_params, *where_params, *extra_params, *order_params])
+    return sql, tuple([*win_params, *where_params, *extra_params, *limit_params])
 
 
 def sql_sales_by_country(schema: str, filters: FilterState) -> tuple[str, tuple[Any, ...]]:
@@ -979,12 +1001,15 @@ def sql_store_performance_table(
 
 def sql_eu_store_matrix(schema: str, filters: FilterState) -> tuple[str, tuple[Any, ...]]:
     s = validate_schema(schema)
-    where_sql, params = build_where_clause(filters, override_track="ONYX_EU_SYNTHETIC")
+    where_sql, params = build_where_clause(filters, override_track=EU_STORE_MATRIX_TRACK)
     sql = f"""
     SELECT
       store_code,
       store_name,
       country_code,
+      MAX(dataset_track) AS dataset_track,
+      MAX(provenance_class) AS provenance_class,
+      MAX(currency_code) AS currency_code,
       SUM(line_amount)::double precision AS line_amount,
       SUM(margin_amount)::double precision AS margin_amount,
       (

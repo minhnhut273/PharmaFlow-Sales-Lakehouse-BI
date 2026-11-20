@@ -79,12 +79,12 @@ def render_page(filters: FilterState) -> None:
     uoms_avail = bounds.get("uoms_avail") or ()
 
     render_page_header(
-        "Tổng Quan Điều Hành (Sales BI)",
-        "Theo dõi KPI đúng grain, so sánh biến động theo kỳ tương thích và xác định nhóm đóng góp tăng/giảm lớn nhất.",
+        "Tổng Quan Điều Hành Bán Hàng",
+        "Theo dõi doanh thu, sản lượng, biên lợi nhuận, so sánh biến động theo kỳ tương thích và nhóm đóng góp lớn nhất.",
         dataset_track=filters.dataset_track,
         extra_pills=[
-            ("Sales Monitoring · MD-01", "default"),
-            ("Không bao gồm Tồn kho / Nhập hàng", "warn"),
+            ("Phân tích Bán hàng", "default"),
+            ("Chưa gồm Tồn kho / Nhập hàng", "warn"),
         ],
     )
 
@@ -160,7 +160,7 @@ def render_page(filters: FilterState) -> None:
     driver_metric_label = f"Doanh thu ({ccy})" if use_rev_driver else (f"Sản lượng ({uom_guard.single_uom})" if uom_guard.single_uom else "Sản lượng")
     driver_unit = ccy if use_rev_driver else None
 
-    # Pre-fetch product or country variance for insight summary
+    # Pre-fetch full-catalog product or country variance for insight summary
     driver_summary_df = pd.DataFrame()
     driver_name_col = "label"
     if cmp_window.valid and cmp_window.cur_start and cmp_window.prev_start:
@@ -173,13 +173,21 @@ def render_page(filters: FilterState) -> None:
             cur_end=cmp_window.cur_end,
             prev_start=cmp_window.prev_start,
             prev_end=cmp_window.prev_end,
-            limit=200,
+            limit=None,
         )
         vd_raw = db.run_query_df(vd_sql, vd_params)
         if not vd_raw.empty:
             val_cur_col = "cur_rev" if use_rev_driver else "cur_qty"
             val_prev_col = "prev_rev" if use_rev_driver else "prev_qty"
-            driver_summary_df = compute_variance_and_contributions(vd_raw, cur_col=val_cur_col, prev_col=val_prev_col)
+            drv_supported = has_rev if use_rev_driver else True
+            driver_summary_df = compute_variance_and_contributions(
+                vd_raw,
+                cur_col=val_cur_col,
+                prev_col=val_prev_col,
+                metric_supported=drv_supported,
+                total_cur_override=cur_rev if use_rev_driver else cur_qty,
+                total_prev_override=prev_rev if use_rev_driver else prev_qty,
+            )
             if default_dim_for_insight == "country":
                 driver_summary_df["label"] = driver_summary_df["country_code"].map(country_label)
             else:
@@ -206,7 +214,14 @@ def render_page(filters: FilterState) -> None:
         note=cmp_window.note or None,
     )
 
-    # 3. Row 1: 6 KPI Cards (strictly honest semantics, zero non-additive order_count sum)
+    # 3. Row 1: 6 KPI Cards (headline period explicitly separated from comparison period)
+    agg_period_label = (
+        f"Lũy kế lọc: {filters.date_start:%d/%m/%Y}–{filters.date_end:%d/%m/%Y}"
+        if filters.date_start and filters.date_end
+        else "Lũy kế khoảng đang lọc"
+    )
+    has_cmp_window = bool(cmp_window.valid)
+
     rev_display = fmt_metric_state(
         total_rev,
         supported=has_rev,
@@ -214,33 +229,40 @@ def render_page(filters: FilterState) -> None:
         formatter=lambda v: fmt_currency(v, ccy),
     )
     if not has_rev:
-        rev_delta_txt, rev_delta_tone = "Nguồn không hỗ trợ doanh thu", "neutral"
-    elif cmp_window.valid and cur_rev is not None and prev_rev is not None:
-        rev_delta_txt, rev_delta_tone = fmt_delta(
+        rev_cmp_lbl = "Kỳ so sánh: Nguồn không hỗ trợ"
+        rev_delta_txt, rev_delta_tone = "Không ghi nhận doanh thu tiền tệ", "neutral"
+    elif has_cmp_window and cur_rev is not None and prev_rev is not None:
+        rev_cmp_lbl = f"Kỳ {cmp_window.cur_label}: {fmt_currency(cur_rev, ccy)}"
+        raw_delta, rev_delta_tone = fmt_delta(
             cur_rev - prev_rev,
             unit=ccy,
             pct=((cur_rev - prev_rev) / prev_rev) if prev_rev > 0 else None,
         )
-        rev_delta_txt = f"{cmp_window.cur_label} vs {cmp_window.prev_label}: {rev_delta_txt}"
+        rev_delta_txt = f"So với {cmp_window.prev_label}: {raw_delta}"
     else:
-        rev_delta_txt, rev_delta_tone = "Chưa đủ kỳ so sánh", "neutral"
+        rev_cmp_lbl = "Kỳ so sánh: Chưa đủ dữ liệu"
+        rev_delta_txt, rev_delta_tone = "Cần ít nhất 2 kỳ hợp lệ để đối chiếu", "neutral"
 
     if uom_guard.is_multi_uom_blocked:
         qty_display = "Cần chọn 1 ĐVT"
-        qty_delta_txt, qty_delta_tone = f"Đang gồm {uom_guard.uom_count} ĐVT khác nhau", "warn"
-        qty_sub = "Thiếu hệ số quy đổi base_qty → không cộng gộp sản lượng xuyên đơn vị tính."
+        qty_cmp_lbl = f"Đang gồm {uom_guard.uom_count} ĐVT khác nhau"
+        qty_delta_txt, qty_delta_tone = "Chọn 1 ĐVT ở thanh lọc để mở khóa", "warn"
+        qty_sub = "Không cộng gộp sản lượng khi chưa có hệ số quy đổi chung giữa các ĐVT."
     else:
         qty_display = fmt_metric_state(total_qty, supported=True, has_rows=row_count > 0)
-        if cmp_window.valid and cur_qty is not None and prev_qty is not None:
-            qty_delta_txt, qty_delta_tone = fmt_delta(
+        if has_cmp_window and cur_qty is not None and prev_qty is not None:
+            cur_q_txt = fmt_compact(cur_qty) + (f" {uom_guard.single_uom}" if uom_guard.single_uom else "")
+            qty_cmp_lbl = f"Kỳ {cmp_window.cur_label}: {cur_q_txt}"
+            raw_delta, qty_delta_tone = fmt_delta(
                 cur_qty - prev_qty,
                 unit=uom_guard.single_uom or "",
                 pct=((cur_qty - prev_qty) / prev_qty) if prev_qty > 0 else None,
             )
-            qty_delta_txt = f"{cmp_window.cur_label} vs {cmp_window.prev_label}: {qty_delta_txt}"
+            qty_delta_txt = f"So với {cmp_window.prev_label}: {raw_delta}"
         else:
-            qty_delta_txt, qty_delta_tone = "Chưa đủ kỳ so sánh", "neutral"
-        qty_sub = f"Tổng sản lượng trong kỳ lọc (ĐVT: {uom_note})."
+            qty_cmp_lbl = "Kỳ so sánh: Chưa đủ dữ liệu"
+            qty_delta_txt, qty_delta_tone = "Cần ít nhất 2 kỳ hợp lệ để đối chiếu", "neutral"
+        qty_sub = f"Đơn vị tính: {uom_note}"
 
     margin_display = fmt_metric_state(
         total_margin,
@@ -249,19 +271,22 @@ def render_page(filters: FilterState) -> None:
         formatter=lambda v: fmt_currency(v, ccy),
     )
     if not has_margin:
-        mrg_delta_txt, mrg_delta_tone = "Nguồn không ghi nhận giá vốn", "neutral"
+        mrg_cmp_lbl = "Kỳ so sánh: Nguồn không hỗ trợ"
+        mrg_delta_txt, mrg_delta_tone = "Chưa ghi nhận giá vốn trên nguồn này", "neutral"
         mrg_sub = "Chỉ có dữ liệu giá vốn & lợi nhuận ở nguồn ONYX Châu Âu (EUR)."
     else:
-        if cmp_window.valid and cur_mrg is not None and prev_mrg is not None:
-            mrg_delta_txt, mrg_delta_tone = fmt_delta(
+        if has_cmp_window and cur_mrg is not None and prev_mrg is not None:
+            mrg_cmp_lbl = f"Kỳ {cmp_window.cur_label}: {fmt_currency(cur_mrg, ccy)}"
+            raw_delta, mrg_delta_tone = fmt_delta(
                 cur_mrg - prev_mrg,
                 unit=ccy,
                 pct=((cur_mrg - prev_mrg) / prev_mrg) if prev_mrg > 0 else None,
             )
-            mrg_delta_txt = f"{cmp_window.cur_label} vs {cmp_window.prev_label}: {mrg_delta_txt}"
+            mrg_delta_txt = f"So với {cmp_window.prev_label}: {raw_delta}"
         else:
-            mrg_delta_txt, mrg_delta_tone = "Chưa đủ kỳ so sánh", "neutral"
-        mrg_sub = f"Phủ giá vốn: {margin_rows:,}/{row_count:,} dòng mart."
+            mrg_cmp_lbl = "Kỳ so sánh: Chưa đủ dữ liệu"
+            mrg_delta_txt, mrg_delta_tone = "Cần ít nhất 2 kỳ hợp lệ để đối chiếu", "neutral"
+        mrg_sub = f"Phủ giá vốn: {margin_rows:,}/{row_count:,} dòng dữ liệu."
 
     margin_pct_display = fmt_metric_state(
         weighted_margin_pct,
@@ -270,25 +295,28 @@ def render_page(filters: FilterState) -> None:
         formatter=fmt_pct,
     )
     if not has_margin:
-        mpct_delta_txt, mpct_delta_tone = "Chưa có giá vốn", "neutral"
-        mpct_sub = "Nguồn hiện tại chưa có trường cost/margin trong data contract."
+        mpct_cmp_lbl = "Kỳ so sánh: Nguồn không hỗ trợ"
+        mpct_delta_txt, mpct_delta_tone = "Chưa có dữ liệu giá vốn", "neutral"
+        mpct_sub = "Nguồn hiện tại chưa có trường chi phí và lợi nhuận."
     else:
-        if cmp_window.valid and cur_wmrg is not None and prev_wmrg is not None:
-            mpct_delta_txt, mpct_delta_tone = fmt_delta((cur_wmrg - prev_wmrg) * 100.0, is_pp=True)
-            mpct_delta_txt = f"{cmp_window.cur_label} vs {cmp_window.prev_label}: {mpct_delta_txt}"
+        if has_cmp_window and cur_wmrg is not None and prev_wmrg is not None:
+            mpct_cmp_lbl = f"Kỳ {cmp_window.cur_label}: {fmt_pct(cur_wmrg)}"
+            raw_delta, mpct_delta_tone = fmt_delta((cur_wmrg - prev_wmrg) * 100.0, is_pp=True)
+            mpct_delta_txt = f"So với {cmp_window.prev_label}: {raw_delta}"
         else:
-            mpct_delta_txt, mpct_delta_tone = "Chưa đủ kỳ so sánh", "neutral"
-        mpct_sub = (
-            f"SUM(margin) / SUM(revenue). TB dòng mart (SP×CH×ngày): {fmt_pct(row_avg_margin_pct)}."
-        )
+            mpct_cmp_lbl = "Kỳ so sánh: Chưa đủ dữ liệu"
+            mpct_delta_txt, mpct_delta_tone = "Cần ít nhất 2 kỳ hợp lệ để đối chiếu", "neutral"
+        mpct_sub = f"Tính theo tổng lợi nhuận / doanh thu (TB theo dòng: {fmt_pct(row_avg_margin_pct)})."
 
     if not has_rev:
         price_display = "Nguồn không hỗ trợ"
+        price_cmp_lbl = "Kỳ so sánh: Nguồn không hỗ trợ"
         price_delta_txt, price_delta_tone = "Không có doanh thu tiền tệ", "neutral"
         price_sub = "Nguồn này không ghi nhận doanh thu và đơn giá."
     elif uom_guard.is_multi_uom_blocked:
         price_display = "Cần chọn 1 ĐVT"
-        price_delta_txt, price_delta_tone = f"Đang lẫn {uom_guard.uom_count} ĐVT", "warn"
+        price_cmp_lbl = f"Đang lẫn {uom_guard.uom_count} ĐVT"
+        price_delta_txt, price_delta_tone = "Chọn 1 ĐVT để tính đơn giá", "warn"
         price_sub = "Không tính đơn giá bình quân khi trộn hộp, viên, lọ..."
     else:
         price_display = fmt_metric_state(
@@ -297,18 +325,20 @@ def render_page(filters: FilterState) -> None:
             has_rows=row_count > 0 and rev_rows > 0,
             formatter=lambda v: fmt_currency(v, ccy, compact=False),
         )
-        if cmp_window.valid and cur_wup is not None and prev_wup is not None:
-            price_delta_txt, price_delta_tone = fmt_delta(
+        if has_cmp_window and cur_wup is not None and prev_wup is not None:
+            price_cmp_lbl = f"Kỳ {cmp_window.cur_label}: {fmt_currency(cur_wup, ccy, compact=False)}"
+            raw_delta, price_delta_tone = fmt_delta(
                 cur_wup - prev_wup,
                 unit=ccy,
                 pct=((cur_wup - prev_wup) / prev_wup) if prev_wup > 0 else None,
             )
-            price_delta_txt = f"{cmp_window.cur_label} vs {cmp_window.prev_label}: {price_delta_txt}"
+            price_delta_txt = f"So với {cmp_window.prev_label}: {raw_delta}"
         else:
-            price_delta_txt, price_delta_tone = "Chưa đủ kỳ so sánh", "neutral"
+            price_cmp_lbl = "Kỳ so sánh: Chưa đủ dữ liệu"
+            price_delta_txt, price_delta_tone = "Cần ít nhất 2 kỳ hợp lệ để đối chiếu", "neutral"
         price_sub = (
-            f"Gia quyền = SUM(DT) / SUM(SL) ({uom_note}). "
-            f"TB dòng mart: {fmt_currency(row_avg_unit_price, ccy, compact=False)}."
+            f"Gia quyền theo sản lượng ({uom_note}). "
+            f"TB theo dòng: {fmt_currency(row_avg_unit_price, ccy, compact=False)}."
         )
 
     c1, c2, c3 = st.columns(3)
@@ -316,9 +346,11 @@ def render_page(filters: FilterState) -> None:
         render_kpi_card(
             "Tổng Doanh Thu",
             rev_display,
-            f"Phủ {rev_rows:,}/{row_count:,} dòng · Tiền tệ {ccy}" if has_rev and ccy else "Nguồn này không ghi nhận doanh thu tiền tệ",
+            f"Ghi nhận {rev_rows:,}/{row_count:,} dòng · Tiền tệ {ccy}" if has_rev and ccy else "Nguồn này không ghi nhận doanh thu tiền tệ",
             tag=ccy or "N/A",
             accent=palette.primary,
+            period_label=agg_period_label,
+            compare_label=rev_cmp_lbl,
             delta_text=rev_delta_txt,
             delta_tone=rev_delta_tone,
         )
@@ -329,17 +361,21 @@ def render_page(filters: FilterState) -> None:
             qty_sub,
             tag=uom_guard.single_uom or "ĐVT",
             accent=palette.accent,
+            period_label=agg_period_label,
+            compare_label=qty_cmp_lbl,
             delta_text=qty_delta_txt,
             delta_tone=qty_delta_tone,
         )
     with c3:
         render_kpi_card(
-            "Số Đơn Hàng (Distinct Order)",
+            "Số Đơn Hàng Duy Nhất",
             "Chưa khả dụng",
-            "Gold mirror ở grain SP×CH×ngày nên chưa giữ được COUNT(DISTINCT sales_order_id). Cần bổ sung mart đơn hàng trong data contract.",
-            tag="Thiếu contract",
+            "Chưa có dữ liệu đếm đơn duy nhất trong nguồn hiện tại.",
+            tag="Cần bổ sung",
             accent="#d97706",
-            delta_text=f"Số dòng POS: {fmt_int(total_lines)} | CH-ngày có bán: {fmt_int(active_sd)}",
+            period_label=agg_period_label,
+            compare_label=f"Số dòng bán kỳ lọc: {fmt_int(total_lines)}",
+            delta_text=f"Cửa hàng-ngày có bán: {fmt_int(active_sd)}",
             delta_tone="neutral",
         )
 
@@ -351,6 +387,8 @@ def render_page(filters: FilterState) -> None:
             mrg_sub,
             tag=ccy or "N/A",
             accent=palette.primary_dark,
+            period_label=agg_period_label,
+            compare_label=mrg_cmp_lbl,
             delta_text=mrg_delta_txt,
             delta_tone=mrg_delta_tone,
         )
@@ -359,8 +397,10 @@ def render_page(filters: FilterState) -> None:
             "Biên Lợi Nhuận Gia Quyền (%)",
             margin_pct_display,
             mpct_sub,
-            tag="Weighted %",
+            tag="Theo doanh thu",
             accent=palette.discrete[3],
+            period_label=agg_period_label,
+            compare_label=mpct_cmp_lbl,
             delta_text=mpct_delta_txt,
             delta_tone=mpct_delta_tone,
         )
@@ -371,6 +411,8 @@ def render_page(filters: FilterState) -> None:
             price_sub,
             tag=ccy or "N/A",
             accent=palette.discrete[5],
+            period_label=agg_period_label,
+            compare_label=price_cmp_lbl,
             delta_text=price_delta_txt,
             delta_tone=price_delta_tone,
         )
@@ -385,7 +427,7 @@ def render_page(filters: FilterState) -> None:
                 "Cùng 100% phạm vi bộ lọc với KPI; % tăng trưởng tính từ tổng lượng/doanh thu 2 tháng đủ ngày liền kề",
             )
             render_scope_strip(
-                f"Nguồn: {track_label(filters.dataset_track)} · Trục cột & đường đều tổng hợp cùng cấp từ bi_sales_weather_enriched · Ngắt đường khi thiếu tháng hoặc tháng chưa đủ ngày"
+                f"Nguồn: {track_label(filters.dataset_track)} · Trục cột & đường cùng dùng phạm vi lọc · Tự động ngắt đường khi thiếu tháng hoặc tháng chưa đủ ngày"
             )
             trend_metric_opts = ["line_amount"] if (has_rev and uom_guard.is_multi_uom_blocked) else (
                 ["sold_qty", "line_amount"] if has_rev else ["sold_qty"]
@@ -475,12 +517,12 @@ def render_page(filters: FilterState) -> None:
                         f"Màu cam = tháng chưa đủ ngày ({partial_cnt} kỳ), cột trống = tháng không có dữ liệu ({missing_cnt} kỳ) — đều tự động ngắt % MoM."
                     )
 
-                with st.expander("Tham chiếu kỹ thuật: Trung bình tăng trưởng cấp chuỗi (kpi_sales_trend)"):
+                with st.expander("Tham chiếu mở rộng: Trung bình tăng trưởng cấp từng chuỗi"):
                     ref_sql, ref_params = sql_series_avg_growth_reference(schema, filters)
                     ref_df = db.run_query_df(ref_sql, ref_params)
                     st.caption(
-                        "Bảng `kpi_sales_trend` lưu `AVG(sold_qty_pct_change)` cho từng chuỗi `SP × Cửa hàng` — **không dùng** làm tăng trưởng tổng điều hành "
-                        "(ví dụ các chuỗi nhỏ mới bán nhiều làm trung bình cộng đội cao dù tổng lượng giảm)."
+                        "Số liệu từ bảng `kpi_sales_trend` (trung bình tăng trưởng từng chuỗi Sản phẩm × Cửa hàng) — không dùng thay tăng trưởng tổng điều hành "
+                        "vì các chuỗi quy mô nhỏ tăng đột biến có thể kéo trung bình cộng lên cao ngay cả khi tổng sản lượng giảm."
                     )
                     if not ref_df.empty:
                         merged_ref = plot_df[["year_month", "month_label", "sold_qty", "mom_qty_pct", "mom_status"]].merge(
@@ -494,8 +536,8 @@ def render_page(filters: FilterState) -> None:
                                 "Tháng": merged_ref["month_label"],
                                 "Tổng SL": safe_round(merged_ref["sold_qty"], 0),
                                 "MoM tổng (%)": safe_round(merged_ref["mom_qty_pct"] * 100.0, 2),
-                                "TB chuỗi kpi_sales_trend (%)": safe_round(merged_ref["series_avg_pct_change"] * 100.0, 2),
-                                "Số chuỗi tính TB": merged_ref["series_pct_rows"],
+                                "TB từng chuỗi (%)": safe_round(merged_ref["series_avg_pct_change"] * 100.0, 2),
+                                "Số chuỗi": merged_ref["series_pct_rows"],
                                 "Trạng thái MoM": merged_ref["mom_status"],
                             }
                         )
@@ -530,16 +572,23 @@ def render_page(filters: FilterState) -> None:
                         cur_end=cmp_window.cur_end,
                         prev_start=cmp_window.prev_start,
                         prev_end=cmp_window.prev_end,
-                        limit=200,
+                        limit=None,
                     )
                     dv_raw = db.run_query_df(dv_sql, dv_params)
                     if dv_raw.empty:
                         render_empty_state("Chiều phân tích này không có dữ liệu trong nguồn đang chọn.")
+                    elif (
+                        sel_dim == "brand"
+                        and "nonnull_label_rows" in dv_raw.columns
+                        and int(dv_raw["nonnull_label_rows"].fillna(0).sum()) == 0
+                    ):
+                        render_empty_state("Nguồn dữ liệu này chưa có thông tin thương hiệu để phân rã.")
                     else:
                         use_rev_d = bool(has_rev and (uom_guard.is_multi_uom_blocked or selected_trend_metric == "line_amount"))
                         c_col = "cur_rev" if use_rev_d else "cur_qty"
                         p_col = "prev_rev" if use_rev_d else "prev_qty"
-                        dv = compute_variance_and_contributions(dv_raw, cur_col=c_col, prev_col=p_col)
+                        dv_sup = has_rev if use_rev_d else True
+                        dv = compute_variance_and_contributions(dv_raw, cur_col=c_col, prev_col=p_col, metric_supported=dv_sup)
                         if sel_dim == "country":
                             dv["item"] = dv["country_code"].map(country_label)
                         elif sel_dim == "brand":
@@ -592,6 +641,16 @@ def render_page(filters: FilterState) -> None:
                             )
                             polish_diverging_bar(fig_drv, float(combined["delta"].abs().max()))
                             st.plotly_chart(fig_drv, width="stretch", theme=None, config=plotly_config())
+                            tot_prev_cat = float(pd.to_numeric(dv[p_col], errors="coerce").fillna(0.0).sum())
+                            tot_cur_cat = float(pd.to_numeric(dv[c_col], errors="coerce").fillna(0.0).sum())
+                            pct_suffix = (
+                                f", {((tot_cur_cat - tot_prev_cat) / tot_prev_cat * 100.0):+.2f}%"
+                                if tot_prev_cat > 0
+                                else ""
+                            )
+                            st.caption(
+                                f"Tính trên toàn bộ {len(dv):,} nhóm hợp lệ (tổng kỳ trước {fmt_compact(tot_prev_cat)} → kỳ này {fmt_compact(tot_cur_cat)}{pct_suffix}); biểu đồ hiển thị tối đa Top 6 tăng và Top 6 giảm."
+                            )
 
             with tab_mix:
                 ctry_sql, ctry_params = sql_sales_by_country(schema, filters)
@@ -680,7 +739,7 @@ def render_page(filters: FilterState) -> None:
                 b_sql, b_params = sql_top_brands(schema, filters, limit=15)
                 brand_df = db.run_query_df(b_sql, b_params)
                 if brand_df.empty:
-                    render_empty_state("Nguồn dữ liệu hoặc bộ lọc hiện tại chưa ghi nhận tên thương hiệu (`brand_name` trống).")
+                    render_empty_state("Nguồn dữ liệu hoặc bộ lọc hiện tại chưa có thông tin thương hiệu.")
                 else:
                     fig_bar = px.bar(
                         brand_df,
@@ -708,8 +767,8 @@ def render_page(filters: FilterState) -> None:
     with col_table:
         with st.container(border=True):
             render_chart_header(
-                "Đối Chiếu Nguồn Thực Tế (OBSERVED) vs Mô Phỏng (SYNTHETIC)",
-                "Tách rạch ròi tiền tệ, độ phủ ĐVT, số dòng giao dịch POS và khoảng thời gian từng nguồn",
+                "Đối Chiếu Nguồn Thực Tế vs Mô Phỏng",
+                "Tách riêng tiền tệ, số ĐVT, số dòng bán và khoảng thời gian từng nguồn dữ liệu",
             )
             compare_all = st.toggle(
                 "Hiển thị toàn bộ 3 nguồn (bỏ qua ngày/quốc gia riêng của nguồn đang chọn)",
@@ -717,9 +776,9 @@ def render_page(filters: FilterState) -> None:
                 key="p1_summary_all_tracks",
             )
             if compare_all:
-                render_scope_strip("Phạm vi bảng: Toàn bộ 3 nguồn Gold MD-01 (không áp dụng bộ lọc ngày/quốc gia/ĐVT của Sidebar).")
+                render_scope_strip("Phạm vi bảng: Toàn bộ 3 nguồn dữ liệu (không áp dụng bộ lọc ngày/quốc gia/ĐVT ở thanh lọc).")
             else:
-                render_scope_strip(f"Phạm vi bảng: Khớp 100% bộ lọc Sidebar hiện tại ({track_label(filters.dataset_track)}).")
+                render_scope_strip(f"Phạm vi bảng: Khớp 100% bộ lọc hiện tại ({track_label(filters.dataset_track)}).")
 
             s_sql, s_params = sql_track_currency_summary(schema, filters, show_all_tracks=compare_all)
             sum_df = db.run_query_df(s_sql, s_params)
@@ -757,8 +816,18 @@ def render_page(filters: FilterState) -> None:
                         "Lợi nhuận": st.column_config.NumberColumn(format="%,.2f"),
                     },
                 )
-                st.caption("Ô `Sản lượng` để trống với nguồn đa ĐVT vì thiếu hệ số quy đổi `base_qty`; `Distinct Order` chưa khả dụng ở mirror.")
+                st.caption("Ô `Sản lượng` để trống với nguồn nhiều ĐVT do chưa có hệ số quy đổi chung; dữ liệu hiện có chưa đếm được số đơn hàng duy nhất.")
                 render_csv_download(display_df, "doi_chieu_nguon_du_lieu.csv", key="p1_csv_summary")
+
+    with st.expander("Định nghĩa chỉ số & nguồn dữ liệu"):
+        st.markdown(
+            "- **Nguồn dữ liệu chính:** Tổng hợp từ `bi_sales_weather_enriched` tại grain `Sản phẩm × Cửa hàng × Ngày`, phân tách rạch ròi giữa nguồn quan sát thực tế (`OBSERVED`) và nguồn mô phỏng (`SYNTHETIC`).\n"
+            "- **Lũy kế lọc vs Biến động kỳ so sánh:** Số lớn trên mỗi thẻ KPI là lũy kế toàn bộ khoảng ngày đang lọc ở thanh bên; khung phía dưới tách riêng giá trị kỳ so sánh gần nhất và chênh lệch so với kỳ liền trước đủ ngày.\n"
+            "- **Biên lợi nhuận & Đơn giá gia quyền:** Tính bằng `SUM(margin_amount) / SUM(line_amount)` và `SUM(line_amount) / SUM(sold_qty)` trong đúng phạm vi lọc (không dùng trung bình cộng đơn giản của từng dòng).\n"
+            "- **Số đơn hàng duy nhất (`COUNT(DISTINCT sales_order_id)`):** Tạm ẩn vì Gold mirror hiện tổng hợp ở grain `SP × CH × Ngày` và chưa truyền mã hóa đơn duy nhất qua data contract (cần bổ sung order mart riêng trước khi mở chỉ số này).\n"
+            "- **Đa đơn vị tính (IRPD):** Thiếu hệ số quy đổi `base_qty`, nên dashboard không cộng gộp sản lượng hoặc đơn giá khi chưa chọn đúng 1 ĐVT.\n"
+            "- **Tăng trưởng tổng theo tháng:** Tổng lượng/doanh thu từng tháng từ toàn bộ dòng hợp lệ, tự động ngắt đường khi thiếu tháng hoặc tháng chưa đủ ngày (bảng chuỗi cấp SP × CH xem tại `kpi_sales_trend`)."
+        )
 
 
 render_page(get_current_filters())
