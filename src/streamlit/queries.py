@@ -28,12 +28,15 @@ class FilterState:
 
     dataset_track: str | None = DEFAULT_TRACK
     countries: tuple[str, ...] = field(default_factory=tuple)
+    city_clusters: tuple[str, ...] = field(default_factory=tuple)
     stores: tuple[str, ...] = field(default_factory=tuple)
     clean_uoms: tuple[str, ...] = field(default_factory=tuple)
     date_start: date | None = None
     date_end: date | None = None
     temp_bands: tuple[str, ...] = field(default_factory=tuple)
     compare_mode: str = "latest_full_month"
+    time_grain: str = "month"
+    display_vnd: bool = False
     # Optional page-2-only weather filters (only injected via dataclasses.replace on Page 2)
     rain_regimes: tuple[str, ...] = field(default_factory=tuple)
     humidity_bands: tuple[str, ...] = field(default_factory=tuple)
@@ -77,6 +80,9 @@ def build_where_clause(
         if filters.countries:
             clauses.append(f"{prefix}country_code = ANY(%s)")
             params.append(list(filters.countries))
+        if filters.city_clusters:
+            clauses.append(f"SPLIT_PART({prefix}store_name, ' HealthPoint', 1) = ANY(%s)")
+            params.append(list(filters.city_clusters))
         if filters.stores:
             clauses.append(f"{prefix}store_name = ANY(%s)")
             params.append(list(filters.stores))
@@ -139,20 +145,25 @@ def sql_filter_options(
     schema: str,
     dataset_track: str | None,
     countries: Sequence[str] = (),
+    city_clusters: Sequence[str] = (),
 ) -> tuple[str, tuple[Any, ...]]:
-    """Return track bounds plus cascading country/UOM/store option lists."""
+    """Return track date/UOM bounds alongside unified cross-track country/cluster/store options."""
     s = validate_schema(schema)
     base_where = "WHERE dataset_track = %s" if dataset_track else ""
     base_params: list[Any] = [dataset_track] if dataset_track else []
 
-    store_clauses: list[str] = []
-    store_params: list[Any] = []
-    if dataset_track:
-        store_clauses.append("dataset_track = %s")
-        store_params.append(dataset_track)
+    cluster_clauses: list[str] = []
+    cluster_params: list[Any] = []
     if countries:
-        store_clauses.append("country_code = ANY(%s)")
-        store_params.append(list(countries))
+        cluster_clauses.append("country_code = ANY(%s)")
+        cluster_params.append(list(countries))
+    cluster_where = ("WHERE " + " AND ".join(cluster_clauses)) if cluster_clauses else ""
+
+    store_clauses: list[str] = list(cluster_clauses)
+    store_params: list[Any] = list(cluster_params)
+    if city_clusters:
+        store_clauses.append("SPLIT_PART(store_name, ' HealthPoint', 1) = ANY(%s)")
+        store_params.append(list(city_clusters))
     store_where = ("WHERE " + " AND ".join(store_clauses)) if store_clauses else ""
 
     sql = f"""
@@ -160,21 +171,31 @@ def sql_filter_options(
       SELECT
         MIN(local_date) AS min_date,
         MAX(local_date) AS max_date,
-        ARRAY_REMOVE(ARRAY_AGG(DISTINCT country_code ORDER BY country_code), NULL) AS countries,
         ARRAY_REMOVE(ARRAY_AGG(DISTINCT clean_uom ORDER BY clean_uom), NULL) AS uoms
       FROM "{s}"."bi_sales_weather_enriched"
       {base_where}
+    ),
+    country_list AS (
+      SELECT ARRAY_REMOVE(ARRAY_AGG(DISTINCT country_code ORDER BY country_code), NULL) AS countries
+      FROM "{s}"."bi_sales_weather_enriched"
+    ),
+    cluster_list AS (
+      SELECT ARRAY_REMOVE(ARRAY_AGG(DISTINCT SPLIT_PART(store_name, ' HealthPoint', 1) ORDER BY SPLIT_PART(store_name, ' HealthPoint', 1)), NULL) AS clusters
+      FROM "{s}"."bi_sales_weather_enriched"
+      {cluster_where}
     ),
     store_list AS (
       SELECT ARRAY_REMOVE(ARRAY_AGG(DISTINCT store_name ORDER BY store_name), NULL) AS stores
       FROM "{s}"."bi_sales_weather_enriched"
       {store_where}
     )
-    SELECT b.min_date, b.max_date, b.countries, b.uoms, sl.stores
+    SELECT b.min_date, b.max_date, co.countries, b.uoms, cl.clusters, sl.stores
     FROM base b
+    CROSS JOIN country_list co
+    CROSS JOIN cluster_list cl
     CROSS JOIN store_list sl
     """.strip()
-    return sql, tuple([*base_params, *store_params])
+    return sql, tuple([*base_params, *cluster_params, *store_params])
 
 
 def sql_available_tracks(schema: str) -> tuple[str, tuple[Any, ...]]:
@@ -1262,3 +1283,177 @@ def sql_atc_category_ranking(schema: str, filters: FilterState) -> tuple[str, tu
     ORDER BY SUM(total_observed_qty) DESC
     """.strip()
     return sql, tuple(params)
+
+
+# ---------------------------------------------------------------------------
+# Role-Based Store Manager & Supply Chain Queries
+# ---------------------------------------------------------------------------
+
+def sql_store_product_mix(
+    schema: str,
+    filters: FilterState,
+    *,
+    cur_start: date | None = None,
+    cur_end: date | None = None,
+    prev_start: date | None = None,
+    prev_end: date | None = None,
+    search_text: str = "",
+) -> tuple[str, tuple[Any, ...]]:
+    """Aggregate full product mix, line counts, margin, and optional period comparison within active store/cluster filter."""
+    s = validate_schema(schema)
+    extra: list[str] = []
+    extra_params: list[Any] = []
+    cleaned_search = (search_text or "").strip()
+    if cleaned_search:
+        extra.append("(product_name ILIKE %s OR brand_name ILIKE %s OR clean_uom ILIKE %s)")
+        like = f"%{cleaned_search}%"
+        extra_params.extend([like, like, like])
+
+    where_sql, where_params = build_where_clause(filters, extra_conditions=extra)
+
+    has_cmp = bool(cur_start and cur_end and prev_start and prev_end)
+    cmp_params: list[Any] = []
+    if has_cmp:
+        cmp_select = """
+      COALESCE(SUM(CASE WHEN local_date BETWEEN %s AND %s THEN sold_qty END), 0)::double precision AS cur_qty,
+      COALESCE(SUM(CASE WHEN local_date BETWEEN %s AND %s THEN sold_qty END), 0)::double precision AS prev_qty,
+      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN line_amount END)::double precision AS cur_rev,
+      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN line_amount END)::double precision AS prev_rev
+        """.strip()
+        cmp_params = [cur_start, cur_end, prev_start, prev_end, cur_start, cur_end, prev_start, prev_end]
+    else:
+        cmp_select = """
+      NULL::double precision AS cur_qty,
+      NULL::double precision AS prev_qty,
+      NULL::double precision AS cur_rev,
+      NULL::double precision AS prev_rev
+        """.strip()
+
+    sql = f"""
+    SELECT
+      COALESCE(NULLIF(TRIM(product_name), ''), 'Chưa xác định') AS product_name,
+      COALESCE(NULLIF(TRIM(clean_uom), ''), 'Chưa xác định') AS clean_uom,
+      MAX(brand_name) AS brand_name,
+      SUM(sold_qty)::double precision AS sold_qty,
+      SUM(line_amount)::double precision AS line_amount,
+      SUM(margin_amount)::double precision AS margin_amount,
+      COALESCE(SUM(line_count), 0)::bigint AS line_count,
+      COUNT(DISTINCT (store_id, local_date))::bigint AS active_store_days,
+      (
+        SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN margin_amount END)
+        / NULLIF(SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN line_amount END), 0)
+        * 100.0
+      )::double precision AS weighted_margin_pct,
+      (
+        SUM(CASE WHEN line_amount IS NOT NULL AND sold_qty IS NOT NULL THEN line_amount END)
+        / NULLIF(SUM(CASE WHEN line_amount IS NOT NULL AND sold_qty IS NOT NULL THEN sold_qty END), 0)
+      )::double precision AS weighted_unit_price,
+      {cmp_select}
+    FROM "{s}"."bi_sales_weather_enriched"
+    {where_sql}
+    GROUP BY
+      COALESCE(NULLIF(TRIM(product_name), ''), 'Chưa xác định'),
+      COALESCE(NULLIF(TRIM(clean_uom), ''), 'Chưa xác định')
+    ORDER BY COALESCE(SUM(line_amount), SUM(sold_qty)) DESC NULLS LAST, SUM(sold_qty) DESC
+    """.strip()
+    return sql, tuple([*cmp_params, *where_params, *extra_params])
+
+
+def sql_time_series_by_grain(
+    schema: str,
+    filters: FilterState,
+    *,
+    grain: str = "month",
+    products: Sequence[str] = (),
+) -> tuple[str, tuple[Any, ...]]:
+    """Aggregate sales and weather metrics at flexible day/week/month/quarter grain for total scope or selected products."""
+    s = validate_schema(schema)
+    clean_grain = str(grain or "month").lower().strip()
+    if clean_grain not in ("day", "week", "month", "quarter"):
+        raise ValueError(f"Unsupported time grain: {grain!r}")
+
+    prod_list = [str(p) for p in products if str(p).strip()]
+    extra: list[str] = []
+    extra_params: list[Any] = []
+    if prod_list:
+        extra.append("COALESCE(NULLIF(TRIM(product_name), ''), 'Chưa xác định') = ANY(%s)")
+        extra_params.append(prod_list)
+        select_series = (
+            "COALESCE(NULLIF(TRIM(product_name), ''), 'Chưa xác định') AS series_name, "
+            "COALESCE(NULLIF(TRIM(clean_uom), ''), 'Chưa xác định') AS clean_uom"
+        )
+        group_series = (
+            ", COALESCE(NULLIF(TRIM(product_name), ''), 'Chưa xác định'), "
+            "COALESCE(NULLIF(TRIM(clean_uom), ''), 'Chưa xác định')"
+        )
+    else:
+        select_series = (
+            "'Tổng cửa hàng đang chọn'::text AS series_name, "
+            "(CASE WHEN COUNT(DISTINCT clean_uom) = 1 THEN MAX(clean_uom) ELSE 'Đa ĐVT' END) AS clean_uom"
+        )
+        group_series = ""
+
+    where_sql, where_params = build_where_clause(filters, extra_conditions=extra)
+    sql = f"""
+    SELECT
+      DATE_TRUNC('{clean_grain}', local_date)::date AS period_date,
+      {select_series},
+      SUM(sold_qty)::double precision AS sold_qty,
+      SUM(line_amount)::double precision AS line_amount,
+      SUM(margin_amount)::double precision AS margin_amount,
+      COALESCE(SUM(line_count), 0)::bigint AS line_count,
+      COUNT(DISTINCT (store_id, local_date))::bigint AS active_store_days,
+      AVG(temp_mean)::double precision AS avg_temp_mean,
+      AVG(apparent_temp_mean)::double precision AS avg_apparent_temp_mean,
+      AVG(precip_sum)::double precision AS avg_precip_sum,
+      AVG(humidity_mean)::double precision AS avg_humidity_mean
+    FROM "{s}"."bi_sales_weather_enriched"
+    {where_sql}
+    GROUP BY DATE_TRUNC('{clean_grain}', local_date)::date{group_series}
+    ORDER BY period_date, series_name
+    """.strip()
+    return sql, tuple([*where_params, *extra_params])
+
+
+def sql_store_map_points(
+    schema: str,
+    filters: FilterState,
+    *,
+    force_onyx: bool = False,
+) -> tuple[str, tuple[Any, ...]]:
+    """Query store GPS coordinates, city cluster, performance, and weather averages for street-tile map views."""
+    s = validate_schema(schema)
+    where_sql, params = build_where_clause(
+        filters,
+        override_track=EU_STORE_MATRIX_TRACK if force_onyx else None,
+        extra_conditions=("latitude IS NOT NULL", "longitude IS NOT NULL"),
+    )
+    sql = f"""
+    SELECT
+      store_code,
+      store_name,
+      SPLIT_PART(store_name, ' HealthPoint', 1) AS city_cluster,
+      country_code,
+      MAX(dataset_track) AS dataset_track,
+      MAX(provenance_class) AS provenance_class,
+      MAX(currency_code) AS currency_code,
+      AVG(latitude)::double precision AS map_lat,
+      AVG(longitude)::double precision AS map_lon,
+      SUM(sold_qty)::double precision AS sold_qty,
+      SUM(line_amount)::double precision AS line_amount,
+      SUM(margin_amount)::double precision AS margin_amount,
+      (
+        SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN margin_amount END)
+        / NULLIF(SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN line_amount END), 0)
+        * 100.0
+      )::double precision AS weighted_margin_pct,
+      COALESCE(SUM(line_count), 0)::bigint AS line_count,
+      COUNT(DISTINCT (store_id, local_date))::bigint AS active_store_days,
+      AVG(temp_mean)::double precision AS avg_temp_mean,
+      AVG(precip_sum)::double precision AS avg_precip_sum
+    FROM "{s}"."bi_sales_weather_enriched"
+    {where_sql}
+    GROUP BY store_code, store_name, country_code
+    ORDER BY COALESCE(SUM(line_amount), SUM(sold_qty)) DESC NULLS LAST
+    """.strip()
+    return sql, params

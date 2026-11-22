@@ -1,4 +1,4 @@
-"""Page 3: Store Network, Geography, Variance & Margin Analytics (Cửa Hàng & Biên Lợi Nhuận)."""
+"""Page 2 (Supply Chain View): City Clusters, Interactive Street Map, Store Watchlist & Margin Matrix."""
 
 from __future__ import annotations
 
@@ -17,11 +17,11 @@ from analytics import (
 )
 from components.filters import get_current_filters, get_track_bounds
 from config import (
-    ISO2_TO_ISO3,
     TRACK_META,
     country_label,
+    currency_display_unit,
+    currency_multiplier,
     fmt_compact,
-    fmt_currency,
     fmt_pct,
     safe_round,
     track_label,
@@ -32,25 +32,29 @@ from queries import (
     FilterState,
     sql_dimension_variance,
     sql_eu_brand_margin_and_profit,
-    sql_eu_country_month_heatmap,
     sql_eu_country_summary,
     sql_eu_promo_breakdown,
     sql_eu_store_matrix,
     sql_monthly_sales_trend,
+    sql_store_map_points,
     sql_store_performance_table,
 )
 from ui import (
     get_active_palette,
+    open_page_layout_columns,
     plotly_config,
     polish_diverging_bar,
+    polish_horizontal_bar,
     polish_vertical_bar_headroom,
-    render_active_filter_bar,
     render_chart_header,
     render_csv_download,
     render_empty_state,
     render_insight_box,
     render_page_header,
+    render_right_explanation_panel,
     render_scope_strip,
+    render_street_map,
+    render_top_action_bar,
     style_plotly,
 )
 
@@ -63,6 +67,10 @@ def render_page(filters: FilterState) -> None:
     has_rev = bool(meta.has_revenue) if meta else False
     prov_class = meta.provenance_class if meta else "SYNTHETIC"
 
+    to_vnd = bool(filters.display_vnd and ccy)
+    disp_ccy = currency_display_unit(ccy, to_vnd=to_vnd)
+    ccy_mult = currency_multiplier(ccy, to_vnd=to_vnd)
+
     bounds = get_track_bounds()
     track_min_date = bounds.get("min_date")
     track_max_date = bounds.get("max_date")
@@ -70,17 +78,17 @@ def render_page(filters: FilterState) -> None:
 
     is_onyx_selected = filters.dataset_track == EU_STORE_MATRIX_TRACK
     eu_scope_text = (
-        f"Nguồn: {track_label(EU_STORE_MATRIX_TRACK)} · Áp dụng đầy đủ bộ lọc ngày/quốc gia/cửa hàng/ĐVT/nhiệt độ của thanh bên."
+        f"Nguồn: {track_label(EU_STORE_MATRIX_TRACK)} · Áp dụng đầy đủ bộ lọc khu vực/cụm/cửa hàng/ngày của thanh bên."
         if is_onyx_selected
-        else "Phần tham chiếu riêng: ONYX Châu Âu — Mô phỏng (EUR) · Không áp dụng bộ lọc ngày/quốc gia/cửa hàng/ĐVT/nhiệt độ của nguồn đang chọn ở thanh bên."
+        else "Phần tham chiếu riêng: ONYX Châu Âu — Mô phỏng (EUR) · Không áp dụng bộ lọc nguồn đang chọn ở thanh bên."
     )
 
     render_page_header(
-        "Cửa Hàng, Địa Lý & Biên Lợi Nhuận",
-        "Đánh giá biến động cùng cửa hàng, định vị doanh thu × biên lợi nhuận gia quyền và nhận diện cửa hàng cần xem xét.",
+        "Cụm Cửa Hàng & Bản Đồ",
+        "Theo dõi theo cụm thành phố trên bản đồ đường phố, nhận diện cửa hàng sụt giảm và phân tầng hiệu quả biên.",
         dataset_track=filters.dataset_track,
         extra_pills=[
-            ("Chưa gồm tồn kho / điều chuyển", "warn"),
+            ("Góc nhìn Chuỗi cung ứng", "default"),
             ("Ma trận LN & KM: ONYX EU — Mô phỏng", "synthetic"),
         ],
     )
@@ -96,14 +104,14 @@ def render_page(filters: FilterState) -> None:
         track_min_date=track_min_date,
         track_max_date=track_max_date,
     )
-    render_active_filter_bar(filters, compare_window=cmp_window)
+    render_top_action_bar(filters, page_key="p3", compare_window=cmp_window, show_compare_jump=True)
 
     uom_guard = evaluate_uom_compatibility(filters.dataset_track, filters.clean_uoms, uoms_avail)
     use_rev_var = bool(has_rev)
     c_col = "cur_rev" if use_rev_var else "cur_qty"
     p_col = "prev_rev" if use_rev_var else "prev_qty"
-    var_metric_label = f"Doanh thu ({ccy})" if use_rev_var else f"Sản lượng ({uom_guard.single_uom or 'ĐVT'})"
-    var_unit = ccy if use_rev_var else uom_guard.single_uom
+    var_metric_label = f"Doanh thu ({disp_ccy})" if use_rev_var else f"Sản lượng ({uom_guard.single_uom or 'ĐVT'})"
+    var_unit = disp_ccy if use_rev_var else uom_guard.single_uom
 
     store_var_df = pd.DataFrame()
     if cmp_window.valid and cmp_window.cur_start and cmp_window.prev_start:
@@ -148,498 +156,468 @@ def render_page(filters: FilterState) -> None:
     )
     watchlist_df = watchlist_res.df
 
-    render_insight_box(
-        "Nhận xét biến động & chất lượng biên lợi nhuận cửa hàng",
-        build_store_insights(
-            var_df=store_var_df,
-            watchlist_df=watchlist_df,
-            matrix_df=mx_df,
-            window=cmp_window,
-            metric_label=var_metric_label,
-            metric_unit=var_unit,
-            provenance_class=prov_class,
-            watchlist_result=watchlist_res,
-            matrix_meta=matrix_meta,
-        ),
-        note=cmp_window.note or None,
-    )
+    main_col, drawer_col = open_page_layout_columns()
 
-    # Row 1: Same-Store Variance (6) + Store Watchlist (6)
-    col_var, col_watch = st.columns([6, 6], gap="medium")
+    with main_col:
+        render_insight_box(
+            "Xem nhanh biến động & chất lượng cửa hàng",
+            build_store_insights(
+                var_df=store_var_df,
+                watchlist_df=watchlist_df,
+                matrix_df=mx_df,
+                window=cmp_window,
+                metric_label=var_metric_label,
+                metric_unit=ccy if use_rev_var else uom_guard.single_uom,
+                provenance_class=prov_class,
+                watchlist_result=watchlist_res,
+                matrix_meta=matrix_meta,
+            ),
+            note=cmp_window.note or None,
+        )
 
-    with col_var:
+        # Row 1: Hero Supply Chain Interactive Street Map (City Clusters & GPS Stores)
         with st.container(border=True):
             render_chart_header(
-                f"Biến Động Cùng Cửa Hàng ({cmp_window.cur_label} vs {cmp_window.prev_label})",
-                f"Chỉ xếp hạng cửa hàng phát sinh bán ở cả 2 kỳ theo {var_metric_label} (Top tăng & Top giảm)",
+                "Bản Đồ Cụm & Cửa Hàng",
+                "",
+                info_tooltip="Bản đồ nền đường phố chi tiết (cuộn để zoom tới từng tuyến phố). Có thể gom theo Cụm thành phố hoặc soi từng nhà thuốc ở chế độ 2D Phố / 3D Cột.",
             )
-            if not cmp_window.valid or store_var_df.empty:
-                render_empty_state(cmp_window.note or "Chưa có dữ liệu so sánh cửa hàng trong khoảng lọc.")
-            else:
-                both = store_var_df[store_var_df["presence_status"] == "Cả 2 kỳ"].copy()
-                if len(both) == 0:
-                    render_empty_state("Không có cửa hàng nào phát sinh bán đồng thời ở cả 2 kỳ so sánh.")
-                elif len(both) == 1:
-                    row_single = both.iloc[0]
-                    d_s = float(row_single["delta"])
-                    d_sign = "+" if d_s > 0 else ("−" if d_s < 0 else "")
-                    st.info(
-                        f"Có **1 cửa hàng** phát sinh cả 2 kỳ trong nguồn `{track_label(filters.dataset_track)}` (`{row_single['store_name']}`). "
-                        f"Kỳ trước: **{fmt_compact(row_single[p_col])}**, kỳ này: **{fmt_compact(row_single[c_col])}** "
-                        f"(chênh lệch: **{d_sign}{fmt_compact(abs(d_s))}**"
-                        + (f", **{row_single['pct_change'] * 100:+.2f}%**" if pd.notna(row_single.get("pct_change")) else "")
-                        + ")."
+            mc1, mc2, mc3, mc4, mc5 = st.columns([2.2, 2.2, 2.0, 2.2, 3.4])
+            with mc1:
+                map_mode = st.selectbox(
+                    "Cấp độ",
+                    options=["store", "cluster"],
+                    format_func=lambda k: "Cửa hàng" if k == "store" else "Cụm TP",
+                    key="p3_map_mode",
+                )
+            with mc2:
+                map_engine = st.selectbox(
+                    "Chế độ",
+                    options=["maplibre", "pydeck"],
+                    format_func=lambda k: "2D Phố" if k == "maplibre" else "3D Cột",
+                    key="p3_map_engine",
+                )
+            with mc3:
+                size_opts = ["line_amount", "sold_qty", "line_count"] if has_rev else ["sold_qty", "line_count"]
+                if st.session_state.get("p3_map_size") not in size_opts:
+                    st.session_state["p3_map_size"] = size_opts[0]
+                map_size = st.selectbox(
+                    "Cỡ điểm",
+                    options=size_opts,
+                    format_func=lambda k: {"line_amount": "Doanh thu", "sold_qty": "Sản lượng", "line_count": "Lượt bán"}[k],
+                    key="p3_map_size",
+                )
+            with mc4:
+                color_opts = ["weighted_margin_pct", "avg_temp_mean", "avg_precip_sum", "line_amount"] if is_onyx_selected else (
+                    ["avg_temp_mean", "avg_precip_sum", "line_amount"] if has_rev else ["avg_temp_mean", "avg_precip_sum", "sold_qty"]
+                )
+                if st.session_state.get("p3_map_color") not in color_opts:
+                    st.session_state["p3_map_color"] = color_opts[0]
+                map_color = st.selectbox(
+                    "Màu",
+                    options=color_opts,
+                    format_func=lambda k: {
+                        "weighted_margin_pct": "Tỷ suất LN (%)",
+                        "avg_temp_mean": "Nhiệt độ TB (°C)",
+                        "avg_precip_sum": "Lượng mưa TB (mm)",
+                        "line_amount": "Doanh thu",
+                        "sold_qty": "Sản lượng",
+                    }.get(k, k),
+                    key="p3_map_color",
+                )
+            with mc5:
+                show_eu_network = (
+                    st.toggle(
+                        "Mạng lưới 120 CH EU",
+                        value=False,
+                        key="p3_map_force_eu",
+                        help="Nguồn hiện tại chỉ có 1 cửa hàng; bật để xem toàn bộ 120 cửa hàng / 38 cụm tại châu Âu (mô phỏng).",
                     )
+                    if not is_onyx_selected
+                    else False
+                )
+
+            map_sql, map_params = sql_store_map_points(schema, filters, force_onyx=show_eu_network)
+            map_df = db.run_query_df(map_sql, map_params)
+            if not map_df.empty and "city_cluster" in map_df.columns:
+                map_clusters_avail = sorted(map_df["city_cluster"].dropna().unique().tolist())
+                if len(map_clusters_avail) > 1:
+                    sel_map_clusters = st.multiselect(
+                        "Lọc Cụm TP",
+                        options=map_clusters_avail,
+                        placeholder=f"Tất cả ({len(map_clusters_avail)} cụm · {len(map_df)} CH)",
+                        key="p3_map_clusters",
+                    )
+                    if sel_map_clusters:
+                        map_df = map_df[map_df["city_cluster"].isin(sel_map_clusters)].copy()
+
+            eff_map_ccy = "EUR" if show_eu_network else ccy
+            render_street_map(
+                map_df,
+                mode=map_mode,
+                map_engine=map_engine,
+                size_col=map_size,
+                color_col=map_color,
+                palette=palette,
+                ccy_label=eff_map_ccy,
+                to_vnd=bool(filters.display_vnd and eff_map_ccy),
+                height=430,
+            )
+
+        # Row 2: Same-Store Variance (6) + Store Watchlist (6)
+        col_var, col_watch = st.columns([6, 6], gap="medium")
+
+        with col_var:
+            with st.container(border=True):
+                render_chart_header(
+                    "Biến Động Cùng Cửa Hàng",
+                    f"{cmp_window.cur_label} vs {cmp_window.prev_label}",
+                    info_tooltip="Chỉ xếp hạng những cửa hàng có phát sinh bán đồng thời ở cả 2 kỳ so sánh (Top tăng & Top giảm).",
+                )
+                if not cmp_window.valid or store_var_df.empty:
+                    render_empty_state(cmp_window.note or "Chưa có dữ liệu so sánh cửa hàng trong khoảng lọc.")
                 else:
-                    gain = both[both["delta"] > 0].sort_values("delta", ascending=False).head(7)
-                    drop = both[both["delta"] < 0].sort_values("delta", ascending=True).head(7)
-                    comb = pd.concat([gain, drop], ignore_index=True).drop_duplicates(subset=["store_code"])
-                    if comb.empty:
-                        render_empty_state("Không có chênh lệch giữa 2 kỳ so sánh.")
+                    both = store_var_df[store_var_df["presence_status"] == "Cả 2 kỳ"].copy()
+                    if len(both) == 0:
+                        render_empty_state("Không có cửa hàng nào phát sinh bán đồng thời ở cả 2 kỳ so sánh.")
+                    elif len(both) == 1:
+                        row_single = both.iloc[0]
+                        d_s = float(row_single["delta"]) * (ccy_mult if use_rev_var else 1.0)
+                        d_sign = "+" if d_s > 0 else ("−" if d_s < 0 else "")
+                        st.info(
+                            f"Có **1 cửa hàng** phát sinh cả 2 kỳ trong nguồn `{track_label(filters.dataset_track)}` (`{row_single['store_name']}`). "
+                            f"Kỳ trước: **{fmt_compact(float(row_single[p_col]) * (ccy_mult if use_rev_var else 1.0))}**, "
+                            f"kỳ này: **{fmt_compact(float(row_single[c_col]) * (ccy_mult if use_rev_var else 1.0))}** "
+                            f"(chênh lệch: **{d_sign}{fmt_compact(abs(d_s))}**"
+                            + (f", **{row_single['pct_change'] * 100:+.2f}%**" if pd.notna(row_single.get("pct_change")) else "")
+                            + ")."
+                        )
                     else:
-                        comb = comb.sort_values("delta", ascending=True)
-                        colors = [palette.primary if d >= 0 else "#dc2626" for d in comb["delta"]]
-                        fig_sv = go.Figure(
-                            go.Bar(
-                                x=comb["delta"],
-                                y=comb["store_name"],
-                                orientation="h",
-                                marker_color=colors,
-                                text=[f"{d:+,.0f}" for d in comb["delta"]],
-                                textposition="outside",
-                                customdata=list(
-                                    zip(
-                                        comb[p_col],
-                                        comb[c_col],
-                                        comb["contrib_pp"].fillna(0.0),
-                                        (comb["pct_change"] * 100.0).fillna(0.0),
-                                    )
-                                ),
-                                hovertemplate=(
-                                    "<b>%{y}</b><br>"
-                                    "Kỳ trước: %{customdata[0]:,.0f}<br>"
-                                    "Kỳ này: %{customdata[1]:,.0f}<br>"
-                                    "Chênh lệch: %{x:+,.0f} (%{customdata[3]:+.2f}%)<br>"
-                                    "Đóng góp số học: %{customdata[2]:+.2f} điểm %<extra></extra>"
-                                ),
+                        gain = both[both["delta"] > 0].sort_values("delta", ascending=False).head(7)
+                        drop = both[both["delta"] < 0].sort_values("delta", ascending=True).head(7)
+                        comb = pd.concat([gain, drop], ignore_index=True).drop_duplicates(subset=["store_code"])
+                        if comb.empty:
+                            render_empty_state("Không có chênh lệch giữa 2 kỳ so sánh.")
+                        else:
+                            comb = comb.sort_values("delta", ascending=True).copy()
+                            v_mult = ccy_mult if use_rev_var else 1.0
+                            comb["_delta_disp"] = comb["delta"] * v_mult
+                            comb["_p_disp"] = comb[p_col] * v_mult
+                            comb["_c_disp"] = comb[c_col] * v_mult
+                            colors = [palette.primary if d >= 0 else "#dc2626" for d in comb["_delta_disp"]]
+                            fig_sv = go.Figure(
+                                go.Bar(
+                                    x=comb["_delta_disp"],
+                                    y=comb["store_name"],
+                                    orientation="h",
+                                    marker_color=colors,
+                                    text=[f"{d:+,.0f}" for d in comb["_delta_disp"]],
+                                    textposition="outside",
+                                    customdata=list(
+                                        zip(
+                                            comb["_p_disp"],
+                                            comb["_c_disp"],
+                                            comb["contrib_pp"].fillna(0.0),
+                                            (comb["pct_change"] * 100.0).fillna(0.0),
+                                        )
+                                    ),
+                                    hovertemplate=(
+                                        "<b>%{y}</b><br>"
+                                        "Kỳ trước: %{customdata[0]:,.0f}<br>"
+                                        "Kỳ này: %{customdata[1]:,.0f}<br>"
+                                        "Chênh lệch: %{x:+,.0f} (%{customdata[3]:+.2f}%)<br>"
+                                        "Đóng góp: %{customdata[2]:+.2f} điểm %<extra></extra>"
+                                    ),
+                                )
                             )
-                        )
-                        style_plotly(
-                            fig_sv,
-                            palette,
-                            height=370,
-                            show_legend=False,
-                            xaxis_title=f"Chênh lệch {var_metric_label}",
-                            yaxis_title="",
-                        )
-                        polish_diverging_bar(fig_sv, float(comb["delta"].abs().max()))
-                        st.plotly_chart(fig_sv, width="stretch", theme=None, config=plotly_config())
+                            style_plotly(fig_sv, palette, height=350, show_legend=False, xaxis_title=f"Chênh lệch {var_metric_label}", yaxis_title="")
+                            polish_diverging_bar(fig_sv, float(comb["_delta_disp"].abs().max()))
+                            st.plotly_chart(fig_sv, width="stretch", theme=None, config=plotly_config())
 
-    with col_watch:
-        with st.container(border=True):
-            render_chart_header(
-                watchlist_res.title,
-                watchlist_res.subtitle,
-            )
-            if watchlist_res.status == "reference_low_margin":
-                render_scope_strip(
-                    "Chưa có cửa hàng vượt tiêu chí cảnh báo — danh sách bên dưới chỉ mang tính tham khảo (Top biên lợi nhuận thấp nhất).",
-                    kind="default",
+        with col_watch:
+            with st.container(border=True):
+                render_chart_header(
+                    "Cửa Hàng Cần Lưu Ý",
+                    f"{watchlist_res.title} · {watchlist_res.subtitle}",
+                    info_tooltip="Tiêu chí cảnh báo: Doanh thu ≥ trung vị nhưng Tỷ suất LN < trung vị, hoặc sụt giảm ≥ 15%, hoặc Tỷ suất LN giảm ≥ 1.5 điểm %.",
                 )
-            if watchlist_df.empty:
-                render_empty_state(
-                    watchlist_res.empty_message
-                    or "Không có cửa hàng vượt ngưỡng cảnh báo trong phạm vi lọc hiện tại."
-                )
-            else:
-                reason_col_lbl = (
-                    "Ghi chú tham khảo"
-                    if watchlist_res.status == "reference_low_margin"
-                    else "Lý do cần xem xét"
-                )
-                if is_onyx_selected and "weighted_margin_pct" in watchlist_df.columns:
-                    w_disp = pd.DataFrame(
-                        {
-                            "Cửa hàng": watchlist_df["store_name"],
-                            "Quốc gia": watchlist_df["country_code"].map(country_label),
-                            f"Doanh thu ({matrix_meta.currency_code})": safe_round(watchlist_df["line_amount"], 0),
-                            "Biên LN gia quyền (%)": safe_round(watchlist_df["weighted_margin_pct"], 2),
-                            "Biến động kỳ (%)": safe_round(pd.to_numeric(watchlist_df["pct_change"], errors="coerce") * 100.0, 2),
-                            reason_col_lbl: watchlist_df["Lý do cần xem xét"],
-                        }
+                if watchlist_res.status == "reference_low_margin":
+                    render_scope_strip(
+                        "Chưa có cửa hàng vượt tiêu chí cảnh báo — danh sách bên dưới chỉ mang tính tham khảo (Top biên lợi nhuận thấp nhất).",
+                        kind="default",
                     )
-                    rev_col_w = f"Doanh thu ({matrix_meta.currency_code})"
-                    w_cfg = {
-                        rev_col_w: st.column_config.NumberColumn(format="%,.0f"),
-                        "Biên LN gia quyền (%)": st.column_config.NumberColumn(format="%.2f%%"),
-                        "Biến động kỳ (%)": st.column_config.NumberColumn(format="%+.2f%%"),
-                    }
+                if watchlist_df.empty:
+                    render_empty_state(
+                        watchlist_res.empty_message
+                        or "Không có cửa hàng vượt ngưỡng cảnh báo trong phạm vi lọc hiện tại."
+                    )
                 else:
-                    val_col_lbl = f"Giá trị kỳ này ({var_unit})" if var_unit else "Giá trị kỳ này"
-                    w_disp = pd.DataFrame(
-                        {
-                            "Cửa hàng": watchlist_df["store_name"],
-                            val_col_lbl: safe_round(watchlist_df[c_col], 0),
-                            "Chênh lệch": safe_round(watchlist_df["delta"], 0),
-                            "Biến động (%)": safe_round(pd.to_numeric(watchlist_df["pct_change"], errors="coerce") * 100.0, 2),
-                            reason_col_lbl: watchlist_df["Lý do cần xem xét"],
-                        }
+                    reason_col_lbl = (
+                        "Ghi chú tham khảo"
+                        if watchlist_res.status == "reference_low_margin"
+                        else "Lý do cần xem xét"
                     )
-                    w_cfg = {
-                        val_col_lbl: st.column_config.NumberColumn(format="%,.0f"),
-                        "Chênh lệch": st.column_config.NumberColumn(format="%+,.0f"),
-                        "Biến động (%)": st.column_config.NumberColumn(format="%+.2f%%"),
-                    }
-                st.dataframe(w_disp, width="stretch", hide_index=True, height=320, column_config=w_cfg)
-                render_csv_download(w_disp, "cua_hang_can_xem_xet.csv", key="p3_csv_watchlist")
+                    if is_onyx_selected and "weighted_margin_pct" in watchlist_df.columns:
+                        rev_col_w = f"Doanh thu ({disp_ccy})" if disp_ccy else "Doanh thu (EUR)"
+                        w_disp = pd.DataFrame(
+                            {
+                                "Cửa hàng": watchlist_df["store_name"],
+                                "Quốc gia": watchlist_df["country_code"].map(country_label),
+                                rev_col_w: safe_round(pd.to_numeric(watchlist_df["line_amount"], errors="coerce") * ccy_mult, 0),
+                                "Tỷ suất LN (%)": safe_round(watchlist_df["weighted_margin_pct"], 2),
+                                "Biến động kỳ (%)": safe_round(pd.to_numeric(watchlist_df["pct_change"], errors="coerce") * 100.0, 2),
+                                reason_col_lbl: watchlist_df["Lý do cần xem xét"],
+                            }
+                        )
+                        w_cfg = {
+                            rev_col_w: st.column_config.NumberColumn(format="%,.0f"),
+                            "Tỷ suất LN (%)": st.column_config.NumberColumn(format="%.2f%%"),
+                            "Biến động kỳ (%)": st.column_config.NumberColumn(format="%+.2f%%"),
+                        }
+                    else:
+                        val_col_lbl = f"Kỳ này ({var_unit})" if var_unit else "Kỳ này"
+                        v_mult = ccy_mult if use_rev_var else 1.0
+                        w_disp = pd.DataFrame(
+                            {
+                                "Cửa hàng": watchlist_df["store_name"],
+                                val_col_lbl: safe_round(pd.to_numeric(watchlist_df[c_col], errors="coerce") * v_mult, 0),
+                                "Chênh lệch": safe_round(pd.to_numeric(watchlist_df["delta"], errors="coerce") * v_mult, 0),
+                                "Biến động (%)": safe_round(pd.to_numeric(watchlist_df["pct_change"], errors="coerce") * 100.0, 2),
+                                reason_col_lbl: watchlist_df["Lý do cần xem xét"],
+                            }
+                        )
+                        w_cfg = {
+                            val_col_lbl: st.column_config.NumberColumn(format="%,.0f"),
+                            "Chênh lệch": st.column_config.NumberColumn(format="%+,.0f"),
+                            "Biến động (%)": st.column_config.NumberColumn(format="%+.2f%%"),
+                        }
+                    st.dataframe(w_disp, width="stretch", hide_index=True, height=310, column_config=w_cfg)
+                    render_csv_download(w_disp, "cua_hang_can_xem_xet.csv", key="p3_csv_watchlist")
 
-    # Row 2: Full-width Store Efficiency Bubble Matrix (explicit independent source provenance & EUR)
-    with st.container(border=True):
-        n_mx = len(mx_df)
-        render_chart_header(
-            f"Ma Trận Doanh Thu × Biên Lợi Nhuận Gia Quyền ({n_mx} Cửa Hàng · {matrix_meta.label_vi} · {matrix_meta.currency_code})",
-            "Đường nét đứt = trung vị theo tập cửa hàng đang hiển thị; kích thước bong bóng = sản lượng bán",
-        )
-        render_scope_strip(
-            f"Nguồn: {matrix_meta.label_vi} ({matrix_meta.currency_code}) · {matrix_meta.scope_note}",
-            kind="default" if matrix_meta.matches_sidebar_track else "warn",
-        )
-        if mx_df.empty:
-            render_empty_state()
-        else:
-            mx_df = mx_df.copy()
-            mx_df["country_vi"] = mx_df["country_code"].map(country_label)
-            med_rev = float(mx_df["line_amount"].median())
-            med_mrg = float(mx_df["weighted_margin_pct"].median())
-            fig_mx = px.scatter(
-                mx_df,
-                x="line_amount",
-                y="weighted_margin_pct",
-                size="sold_qty",
-                color="country_vi",
-                hover_name="store_name",
-                hover_data={"store_code": True, "line_count": ":,", "active_store_days": ":,"},
-                color_discrete_sequence=list(palette.discrete),
-                opacity=0.84,
-            )
-            fig_mx.add_vline(x=med_rev, line_dash="dash", line_color="#94a3b8", line_width=1.2)
-            fig_mx.add_hline(y=med_mrg, line_dash="dash", line_color="#94a3b8", line_width=1.2)
-            fig_mx.update_traces(
-                hovertemplate=(
-                    "<b>%{hovertext}</b><br>"
-                    "Doanh thu: %{x:,.2f} EUR<br>"
-                    "Biên LN gia quyền: %{y:.2f}%<br>"
-                    "Mã: %{customdata[0]} · Dòng POS: %{customdata[1]} · CH-ngày: %{customdata[2]}<extra></extra>"
-                )
-            )
-            style_plotly(
-                fig_mx,
-                palette,
-                height=420,
-                xaxis_title="Doanh thu (EUR)",
-                yaxis_title="Biên LN gộp gia quyền (%)",
-            )
-            fig_mx.update_yaxes(ticksuffix="%")
-            fig_mx.update_layout(legend_title_text="Quốc gia")
-            st.plotly_chart(fig_mx, width="stretch", theme=None, config=plotly_config())
-            st.caption(
-                f"Ngưỡng trung vị tập đang hiển thị ({n_mx} cửa hàng): Doanh thu = **{med_rev:,.0f} EUR**, "
-                f"Biên LN gia quyền = **{fmt_pct(med_mrg, already_scaled=True)}**."
-            )
-
-    # Row 3: EU Geography & Country Seasonality (7) + Promo Volume Share & Breakdown (5)
-    col_geo, col_gauge = st.columns([7, 5], gap="medium")
-
-    with col_geo:
+        # Row 3: Store Margin Matrix (with strict independent MatrixSourceMeta labeling!)
+        mx_disp_ccy = currency_display_unit(matrix_meta.currency_code, to_vnd=filters.display_vnd) or matrix_meta.currency_code
+        mx_mult = currency_multiplier(matrix_meta.currency_code, to_vnd=filters.display_vnd)
         with st.container(border=True):
+            n_mx = len(mx_df)
             render_chart_header(
-                "Địa Lý & Mùa Vụ Theo Quốc Gia Châu Âu (ONYX EU)",
-                "Gom bản đồ, xếp hạng quốc gia và mùa vụ 12 tháng vào một khung tránh lặp thông tin",
+                "Ma Trận Doanh Thu × Tỷ Suất LN",
+                f"{n_mx} Cửa Hàng · {matrix_meta.label_vi} · {matrix_meta.currency_code}",
+                info_tooltip="Đường nét đứt chia 4 góc phần tư theo trung vị Doanh thu & Tỷ suất LN. Góc dưới phải = Doanh thu cao nhưng Tỷ suất LN thấp.",
             )
-            render_scope_strip(eu_scope_text, kind="default" if is_onyx_selected else "warn")
-            c_sql, c_params = sql_eu_country_summary(schema, filters)
-            c_df = db.run_query_df(c_sql, c_params)
-            cm_sql, cm_params = sql_eu_country_month_heatmap(schema, filters)
-            cm_df = db.run_query_df(cm_sql, cm_params)
-
-            if c_df.empty:
+            render_scope_strip(
+                f"Nguồn: {matrix_meta.label_vi} ({matrix_meta.currency_code}) · {matrix_meta.scope_note}",
+                kind="default" if matrix_meta.matches_sidebar_track else "warn",
+            )
+            if mx_df.empty:
                 render_empty_state()
             else:
-                c_df = c_df.copy()
-                c_df["country_vi"] = c_df["country_code"].map(country_label)
-                c_df["iso3"] = c_df["country_code"].map(ISO2_TO_ISO3)
-
-                tab_map, tab_bar, tab_hm = st.tabs(["Bản đồ Châu Âu", "Cột Quốc gia", "Heatmap Quốc gia × Tháng"])
-                with tab_map:
-                    fig_map = px.choropleth(
-                        c_df,
-                        locations="iso3",
-                        locationmode="ISO-3",
-                        color="line_amount",
-                        hover_name="country_vi",
-                        hover_data={
-                            "iso3": False,
-                            "line_amount": ":,.2f",
-                            "sold_qty": ":,.0f",
-                            "weighted_margin_pct": ":.2f",
-                            "store_count": True,
-                        },
-                        color_continuous_scale=list(palette.continuous_scale),
-                        labels={
-                            "line_amount": "Doanh thu (EUR)",
-                            "sold_qty": "Sản lượng",
-                            "weighted_margin_pct": "Biên LN gia quyền (%)",
-                            "store_count": "Số cửa hàng",
-                        },
-                    )
-                    fig_map.update_geos(
-                        scope="europe",
-                        fitbounds="locations",
-                        visible=True,
-                        bgcolor="rgba(0,0,0,0)",
-                        landcolor="#f1f5f9",
-                        showcountries=True,
-                        countrycolor="#cbd5e1",
-                        subunitcolor="#e2e8f0",
-                    )
-                    style_plotly(fig_map, palette, height=345, show_legend=False)
-                    fig_map.update_layout(margin=dict(l=4, r=4, t=8, b=4))
-                    st.plotly_chart(fig_map, width="stretch", theme=None, config=plotly_config())
-
-                with tab_bar:
-                    fig_cbar = px.bar(
-                        c_df,
-                        x="country_vi",
-                        y="line_amount",
-                        text_auto=".3s",
-                        hover_data={"weighted_margin_pct": ":.2f", "store_count": True},
-                        color_discrete_sequence=[palette.primary],
-                    )
-                    fig_cbar.update_traces(
-                        textposition="outside",
-                        hovertemplate="Quốc gia: %{x}<br>Doanh thu: %{y:,.2f} EUR<br>Biên LN GQ: %{customdata[0]:.2f}% · Số CH: %{customdata[1]}<extra></extra>",
-                    )
-                    style_plotly(
-                        fig_cbar,
-                        palette,
-                        height=345,
-                        show_legend=False,
-                        xaxis_title="Quốc gia",
-                        yaxis_title="Doanh thu (EUR)",
-                    )
-                    polish_vertical_bar_headroom(fig_cbar, float(c_df["line_amount"].max()))
-                    st.plotly_chart(fig_cbar, width="stretch", theme=None, config=plotly_config())
-
-                with tab_hm:
-                    if cm_df.empty:
-                        render_empty_state()
-                    else:
-                        piv = cm_df.pivot(index="month_num", columns="country_code", values="sold_qty")
-                        piv = piv.reindex(index=sorted(piv.index), columns=sorted(piv.columns))
-                        y_labels = [f"Tháng {int(m)}" for m in piv.index]
-                        x_labels = [country_label(str(c)) for c in piv.columns]
-                        text_vals = [[f"{round(v):,}" if pd.notna(v) else "" for v in row] for row in piv.values]
-                        fig_cm = go.Figure(
-                            data=go.Heatmap(
-                                z=piv.values,
-                                x=x_labels,
-                                y=y_labels,
-                                text=text_vals,
-                                texttemplate="%{text}",
-                                textfont=dict(size=10.5),
-                                colorscale=list(palette.continuous_scale),
-                                colorbar=dict(title="Sản lượng", thickness=12),
-                                hovertemplate="Quốc gia: %{x}<br>%{y}<br>Sản lượng: %{z:,.0f}<extra></extra>",
-                            )
-                        )
-                        style_plotly(fig_cm, palette, height=345, show_legend=False, xaxis_title="Quốc gia", yaxis_title="Tháng")
-                        fig_cm.update_yaxes(autorange="reversed")
-                        st.plotly_chart(fig_cm, width="stretch", theme=None, config=plotly_config())
-
-    with col_gauge:
-        with st.container(border=True):
-            render_chart_header(
-                "Tỷ Trọng Sản Lượng Có Khuyến Mãi (ONYX EU)",
-                "Đo tỷ trọng lượng bán có khuyến mãi trên tổng sản lượng (chỉ là thống kê mô tả, chưa kết luận hiệu quả nhân quả)",
-            )
-            render_scope_strip(eu_scope_text, kind="default" if is_onyx_selected else "warn")
-            pr_sql, pr_params = sql_eu_promo_breakdown(schema, filters)
-            pr_df = db.run_query_df(pr_sql, pr_params)
-            if pr_df.empty:
-                render_empty_state()
-            else:
-                tot_qty = float(pd.to_numeric(pr_df["sold_qty"], errors="coerce").fillna(0).sum())
-                promo_qty = float(pd.to_numeric(pr_df["promo_sold_qty"], errors="coerce").fillna(0).sum())
-                weighted_promo = (promo_qty / tot_qty * 100.0) if tot_qty > 0 else None
-                if weighted_promo is None:
-                    render_empty_state()
-                else:
-                    fig_g = go.Figure(
-                        go.Indicator(
-                            mode="gauge+number",
-                            value=weighted_promo,
-                            number={"suffix": "%", "valueformat": ".2f", "font": {"size": 36, "color": palette.ink}},
-                            gauge={
-                                "axis": {"range": [0, 100], "ticksuffix": "%", "tickwidth": 1},
-                                "bar": {"color": palette.primary, "thickness": 0.72},
-                                "bgcolor": "#eef2f6",
-                                "borderwidth": 0,
-                                "steps": [
-                                    {"range": [0, 25], "color": palette.soft_bg},
-                                    {"range": [25, 100], "color": "#f8fafc"},
-                                ],
-                            },
-                        )
-                    )
-                    style_plotly(fig_g, palette, height=220, show_legend=False)
-                    st.plotly_chart(fig_g, width="stretch", theme=None, config=plotly_config())
-
-                    pr_disp = pd.DataFrame(
-                        {
-                            "Nhóm giao dịch": ["Có khuyến mãi" if bool(r["has_promotion"]) else "Không khuyến mãi" for _, r in pr_df.iterrows()],
-                            "Số dòng dữ liệu": pr_df["mart_rows"],
-                            "Sản lượng": safe_round(pr_df["sold_qty"], 0),
-                            "Biên LN gia quyền (%)": safe_round(pr_df["weighted_margin_pct"], 2),
-                            "Đơn giá GQ (EUR)": safe_round(pr_df["weighted_unit_price"], 2),
-                        }
-                    )
-                    st.dataframe(pr_disp, width="stretch", hide_index=True, height=110)
-                    st.caption(
-                        "Không đủ baseline/đối chứng trước–trong–sau khuyến mãi nên chưa đánh giá uplift hay hiệu quả ROI."
-                    )
-
-    # Row 4: Full-width Tabbed Brand Margin & Profit (ONYX EU)
-    with st.container(border=True):
-        render_chart_header(
-            "Biên Lợi Nhuận Gia Quyền & Tổng Lợi Nhuận Theo Thương Hiệu (ONYX EU)",
-            "Dùng biên LN gia quyền SUM(margin) / SUM(revenue); bảng cột xếp hạng toàn bộ thương hiệu",
-        )
-        render_scope_strip(eu_scope_text, kind="default" if is_onyx_selected else "warn")
-        bm_sql, bm_params = sql_eu_brand_margin_and_profit(schema, filters)
-        bm_df = db.run_query_df(bm_sql, bm_params)
-        if bm_df.empty:
-            render_empty_state()
-        else:
-            t_b1, t_b2 = st.tabs(["Scatter Doanh thu × Biên LN gia quyền", "Xếp hạng Tổng Lợi Nhuận"])
-            with t_b1:
-                fig_bm = px.scatter(
-                    bm_df,
-                    x="line_amount",
+                mx_plot = mx_df.copy()
+                mx_plot["country_vi"] = mx_plot["country_code"].map(country_label)
+                mx_plot["rev_disp"] = pd.to_numeric(mx_plot["line_amount"], errors="coerce") * mx_mult
+                med_rev = float(mx_plot["rev_disp"].median())
+                med_mrg = float(mx_plot["weighted_margin_pct"].median())
+                fig_mx = px.scatter(
+                    mx_plot,
+                    x="rev_disp",
                     y="weighted_margin_pct",
                     size="sold_qty",
-                    color="brand_name",
-                    hover_data={"margin_amount": ":,.2f", "sold_qty": ":,.0f", "row_avg_margin_pct": ":.2f"},
-                    color_discrete_sequence=list(palette.discrete) * 3,
+                    color="country_vi",
+                    hover_name="store_name",
+                    hover_data={"store_code": True, "line_count": ":,", "active_store_days": ":,"},
+                    color_discrete_sequence=list(palette.discrete),
+                    opacity=0.84,
                 )
-                fig_bm.update_traces(
+                fig_mx.add_vline(x=med_rev, line_dash="dash", line_color="#94a3b8", line_width=1.2)
+                fig_mx.add_hline(y=med_mrg, line_dash="dash", line_color="#94a3b8", line_width=1.2)
+                fig_mx.update_traces(
                     hovertemplate=(
-                        "Thương hiệu: %{fullData.name}<br>"
-                        "Doanh thu: %{x:,.2f} EUR<br>"
-                        "Biên LN gia quyền: %{y:.2f}% (TB dòng: %{customdata[2]:.2f}%)<br>"
-                        "Lợi nhuận: %{customdata[0]} EUR · SL: %{customdata[1]}<extra></extra>"
+                        "<b>%{hovertext}</b><br>"
+                        f"Doanh thu: %{{x:,.0f}} {mx_disp_ccy}<br>"
+                        "Tỷ suất LN: %{y:.2f}%<br>"
+                        "Mã: %{customdata[0]} · Lượt dòng: %{customdata[1]}<extra></extra>"
                     )
                 )
-                style_plotly(
-                    fig_bm,
-                    palette,
-                    height=370,
-                    xaxis_title="Doanh thu (EUR)",
-                    yaxis_title="Biên LN gộp gia quyền (%)",
-                )
-                fig_bm.update_yaxes(ticksuffix="%")
-                fig_bm.update_layout(
-                    legend_title_text="Thương hiệu",
-                    legend=dict(orientation="v", yanchor="top", y=1.0, xanchor="left", x=1.02, font=dict(size=10)),
-                    margin=dict(l=14, r=130, t=18, b=16),
-                )
-                st.plotly_chart(fig_bm, width="stretch", theme=None, config=plotly_config())
+                style_plotly(fig_mx, palette, height=390, xaxis_title=f"Doanh thu ({mx_disp_ccy})", yaxis_title="Tỷ suất lợi nhuận (%)")
+                fig_mx.update_yaxes(ticksuffix="%")
+                fig_mx.update_layout(legend_title_text="Quốc gia")
+                st.plotly_chart(fig_mx, width="stretch", theme=None, config=plotly_config())
 
-            with t_b2:
-                fig_bp = px.bar(
-                    bm_df,
-                    x="brand_name",
-                    y="margin_amount",
-                    text_auto=".3s",
-                    color_discrete_sequence=[palette.primary],
-                )
-                fig_bp.update_traces(
-                    textposition="outside",
-                    textfont_size=11,
-                    hovertemplate="Thương hiệu: %{x}<br>Lợi nhuận: %{y:,.2f} EUR<extra></extra>",
-                )
-                style_plotly(
-                    fig_bp,
-                    palette,
-                    height=360,
-                    show_legend=False,
-                    xaxis_title="Thương hiệu",
-                    yaxis_title="Tổng lợi nhuận (EUR)",
-                )
-                polish_vertical_bar_headroom(fig_bp, float(bm_df["margin_amount"].max()))
-                fig_bp.update_xaxes(tickangle=-20)
-                st.plotly_chart(fig_bp, width="stretch", theme=None, config=plotly_config())
+        # Row 4: Clean Tabbed Supply Chain Details (City Clusters Ranking, Geography & Promo, Brands, Table)
+        with st.container(border=True):
+            render_chart_header(
+                "Phân Tích Cụm & Tra Cứu",
+                "",
+                info_tooltip="Tổng hợp xếp hạng theo cụm thành phố, khuyến mãi/thương hiệu ONYX EU và bảng tra cứu từng cửa hàng.",
+            )
+            t_cl, t_geo_promo, t_brand, t_tbl = st.tabs(
+                ["Xếp hạng Cụm", "Quốc gia & KM", "Thương hiệu", "Tra cứu CH"]
+            )
 
-    # Row 5 (Bottom): Searchable Store Lookup Table
-    with st.container(border=True):
-        render_chart_header(
-            "Bảng Tra Cứu Chi Tiết Từng Cửa Hàng",
-            "Hiển thị Số dòng bán, Cửa hàng-ngày có bán, Biên lợi nhuận gia quyền vs TB theo dòng (chưa có dữ liệu đếm đơn duy nhất)",
-        )
-        store_search = st.text_input(
-            "Tìm nhanh theo mã, tên cửa hàng hoặc quốc gia",
-            placeholder="Ví dụ: ONYX:PH0120, Madrid, Berlin...",
-            key="p3_store_search",
-        )
-        st_sql, st_params = sql_store_performance_table(schema, filters, search_text=store_search)
-        st_df = db.run_query_df(st_sql, st_params)
-        if st_df.empty:
-            render_empty_state()
-        else:
-            rev_label = f"Doanh thu ({ccy})" if ccy else "Doanh thu"
-            mrg_label = f"Lợi nhuận ({ccy})" if ccy else "Lợi nhuận"
-            qty_col_series = (
-                pd.Series([None] * len(st_df))
-                if uom_guard.is_multi_uom_blocked
-                else safe_round(st_df["sold_qty"], 0)
-            )
-            disp_df = pd.DataFrame(
-                {
-                    "Mã cửa hàng": st_df["store_code"],
-                    "Tên cửa hàng": st_df["store_name"],
-                    "Quốc gia": st_df["country_code"].map(country_label),
-                    "Số dòng POS": st_df["line_count"],
-                    "CH-ngày có bán": st_df["active_store_days"],
-                    "Sản lượng (nếu 1 ĐVT)": qty_col_series,
-                    rev_label: safe_round(st_df["line_amount"], 2),
-                    mrg_label: safe_round(st_df["margin_amount"], 2),
-                    "Biên LN gia quyền (%)": safe_round(st_df["weighted_margin_pct"], 2),
-                    "Biên LN TB theo dòng (%)": safe_round(st_df["row_avg_margin_pct"], 2),
-                }
-            )
-            st.dataframe(
-                disp_df,
-                width="stretch",
-                hide_index=True,
-                height=320,
-                column_config={
-                    "Số dòng POS": st.column_config.NumberColumn(format="%,d"),
-                    "CH-ngày có bán": st.column_config.NumberColumn(format="%,d"),
-                    "Sản lượng (nếu 1 ĐVT)": st.column_config.NumberColumn(format="%,.0f"),
-                    rev_label: st.column_config.NumberColumn(format="%,.2f"),
-                    mrg_label: st.column_config.NumberColumn(format="%,.2f"),
-                    "Biên LN gia quyền (%)": st.column_config.NumberColumn(format="%.2f%%"),
-                    "Biên LN TB theo dòng (%)": st.column_config.NumberColumn(format="%.2f%%"),
-                },
-            )
-            render_csv_download(disp_df, "hieu_suat_cua_hang.csv", key="p3_csv_stores")
+            with t_cl:
+                if map_df.empty or "city_cluster" not in map_df.columns:
+                    render_empty_state()
+                else:
+                    cl_df = map_df.copy()
+                    cl_agg = (
+                        cl_df.groupby(["city_cluster", "country_code"], as_index=False)
+                        .agg(
+                            store_count=("store_code", "nunique"),
+                            sold_qty=("sold_qty", "sum"),
+                            line_amount=("line_amount", "sum"),
+                            margin_amount=("margin_amount", "sum"),
+                            line_count=("line_count", "sum"),
+                        )
+                    )
+                    cl_val_col = "line_amount" if has_rev or show_eu_network else "sold_qty"
+                    cl_agg["_metric"] = pd.to_numeric(cl_agg[cl_val_col], errors="coerce").fillna(0.0)
+                    if cl_val_col == "line_amount":
+                        cl_agg["_metric"] = cl_agg["_metric"] * (currency_multiplier(eff_map_ccy, filters.display_vnd) if eff_map_ccy else 1.0)
+                    cl_agg["label"] = cl_agg.apply(lambda r: f"{r['city_cluster']} ({int(r['store_count'])} CH)", axis=1)
+                    cl_agg = cl_agg.sort_values("_metric", ascending=False).head(20)
+                    fig_cl = px.bar(
+                        cl_agg,
+                        x="_metric",
+                        y="label",
+                        orientation="h",
+                        text_auto=".3s",
+                        color_discrete_sequence=[palette.primary],
+                    )
+                    fig_cl.update_traces(textposition="outside")
+                    style_plotly(
+                        fig_cl,
+                        palette,
+                        height=370,
+                        show_legend=False,
+                        xaxis_title=f"Doanh thu ({currency_display_unit(eff_map_ccy, filters.display_vnd) or ''})" if cl_val_col == "line_amount" else "Sản lượng",
+                        yaxis_title="",
+                    )
+                    polish_horizontal_bar(fig_cl, cl_agg["label"].tolist(), float(cl_agg["_metric"].max() or 0.0))
+                    st.plotly_chart(fig_cl, width="stretch", theme=None, config=plotly_config())
 
-    with st.expander("Định nghĩa chỉ số & nguồn dữ liệu"):
-        st.markdown(
-            "- **Biến động cùng cửa hàng:** Chỉ xếp hạng các cửa hàng có phát sinh bán ở cả 2 kỳ so sánh (`Cả 2 kỳ`), tính trên toàn bộ cửa hàng hợp lệ trước khi cắt Top tăng/giảm để hiển thị.\n"
-            "- **Ma trận & Khuyến mãi ONYX EU (`SYNTHETIC`):** Chỉ nguồn ONYX Châu Âu ghi nhận giá vốn, lợi nhuận gộp (`margin_amount`) và cờ khuyến mãi (`has_promotion`). Tỷ trọng sản lượng có khuyến mãi là thống kê mô tả, không đo lường uplift hay hiệu quả ROI do thiếu nhóm đối chứng.\n"
-            "- **Biên lợi nhuận gia quyền:** `SUM(margin_amount) / SUM(line_amount)`; khác với trung bình cộng theo từng dòng mart (`SP × CH × Ngày`).\n"
-            "- **Giới hạn phạm vi Sales:** Dữ liệu tại đây không bao gồm tồn kho hiện hữu, hàng hết hạn hoặc điều chuyển giữa các cửa hàng."
-        )
+            with t_geo_promo:
+                render_scope_strip(eu_scope_text, kind="default" if is_onyx_selected else "warn")
+                g_left, g_right = st.columns([6.0, 6.0], gap="medium")
+                with g_left:
+                    render_chart_header(
+                        "Doanh Thu Theo Quốc Gia",
+                        info_tooltip="Tổng doanh thu thực bán theo từng quốc gia trong mạng lưới.",
+                    )
+                    c_sql, c_params = sql_eu_country_summary(schema, filters)
+                    c_df = db.run_query_df(c_sql, c_params)
+                    if c_df.empty:
+                        render_empty_state()
+                    else:
+                        c_df = c_df.copy()
+                        c_df["country_vi"] = c_df["country_code"].map(country_label)
+                        c_df["rev_disp"] = pd.to_numeric(c_df["line_amount"], errors="coerce") * mx_mult
+                        c_df = c_df.sort_values("rev_disp", ascending=False)
+                        fig_cbar = px.bar(c_df, x="country_vi", y="rev_disp", text_auto=".3s", color_discrete_sequence=[palette.primary])
+                        fig_cbar.update_traces(textposition="outside")
+                        style_plotly(fig_cbar, palette, height=320, show_legend=False, xaxis_title="Quốc gia", yaxis_title=f"Doanh thu ({mx_disp_ccy})")
+                        polish_vertical_bar_headroom(fig_cbar, float(c_df["rev_disp"].max()))
+                        st.plotly_chart(fig_cbar, width="stretch", theme=None, config=plotly_config())
+                with g_right:
+                    render_chart_header(
+                        "Tác Động Khuyến Mãi vs Giá Thường",
+                        info_tooltip="Đối chiếu tỷ trọng sản lượng, tỷ trọng doanh thu và biên lợi nhuận gộp giữa hàng bán có khuyến mãi và hàng bán đúng giá niêm yết.",
+                    )
+                    pr_sql, pr_params = sql_eu_promo_breakdown(schema, filters)
+                    pr_df = db.run_query_df(pr_sql, pr_params)
+                    if pr_df.empty:
+                        render_empty_state()
+                    else:
+                        tot_qty = float(pd.to_numeric(pr_df["sold_qty"], errors="coerce").fillna(0).sum())
+                        tot_rev = float(pd.to_numeric(pr_df["line_amount"], errors="coerce").fillna(0).sum())
+                        promo_rows: list[dict[str, object]] = []
+                        for _, pr in pr_df.iterrows():
+                            nhom = "Có khuyến mãi" if bool(pr.get("has_promotion")) else "Giá thường"
+                            sl_share = (float(pr.get("sold_qty") or 0) / tot_qty * 100.0) if tot_qty > 0 else 0.0
+                            dt_share = (float(pr.get("line_amount") or 0) / tot_rev * 100.0) if tot_rev > 0 else 0.0
+                            mrg_pct = float(pr.get("weighted_margin_pct") or 0.0)
+                            promo_rows.extend(
+                                [
+                                    {"Chỉ số": "Tỷ trọng SL (%)", "Nhóm": nhom, "Giá trị (%)": sl_share},
+                                    {"Chỉ số": "Tỷ trọng DT (%)", "Nhóm": nhom, "Giá trị (%)": dt_share},
+                                    {"Chỉ số": "Tỷ suất LN (%)", "Nhóm": nhom, "Giá trị (%)": mrg_pct},
+                                ]
+                            )
+                        promo_cmp_df = pd.DataFrame(promo_rows)
+                        fig_pr = px.bar(
+                            promo_cmp_df,
+                            x="Chỉ số",
+                            y="Giá trị (%)",
+                            color="Nhóm",
+                            barmode="group",
+                            text_auto=".1f",
+                            category_orders={
+                                "Chỉ số": ["Tỷ trọng SL (%)", "Tỷ trọng DT (%)", "Tỷ suất LN (%)"],
+                                "Nhóm": ["Có khuyến mãi", "Giá thường"],
+                            },
+                            color_discrete_sequence=[palette.accent, palette.primary],
+                        )
+                        fig_pr.update_traces(
+                            texttemplate="%{y:.1f}%",
+                            textposition="outside",
+                            hovertemplate="%{x} · %{fullData.name}: %{y:.2f}%<extra></extra>",
+                        )
+                        style_plotly(fig_pr, palette, height=320, xaxis_title="", yaxis_title="%")
+                        polish_vertical_bar_headroom(fig_pr, float(promo_cmp_df["Giá trị (%)"].max() or 100.0))
+                        fig_pr.update_yaxes(ticksuffix="%")
+                        st.plotly_chart(fig_pr, width="stretch", theme=None, config=plotly_config())
+
+            with t_brand:
+                render_scope_strip(eu_scope_text, kind="default" if is_onyx_selected else "warn")
+                bm_sql, bm_params = sql_eu_brand_margin_and_profit(schema, filters)
+                bm_df = db.run_query_df(bm_sql, bm_params)
+                if bm_df.empty:
+                    render_empty_state()
+                else:
+                    bm_plot = bm_df.copy()
+                    bm_plot["mrg_disp"] = pd.to_numeric(bm_plot["margin_amount"], errors="coerce") * mx_mult
+                    fig_bp = px.bar(bm_plot, x="brand_name", y="mrg_disp", text_auto=".3s", color_discrete_sequence=[palette.primary])
+                    fig_bp.update_traces(textposition="outside")
+                    style_plotly(fig_bp, palette, height=330, show_legend=False, xaxis_title="Thương hiệu", yaxis_title=f"Lợi nhuận ({mx_disp_ccy})")
+                    polish_vertical_bar_headroom(fig_bp, float(bm_plot["mrg_disp"].max()))
+                    fig_bp.update_xaxes(tickangle=-20)
+                    st.plotly_chart(fig_bp, width="stretch", theme=None, config=plotly_config())
+
+            with t_tbl:
+                store_search = st.text_input("Tìm nhanh mã, tên cửa hàng hoặc quốc gia", placeholder="Ví dụ: Munich, Berlin, ONYX:PH0120...", key="p3_store_search")
+                st_sql, st_params = sql_store_performance_table(schema, filters, search_text=store_search)
+                st_df = db.run_query_df(st_sql, st_params)
+                if st_df.empty:
+                    render_empty_state()
+                else:
+                    rev_label = f"Doanh thu ({disp_ccy})" if disp_ccy else "Doanh thu"
+                    mrg_label = f"Lợi nhuận ({disp_ccy})" if disp_ccy else "Lợi nhuận"
+                    disp_df = pd.DataFrame(
+                        {
+                            "Mã cửa hàng": st_df["store_code"],
+                            "Tên cửa hàng": st_df["store_name"],
+                            "Quốc gia": st_df["country_code"].map(country_label),
+                            "Lượt bán (dòng)": st_df["line_count"],
+                            "CH-ngày": st_df["active_store_days"],
+                            "Sản lượng (nếu 1 ĐVT)": pd.Series([None] * len(st_df)) if uom_guard.is_multi_uom_blocked else safe_round(st_df["sold_qty"], 0),
+                            rev_label: safe_round(pd.to_numeric(st_df["line_amount"], errors="coerce") * ccy_mult, 0 if to_vnd else 2),
+                            mrg_label: safe_round(pd.to_numeric(st_df["margin_amount"], errors="coerce") * ccy_mult, 0 if to_vnd else 2),
+                            "Tỷ suất LN (%)": safe_round(st_df["weighted_margin_pct"], 2),
+                        }
+                    )
+                    st.dataframe(disp_df, width="stretch", hide_index=True, height=300)
+                    render_csv_download(disp_df, "hieu_suat_cua_hang.csv", key="p3_csv_stores")
+
+    render_right_explanation_panel(
+        drawer_col,
+        page_key="p3",
+        page_title="Cụm CH & Bản Đồ",
+        glossary_items=[
+            ("Cụm cửa hàng (City Cluster)", "Gom các nhà thuốc nằm trong cùng thành phố (ví dụ Munich gồm 7 nhà thuốc) để Supply Chain đánh giá quy mô theo vùng thay vì nhìn rời rạc."),
+            ("Bản đồ đường phố (2D Phố / 3D Cột)", "Dùng tọa độ GPS từng cửa hàng trong `bi_sales_weather_enriched`; chế độ Cụm TP gom trung bình tọa độ và cộng dồn quy mô toàn cụm."),
+            ("Biến động cùng cửa hàng", "Chỉ xếp hạng cửa hàng phát sinh bán đồng thời ở cả 2 kỳ (`Cả 2 kỳ`), tính trên toàn bộ cửa hàng hợp lệ trước khi cắt Top."),
+            ("Cảnh báo vs Danh sách tham khảo", "Khi có cửa hàng vượt tiêu chí (DT ≥ trung vị & Tỷ suất LN < trung vị, hoặc giảm ≥ 15%), bảng hiển thị Cảnh báo kèm tổng số phát hiện. Khi bằng 0, chỉ hiển thị Top biên thấp để tham khảo."),
+            ("Ma trận nguồn độc lập (ONYX EU)", "Nguồn mô phỏng châu Âu (EUR) có giá vốn, `margin_amount` và cờ khuyến mãi; không bị trộn với dữ liệu không có giá gốc."),
+        ],
+    )
 
 
 render_page(get_current_filters())

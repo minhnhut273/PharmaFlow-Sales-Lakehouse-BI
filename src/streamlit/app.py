@@ -21,10 +21,10 @@ st.set_page_config(
 )
 
 pages = [
-    st.Page("pages/01_tong_quan.py", title="Tổng Quan", icon="📊", url_path="tong-quan", default=True),
-    st.Page("pages/02_thoi_tiet_dia_diem.py", title="Thời Tiết & Địa Điểm", icon="🌦️", url_path="thoi-tiet-dia-diem"),
-    st.Page("pages/03_cua_hang_loi_nhuan.py", title="Cửa Hàng & Lợi Nhuận", icon="🏥", url_path="cua-hang-loi-nhuan"),
-    st.Page("pages/04_san_pham_atc.py", title="Sản Phẩm & ATC", icon="💊", url_path="san-pham-atc"),
+    st.Page("pages/01_tong_quan.py", title="Cửa Hàng & Mặt Hàng", icon="🏪", url_path="tong-quan", default=True),
+    st.Page("pages/03_cua_hang_loi_nhuan.py", title="Cụm CH & Bản Đồ", icon="🗺️", url_path="cua-hang-loi-nhuan"),
+    st.Page("pages/02_thoi_tiet_dia_diem.py", title="Thời Tiết & Mùa Vụ", icon="🌦️", url_path="thoi-tiet-dia-diem"),
+    st.Page("pages/04_san_pham_atc.py", title="So Sánh Kỳ & Danh Mục", icon="⚡", url_path="san-pham-atc"),
 ]
 
 nav = st.navigation(pages, position="sidebar")

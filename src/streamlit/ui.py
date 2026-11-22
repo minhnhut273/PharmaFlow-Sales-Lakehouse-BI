@@ -3,11 +3,18 @@
 from __future__ import annotations
 
 import html
+import re
 from typing import Any, Sequence
 
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+
+try:
+    import pydeck as pdk
+except ImportError:  # pragma: no cover - optional fallback to MapLibre
+    pdk = None
 
 from config import (
     DEFAULT_PALETTE_KEY,
@@ -15,9 +22,16 @@ from config import (
     TRACK_META,
     ThemePalette,
     country_label,
+    currency_display_unit,
+    currency_multiplier,
+    fmt_compact,
+    fmt_currency,
+    fmt_int,
     provenance_label,
     temp_label,
+    time_grain_label,
     track_label,
+    vnd_rate_note,
 )
 
 
@@ -31,7 +45,7 @@ def inject_theme_css(palette: ThemePalette) -> None:
     st.markdown(
         f"""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
         :root {{
             --pf-primary: {palette.primary};
@@ -43,10 +57,13 @@ def inject_theme_css(palette: ThemePalette) -> None:
             --pf-card: {palette.card_bg};
             --pf-ink: {palette.ink};
             --pf-muted: {palette.muted};
+            --pf-font: {palette.font_family};
+            --pf-mono: {palette.mono_family};
         }}
 
         html, body, [class*="css"] {{
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: {palette.font_family};
+            -webkit-font-smoothing: antialiased;
         }}
 
         .stApp {{
@@ -79,9 +96,19 @@ def inject_theme_css(palette: ThemePalette) -> None:
             border: 1px solid #e4e9ef;
             border-left: 5px solid {palette.primary};
             border-radius: 12px;
-            padding: 16px 20px;
-            margin-bottom: 10px;
+            padding: 10px 16px;
+            margin-bottom: 8px;
             box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+        }}
+
+        .pf-sr-only {{
+            display: none !important;
+        }}
+
+        .pf-page-title-wrap {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }}
 
         .pf-page-title-row {{
@@ -178,39 +205,49 @@ def inject_theme_css(palette: ThemePalette) -> None:
             color: {palette.primary_dark};
         }}
 
-        .pf-insight-box {{
+        .pf-compact-insight {{
             background: {palette.card_bg};
-            border: 1px solid {palette.border};
-            border-left: 4px solid {palette.accent};
-            border-radius: 10px;
-            padding: 10px 16px;
-            margin-bottom: 12px;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+            border: 1px solid #e4e9ef;
+            border-radius: 8px;
+            padding: 5px 12px;
+            margin: 2px 0 8px 0;
+            font-size: 0.78rem;
+            color: {palette.muted};
         }}
 
-        .pf-insight-title {{
-            font-size: 0.85rem;
-            font-weight: 750;
-            color: {palette.ink};
-            margin-bottom: 4px;
+        .pf-compact-insight > summary {{
+            cursor: pointer;
+            font-weight: 600;
+            color: {palette.primary_dark};
+            list-style: none;
+            user-select: none;
+        }}
+
+        .pf-compact-insight > summary::-webkit-details-marker {{
+            display: none;
+        }}
+
+        .pf-compact-insight[open] {{
+            border-left: 3px solid {palette.accent};
+            padding: 8px 12px;
         }}
 
         .pf-insight-list {{
-            margin: 0;
+            margin: 6px 0 0 0;
             padding-left: 18px;
-            font-size: 0.82rem;
+            font-size: 0.8rem;
             color: {palette.ink};
-            line-height: 1.5;
+            line-height: 1.48;
         }}
 
         .pf-insight-note {{
-            margin-top: 5px;
-            font-size: 0.74rem;
+            margin-top: 4px;
+            font-size: 0.73rem;
             color: {palette.muted};
         }}
 
         .pf-scope-strip {{
-            font-size: 0.75rem;
+            font-size: 0.74rem;
             color: {palette.muted};
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -226,15 +263,102 @@ def inject_theme_css(palette: ThemePalette) -> None:
             color: #92400e;
         }}
 
+        .pf-kpi-right {{
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            flex-shrink: 0;
+        }}
+
+        .pf-info-badge {{
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 19px;
+            height: 19px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            font-style: normal;
+            background: {palette.soft_bg};
+            color: {palette.primary_dark};
+            border: 1px solid {palette.border};
+            cursor: help;
+            flex-shrink: 0;
+            transition: background-color 0.12s ease, color 0.12s ease;
+        }}
+
+        .pf-info-badge:hover {{
+            background: {palette.primary};
+            color: #ffffff;
+            border-color: {palette.primary};
+        }}
+
+        .pf-info-badge[data-tooltip]:hover::after {{
+            content: attr(data-tooltip);
+            position: absolute;
+            top: 132%;
+            right: 0;
+            z-index: 9999;
+            width: max-content;
+            max-width: 290px;
+            white-space: normal;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: #0f172a;
+            color: #f8fafc;
+            font-family: var(--pf-font);
+            font-size: 0.74rem;
+            font-weight: 500;
+            line-height: 1.42;
+            text-align: left;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25);
+            pointer-events: none;
+        }}
+
+        .pf-drawer-panel {{
+            background: {palette.card_bg};
+            border: 1px solid {palette.border};
+            border-top: 4px solid {palette.accent};
+            border-radius: 12px;
+            padding: 14px 16px;
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+        }}
+
+        .pf-drawer-heading {{
+            font-size: 0.96rem;
+            font-weight: 800;
+            color: {palette.ink};
+            margin-bottom: 6px;
+        }}
+
+        .pf-card-head-row {{
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+        }}
+
         .pf-kpi-card {{
             background: {palette.card_bg};
             border: 1px solid #e4e9ef;
             border-top: 3px solid {palette.primary};
             border-radius: 12px;
-            padding: 13px 15px 12px 15px;
+            padding: 11px 14px 10px 14px;
             box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
             height: 100%;
+            min-height: 92px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
             margin-bottom: 10px;
+            transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+        }}
+
+        .pf-kpi-card:hover {{
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07);
+            border-color: {palette.border};
         }}
 
         .pf-kpi-top {{
@@ -253,7 +377,8 @@ def inject_theme_css(palette: ThemePalette) -> None:
         }}
 
         .pf-kpi-tag {{
-            font-size: 0.69rem;
+            font-family: var(--pf-mono);
+            font-size: 0.68rem;
             font-weight: 700;
             padding: 2px 7px;
             border-radius: 6px;
@@ -267,6 +392,7 @@ def inject_theme_css(palette: ThemePalette) -> None:
             font-weight: 600;
             color: {palette.primary_dark};
             margin-bottom: 2px;
+            font-variant-numeric: tabular-nums;
         }}
 
         .pf-kpi-value {{
@@ -276,10 +402,11 @@ def inject_theme_css(palette: ThemePalette) -> None:
             color: {palette.ink};
             line-height: 1.18;
             margin: 3px 0 4px 0;
+            font-variant-numeric: tabular-nums;
         }}
 
         .pf-kpi-compare-box {{
-            margin-top: 8px;
+            margin-top: auto;
             padding-top: 7px;
             border-top: 1px dashed #dce4ec;
             display: flex;
@@ -292,6 +419,7 @@ def inject_theme_css(palette: ThemePalette) -> None:
             font-weight: 700;
             color: {palette.ink};
             line-height: 1.3;
+            font-variant-numeric: tabular-nums;
         }}
 
         .pf-kpi-delta {{
@@ -302,6 +430,7 @@ def inject_theme_css(palette: ThemePalette) -> None:
             padding: 2px 7px;
             border-radius: 6px;
             margin-bottom: 2px;
+            font-variant-numeric: tabular-nums;
         }}
 
         .pf-delta-pos {{
@@ -373,12 +502,32 @@ def inject_theme_css(palette: ThemePalette) -> None:
             margin-top: 3px;
         }}
 
-        /* Tabs styling */
+        /* Tabs, buttons & WCAG 2.2 AA focus styling */
         button[data-baseweb="tab"] {{
             font-weight: 600;
         }}
         button[data-baseweb="tab"][aria-selected="true"] {{
             color: {palette.primary} !important;
+        }}
+        div.stButton > button {{
+            border-radius: 8px;
+            border: 1px solid #dce4ec;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.32rem 0.62rem;
+            transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+        }}
+        div.stButton > button:hover {{
+            background-color: {palette.soft_bg};
+            border-color: {palette.primary};
+            color: {palette.primary_dark};
+        }}
+        button:focus-visible, input:focus-visible, [tabindex]:focus-visible {{
+            outline: 2px solid {palette.primary} !important;
+            outline-offset: 2px !important;
+        }}
+        [data-testid="stDataFrame"] {{
+            font-variant-numeric: tabular-nums;
         }}
         </style>
         """,
@@ -393,32 +542,37 @@ def render_page_header(
     dataset_track: str | None = None,
     extra_pills: Sequence[tuple[str, str]] = (),
 ) -> None:
-    """Render top sheet header with provenance & currency badges."""
-    pills_html: list[str] = []
+    """Render minimal 1-line sheet header with title + ⓘ tooltip icon, keeping dataset pills in .pf-sr-only."""
+    st.session_state["_page_scope_notes"] = []
+    hidden_pills: list[str] = []
     if dataset_track and dataset_track in TRACK_META:
         meta = TRACK_META[dataset_track]
-        prov_cls = "pf-pill-observed" if meta.provenance_class == "OBSERVED" else "pf-pill-synthetic"
-        pills_html.append(f'<span class="pf-pill {prov_cls}">{html.escape(provenance_label(meta.provenance_class))}</span>')
+        prov_txt = provenance_label(meta.provenance_class)
         ccy = meta.currency_code or "Không tiền tệ"
-        pills_html.append(f'<span class="pf-pill">Tiền tệ: {html.escape(ccy)}</span>')
-        pills_html.append(f'<span class="pf-pill">{html.escape(meta.short_vi)}</span>')
+        hidden_pills.extend([prov_txt, meta.short_vi, f"Tiền tệ: {ccy}"])
 
-    for text, kind in extra_pills:
-        cls = {
-            "observed": "pf-pill pf-pill-observed",
-            "synthetic": "pf-pill pf-pill-synthetic",
-            "warn": "pf-pill pf-pill-warn",
-        }.get(kind, "pf-pill")
-        pills_html.append(f'<span class="{cls}">{html.escape(text)}</span>')
+    for text, _kind in extra_pills:
+        hidden_pills.append(str(text))
+
+    info_badge = (
+        f'<span class="pf-info-badge" data-tooltip="{html.escape(subtitle)}" title="{html.escape(subtitle)}">ⓘ</span>'
+        if subtitle
+        else ""
+    )
+    sr_parts = [subtitle] if subtitle else []
+    sr_parts.extend(hidden_pills)
+    sr_html = f'<div class="pf-sr-only">{" | ".join(html.escape(p) for p in sr_parts)}</div>' if sr_parts else ""
 
     st.markdown(
         f"""
         <div class="pf-page-header">
           <div class="pf-page-title-row">
-            <h1 class="pf-page-title">{html.escape(title)}</h1>
-            <div class="pf-badge-row">{''.join(pills_html)}</div>
+            <div class="pf-page-title-wrap">
+              <h1 class="pf-page-title">{html.escape(title)}</h1>
+              {info_badge}
+            </div>
           </div>
-          <p class="pf-page-sub">{html.escape(subtitle)}</p>
+          {sr_html}
         </div>
         """,
         unsafe_allow_html=True,
@@ -431,51 +585,167 @@ def render_active_filter_bar(
     compare_window: Any = None,
     local_tags: Sequence[str] = (),
 ) -> None:
-    """Render concise active global & page-local filters bar for immediate scope transparency."""
-    chips: list[str] = []
-    chips.append(f"Nguồn: {track_label(filters.dataset_track)}")
+    """Render ultra-short active filter chips visually, keeping full scope metadata screen-reader-only."""
+    visible_chips: list[str] = []
+    hidden_chips: list[str] = [f"Nguồn: {track_label(filters.dataset_track)}"]
+
     if filters.date_start and filters.date_end:
-        chips.append(f"Ngày: {filters.date_start:%d/%m/%Y}–{filters.date_end:%d/%m/%Y}")
+        visible_chips.append(f"{filters.date_start:%d/%m/%y}–{filters.date_end:%d/%m/%y}")
+        hidden_chips.append(f"Ngày: {filters.date_start:%d/%m/%Y}–{filters.date_end:%d/%m/%Y}")
+    if getattr(filters, "time_grain", None):
+        hidden_chips.append(f"Độ mịn: {time_grain_label(filters.time_grain)}")
     if filters.countries:
-        ctry_txt = ", ".join(country_label(c) for c in filters.countries[:3])
-        if len(filters.countries) > 3:
-            ctry_txt += f" (+{len(filters.countries) - 3})"
-        chips.append(f"Quốc gia: {ctry_txt}")
+        ctry_txt = ", ".join(country_label(c) for c in filters.countries[:2])
+        if len(filters.countries) > 2:
+            ctry_txt += f" (+{len(filters.countries) - 2})"
+        visible_chips.append(ctry_txt)
+        hidden_chips.append(f"Quốc gia: {ctry_txt}")
+    if getattr(filters, "city_clusters", None):
+        cl_txt = ", ".join(filters.city_clusters[:2])
+        if len(filters.city_clusters) > 2:
+            cl_txt += f" (+{len(filters.city_clusters) - 2})"
+        visible_chips.append(f"Cụm: {cl_txt}")
     if filters.stores:
         st_txt = ", ".join(filters.stores[:2])
         if len(filters.stores) > 2:
             st_txt += f" (+{len(filters.stores) - 2})"
-        chips.append(f"Cửa hàng: {st_txt}")
+        visible_chips.append(st_txt)
     if filters.clean_uoms:
-        chips.append(f"ĐVT: {', '.join(filters.clean_uoms[:3])}{'...' if len(filters.clean_uoms) > 3 else ''}")
+        uom_txt = f"ĐVT: {', '.join(filters.clean_uoms[:2])}{'...' if len(filters.clean_uoms) > 2 else ''}"
+        visible_chips.append(uom_txt)
     else:
-        chips.append("ĐVT: Tất cả")
+        hidden_chips.append("ĐVT: Tất cả")
     if filters.temp_bands:
-        chips.append(f"Nhiệt độ: {', '.join(temp_label(t) for t in filters.temp_bands[:2])}{'...' if len(filters.temp_bands) > 2 else ''}")
+        t_txt = ", ".join(temp_label(t) for t in filters.temp_bands[:2])
+        visible_chips.append(t_txt)
+    meta = TRACK_META.get(filters.dataset_track or "")
+    if getattr(filters, "display_vnd", False) and meta and meta.currency_code:
+        visible_chips.append("VNĐ (₫)")
+        hidden_chips.append(f"Tiền tệ: VNĐ (₫ · {vnd_rate_note(meta.currency_code, True)})")
     if compare_window is not None and getattr(compare_window, "valid", False):
-        chips.append(f"So sánh: {compare_window.cur_label} vs {compare_window.prev_label}")
+        visible_chips.append(f"{compare_window.cur_label} vs {compare_window.prev_label}")
 
-    global_html = "".join(f'<span class="pf-filter-chip">{html.escape(c)}</span>' for c in chips)
+    global_html = "".join(f'<span class="pf-filter-chip">{html.escape(c)}</span>' for c in visible_chips)
     local_html = "".join(
         f'<span class="pf-filter-chip pf-filter-chip-local">{html.escape(c)}</span>'
         for c in local_tags
         if c
     )
+    sr_html = f'<span class="pf-sr-only">{" · ".join(html.escape(c) for c in hidden_chips)}</span>'
     st.markdown(
         f"""
         <div class="pf-filter-bar">
-          <span><b>Phạm vi đang lọc:</b></span>
           {global_html}
           {local_html}
+          {sr_html}
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
+def toggle_info_drawer() -> None:
+    st.session_state["ui_info_drawer_open"] = not bool(st.session_state.get("ui_info_drawer_open", False))
+
+
+def navigate_to_compare_page(default_mode: str | None = None) -> None:
+    if default_mode:
+        st.session_state["f_compare_mode"] = default_mode
+    st.session_state["p4_from_jump"] = True
+    try:
+        st.switch_page("pages/04_san_pham_atc.py")
+    except Exception:
+        pass
+
+
+def render_top_action_bar(
+    filters: Any,
+    *,
+    page_key: str,
+    compare_window: Any = None,
+    local_tags: Sequence[str] = (),
+    show_compare_jump: bool = True,
+) -> None:
+    """Render concise active filter strip alongside Compare Jump & Right-Side Explanation Drawer controls."""
+    col_bar, col_cmp, col_info = st.columns(
+        [7.8, 2.2, 2.0] if show_compare_jump else [9.8, 0.2, 2.0],
+        gap="small",
+    )
+    with col_bar:
+        render_active_filter_bar(filters, compare_window=compare_window, local_tags=local_tags)
+    if show_compare_jump:
+        with col_cmp:
+            if st.button(
+                "⚡ So sánh kỳ",
+                key=f"{page_key}_jump_compare",
+                width="stretch",
+                help="Mở trang So sánh Kỳ (Tuần vs Tuần, Tháng vs Tháng hoặc 2 khoảng ngày tự chọn)",
+            ):
+                navigate_to_compare_page()
+    with col_info:
+        is_open = bool(st.session_state.get("ui_info_drawer_open", False))
+        st.button(
+            "✕ Đóng" if is_open else "ⓘ Giải thích",
+            key=f"{page_key}_toggle_drawer",
+            width="stretch",
+            on_click=toggle_info_drawer,
+            help="Mở bảng giải thích công thức, tỷ giá quy đổi và ý nghĩa số liệu bên phải màn hình",
+        )
+
+
+def open_page_layout_columns() -> tuple[Any, Any | None]:
+    """Return (main_col, right_drawer_col_or_none) based on the user's Info Drawer toggle."""
+    if st.session_state.get("ui_info_drawer_open", False):
+        main_col, drawer_col = st.columns([8.5, 3.5], gap="medium")
+        return main_col, drawer_col
+    return st.container(), None
+
+
+def render_right_explanation_panel(
+    drawer_col: Any,
+    *,
+    page_key: str,
+    page_title: str,
+    glossary_items: Sequence[tuple[str, str]] = (),
+    extra_notes: Sequence[str] = (),
+) -> None:
+    """Render collapsible right-side drawer containing metric formulas and optional insights."""
+    if drawer_col is None:
+        return
+    saved_insights = st.session_state.get("_page_info_panel") or {}
+    scope_notes = st.session_state.get("_page_scope_notes") or []
+    with drawer_col:
+        with st.container(border=True):
+            h_col, c_col = st.columns([4, 1.3])
+            with h_col:
+                st.markdown(f"<div class='pf-drawer-heading'>ⓘ Giải thích · {html.escape(page_title)}</div>", unsafe_allow_html=True)
+            with c_col:
+                st.button("✕", key=f"{page_key}_close_drawer", on_click=toggle_info_drawer, width="stretch")
+
+            if glossary_items:
+                for term, desc in glossary_items:
+                    st.markdown(f"**{term}**  \n<span style='font-size:0.8rem;color:#475569'>{desc}</span>", unsafe_allow_html=True)
+
+            bullets = saved_insights.get("bullets") or []
+            if bullets:
+                st.divider()
+                st.markdown(f"**{saved_insights.get('title', 'Điểm dữ liệu tự động')}**")
+                for b in bullets:
+                    st.markdown(f"- {b}")
+
+            combined_notes = [*extra_notes, *[n for n in scope_notes if n not in extra_notes]]
+            if combined_notes:
+                st.divider()
+                for n in combined_notes:
+                    st.caption(n)
+
+
 def render_scope_strip(text: str, *, kind: str = "default") -> None:
-    cls = "pf-scope-strip pf-scope-strip-warn" if kind == "warn" else "pf-scope-strip"
-    st.markdown(f'<div class="{cls}">{html.escape(text)}</div>', unsafe_allow_html=True)
+    """Store scope provenance text for the Right Explanation Drawer without cluttering visual cards."""
+    notes = st.session_state.setdefault("_page_scope_notes", [])
+    if text and text not in notes:
+        notes.append(text)
+    st.markdown(f'<div class="pf-sr-only">{html.escape(text)}</div>', unsafe_allow_html=True)
 
 
 def _md_bold_to_html(text: str) -> str:
@@ -500,14 +770,20 @@ def _md_bold_to_html(text: str) -> str:
 
 
 def render_insight_box(title: str, bullets: Sequence[str], *, note: str | None = None) -> None:
+    """Keep visual canvas completely clean by routing insights to the Right Panel while retaining DOM text for accessibility/tests."""
     if not bullets and not note:
         return
+    st.session_state["_page_info_panel"] = {
+        "title": title,
+        "bullets": list(bullets),
+        "note": note,
+    }
     items = "".join(f"<li>{_md_bold_to_html(b)}</li>" for b in bullets if b)
     note_html = f'<div class="pf-insight-note">{html.escape(note)}</div>' if note else ""
     st.markdown(
         f"""
-        <div class="pf-insight-box">
-          <div class="pf-insight-title">{html.escape(title)}</div>
+        <div class="pf-sr-only">
+          <div>{html.escape(title)}</div>
           <ul class="pf-insight-list">{items}</ul>
           {note_html}
         </div>
@@ -519,7 +795,7 @@ def render_insight_box(title: str, bullets: Sequence[str], *, note: str | None =
 def render_kpi_card(
     title: str,
     value: str,
-    subtitle: str,
+    subtitle: str = "",
     *,
     tag: str | None = None,
     accent: str | None = None,
@@ -527,54 +803,77 @@ def render_kpi_card(
     delta_tone: str = "neutral",
     period_label: str | None = None,
     compare_label: str | None = None,
+    info_tooltip: str | None = None,
 ) -> None:
     palette = get_active_palette()
     border_color = accent or palette.primary
-    tag_html = f'<span class="pf-kpi-tag">{html.escape(tag)}</span>' if tag else ""
-    period_html = f'<div class="pf-kpi-period">{html.escape(period_label)}</div>' if period_label else ""
+
+    tooltip_parts = [
+        p
+        for p in (info_tooltip, period_label, compare_label, delta_text, subtitle)
+        if p and str(p).strip()
+    ]
+    full_tooltip = " · ".join(str(p).strip() for p in tooltip_parts)
+    info_html = (
+        f'<span class="pf-info-badge" data-tooltip="{html.escape(full_tooltip)}" title="{html.escape(full_tooltip)}">ⓘ</span>'
+        if full_tooltip
+        else ""
+    )
+
     delta_cls = {
         "pos": "pf-kpi-delta pf-delta-pos",
         "neg": "pf-kpi-delta pf-delta-neg",
         "warn": "pf-kpi-delta pf-delta-warn",
     }.get(delta_tone, "pf-kpi-delta pf-delta-neutral")
-    delta_html = f'<div class="{delta_cls}">{html.escape(delta_text)}</div>' if delta_text else ""
 
-    if compare_label or period_label:
-        cmp_val_html = f'<div class="pf-kpi-compare-val">{html.escape(compare_label)}</div>' if compare_label else ""
-        compare_section = f'<div class="pf-kpi-compare-box">{cmp_val_html}{delta_html}</div>' if (compare_label or delta_html) else ""
-        body_html = (
-            f"{period_html}"
-            f'<div class="pf-kpi-value">{html.escape(value)}</div>'
-            f'<div class="pf-kpi-sub">{html.escape(subtitle)}</div>'
-            f"{compare_section}"
-        )
+    if delta_text:
+        short_delta = re.sub(r"^So với [^:]+:\s*", "", delta_text).strip()
+        bottom_html = f'<div class="{delta_cls}">{html.escape(short_delta)}</div>'
+    elif subtitle:
+        bottom_html = f'<div class="pf-kpi-sub">{html.escape(subtitle)}</div>'
     else:
-        body_html = (
-            f'<div class="pf-kpi-value">{html.escape(value)}</div>'
-            f"{delta_html}"
-            f'<div class="pf-kpi-sub">{html.escape(subtitle)}</div>'
-        )
+        bottom_html = ""
+
+    sr_parts = [p for p in (period_label, compare_label, delta_text, subtitle, tag) if p]
+    sr_html = f'<div class="pf-sr-only">{" | ".join(html.escape(str(p)) for p in sr_parts)}</div>' if sr_parts else ""
 
     st.markdown(
         f"""
         <div class="pf-kpi-card" style="border-top-color: {html.escape(border_color)};">
           <div class="pf-kpi-top">
             <span class="pf-kpi-title">{html.escape(title)}</span>
-            {tag_html}
+            {info_html}
           </div>
-          {body_html}
+          <div class="pf-kpi-value">{html.escape(value)}</div>
+          {bottom_html}
+          {sr_html}
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
-def render_chart_header(title: str, subtitle: str) -> None:
+def render_chart_header(
+    title: str,
+    subtitle: str = "",
+    *,
+    info_tooltip: str | None = None,
+) -> None:
+    merged_tooltip = " · ".join(str(x).strip() for x in (info_tooltip, subtitle) if x and str(x).strip())
+    info_html = (
+        f'<span class="pf-info-badge" data-tooltip="{html.escape(merged_tooltip)}" title="{html.escape(merged_tooltip)}">ⓘ</span>'
+        if merged_tooltip
+        else ""
+    )
+    sr_html = f'<span class="pf-sr-only">{html.escape(subtitle)}</span>' if subtitle else ""
     st.markdown(
         f"""
         <div class="pf-card-head">
-          <div class="pf-card-title">{html.escape(title)}</div>
-          <div class="pf-card-sub">{html.escape(subtitle)}</div>
+          <div class="pf-card-head-row">
+            <div class="pf-card-title">{html.escape(title)}</div>
+            {info_html}
+          </div>
+          {sr_html}
         </div>
         """,
         unsafe_allow_html=True,
@@ -596,7 +895,7 @@ def style_plotly(
         height=height,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter, Segoe UI, sans-serif", size=12, color=palette.ink),
+        font=dict(family=palette.font_family, size=12, color=palette.ink),
         margin=margin or dict(l=14, r=14, t=18, b=16),
         showlegend=show_legend,
         legend=dict(
@@ -610,7 +909,7 @@ def style_plotly(
         hoverlabel=dict(
             bgcolor="#ffffff",
             bordercolor=palette.border,
-            font=dict(family="Inter, Segoe UI, sans-serif", size=12, color=palette.ink),
+            font=dict(family=palette.font_family, size=12, color=palette.ink),
         ),
     )
     fig.update_xaxes(
@@ -699,3 +998,242 @@ def polish_diverging_bar(
     cur_margin["r"] = max(int(cur_margin.get("r") or 14), right_margin)
     fig.update_layout(margin=cur_margin)
     return fig
+
+
+def render_street_map(
+    df: pd.DataFrame,
+    *,
+    mode: str = "store",
+    map_engine: str = "maplibre",
+    size_col: str = "line_amount",
+    color_col: str = "weighted_margin_pct",
+    tile_style: str = "carto-voyager",
+    palette: ThemePalette,
+    ccy_label: str | None = "EUR",
+    to_vnd: bool = False,
+    height: int = 440,
+) -> None:
+    """Render an interactive street-tile map (MapLibre / Google-style 2D or PyDeck 3D) over stores or city clusters."""
+    if df is None or df.empty:
+        render_empty_state("Không có tọa độ cửa hàng để hiển thị trên bản đồ.")
+        return
+
+    work = df.copy()
+    work["map_lat"] = pd.to_numeric(work["map_lat"], errors="coerce")
+    work["map_lon"] = pd.to_numeric(work["map_lon"], errors="coerce")
+    work = work.dropna(subset=["map_lat", "map_lon"])
+    if work.empty:
+        render_empty_state("Không có tọa độ GPS hợp lệ.")
+        return
+
+    mult = currency_multiplier(ccy_label, to_vnd=to_vnd)
+    disp_ccy = currency_display_unit(ccy_label, to_vnd=to_vnd) or ""
+
+    if mode == "cluster":
+        grp_cols = [c for c in ("city_cluster", "country_code") if c in work.columns]
+        if not grp_cols:
+            grp_cols = ["store_name"]
+        agg_rows: list[dict[str, Any]] = []
+        for keys, g in work.groupby(grp_cols, dropna=False):
+            key_tuple = keys if isinstance(keys, tuple) else (keys,)
+            cl_name = str(key_tuple[0] or "Chưa rõ")
+            ctry = str(key_tuple[1]) if len(key_tuple) > 1 else ""
+            rev_sum = float(pd.to_numeric(g.get("line_amount"), errors="coerce").fillna(0.0).sum()) if "line_amount" in g else 0.0
+            mrg_sum = float(pd.to_numeric(g.get("margin_amount"), errors="coerce").fillna(0.0).sum()) if "margin_amount" in g else 0.0
+            qty_sum = float(pd.to_numeric(g.get("sold_qty"), errors="coerce").fillna(0.0).sum()) if "sold_qty" in g else 0.0
+            line_sum = int(pd.to_numeric(g.get("line_count"), errors="coerce").fillna(0).sum()) if "line_count" in g else 0
+            sd_sum = int(pd.to_numeric(g.get("active_store_days"), errors="coerce").fillna(0).sum()) if "active_store_days" in g else 0
+            wmrg = (mrg_sum / rev_sum * 100.0) if (rev_sum > 0 and "margin_amount" in g and pd.to_numeric(g["margin_amount"], errors="coerce").notna().any()) else None
+            agg_rows.append(
+                {
+                    "display_name": f"{cl_name} ({len(g)} CH)",
+                    "city_cluster": cl_name,
+                    "country_code": ctry,
+                    "store_count": len(g),
+                    "map_lat": float(g["map_lat"].mean()),
+                    "map_lon": float(g["map_lon"].mean()),
+                    "sold_qty": qty_sum,
+                    "line_amount": rev_sum * mult if ("line_amount" in g and pd.to_numeric(g["line_amount"], errors="coerce").notna().any()) else None,
+                    "margin_amount": mrg_sum * mult if ("margin_amount" in g and pd.to_numeric(g["margin_amount"], errors="coerce").notna().any()) else None,
+                    "weighted_margin_pct": wmrg,
+                    "line_count": line_sum,
+                    "active_store_days": sd_sum,
+                    "avg_temp_mean": float(pd.to_numeric(g["avg_temp_mean"], errors="coerce").mean()) if "avg_temp_mean" in g else None,
+                    "avg_precip_sum": float(pd.to_numeric(g["avg_precip_sum"], errors="coerce").mean()) if "avg_precip_sum" in g else None,
+                }
+            )
+        plot_df = pd.DataFrame(agg_rows)
+    else:
+        plot_df = work.copy()
+        plot_df["display_name"] = plot_df["store_name"].astype(str)
+        plot_df["store_count"] = 1
+        if "line_amount" in plot_df.columns:
+            plot_df["line_amount"] = pd.to_numeric(plot_df["line_amount"], errors="coerce") * mult
+        if "margin_amount" in plot_df.columns:
+            plot_df["margin_amount"] = pd.to_numeric(plot_df["margin_amount"], errors="coerce") * mult
+
+    size_series = pd.to_numeric(plot_df.get(size_col), errors="coerce").fillna(0.0).clip(lower=0.0)
+    if float(size_series.max()) <= 0:
+        size_series = pd.to_numeric(plot_df.get("sold_qty"), errors="coerce").fillna(1.0).clip(lower=1.0)
+    plot_df["_size_val"] = size_series
+
+    if color_col in plot_df.columns and pd.to_numeric(plot_df[color_col], errors="coerce").notna().any():
+        plot_df["_color_val"] = pd.to_numeric(plot_df[color_col], errors="coerce")
+        actual_color_col = "_color_val"
+    else:
+        plot_df["_color_val"] = plot_df["_size_val"]
+        actual_color_col = "_color_val"
+
+    lat_span = float(plot_df["map_lat"].max() - plot_df["map_lat"].min())
+    lon_span = float(plot_df["map_lon"].max() - plot_df["map_lon"].min())
+    max_span = max(lat_span, lon_span)
+    if len(plot_df) == 1 or max_span < 0.08:
+        zoom = 11.2
+    elif max_span < 0.45:
+        zoom = 8.8
+    elif max_span < 3.0:
+        zoom = 6.2
+    elif max_span < 10.0:
+        zoom = 4.6
+    else:
+        zoom = 3.8
+    center_lat = float(plot_df["map_lat"].mean())
+    center_lon = float(plot_df["map_lon"].mean())
+
+    plot_df["rev_fmt"] = [
+        f"{fmt_compact(v)} {disp_ccy}".strip() if pd.notna(v) else "—"
+        for v in plot_df.get("line_amount", pd.Series([None] * len(plot_df)))
+    ]
+    plot_df["qty_fmt"] = [fmt_compact(v, decimals=0) if pd.notna(v) else "—" for v in plot_df.get("sold_qty", pd.Series([None] * len(plot_df)))]
+    plot_df["mrg_fmt"] = [f"{float(v):.2f}%" if pd.notna(v) else "—" for v in plot_df.get("weighted_margin_pct", pd.Series([None] * len(plot_df)))]
+    plot_df["temp_fmt"] = [f"{float(v):.1f} °C" if pd.notna(v) else "—" for v in plot_df.get("avg_temp_mean", pd.Series([None] * len(plot_df)))]
+    plot_df["rain_fmt"] = [f"{float(v):.2f} mm" if pd.notna(v) else "—" for v in plot_df.get("avg_precip_sum", pd.Series([None] * len(plot_df)))]
+    plot_df["country_vi"] = plot_df["country_code"].map(country_label) if "country_code" in plot_df.columns else ""
+
+    if map_engine == "pydeck" and pdk is not None:
+        max_s = max(float(plot_df["_size_val"].max()), 1.0)
+        plot_df["_elev"] = (plot_df["_size_val"] / max_s) * (120_000.0 if zoom < 7 else 8_000.0)
+        plot_df["_radius"] = 22_000 if zoom < 5.5 else (6_000 if zoom < 8.5 else 700)
+
+        min_c = float(plot_df["_color_val"].min()) if plot_df["_color_val"].notna().any() else 0.0
+        max_c = float(plot_df["_color_val"].max()) if plot_df["_color_val"].notna().any() else 1.0
+        span_c = max(max_c - min_c, 1e-6)
+        r_vals, g_vals, b_vals = [], [], []
+        for cv in plot_df["_color_val"].fillna(min_c):
+            t = max(0.0, min(1.0, (float(cv) - min_c) / span_c))
+            # Smooth emerald-to-blue gradient
+            r_vals.append(int(217 * (1.0 - t) + 8 * t))
+            g_vals.append(int(119 * (1.0 - t) + 123 * t))
+            b_vals.append(int(6 * (1.0 - t) + 113 * t))
+        plot_df["_r"] = r_vals
+        plot_df["_g"] = g_vals
+        plot_df["_b"] = b_vals
+
+        pdk_cols = [
+            "display_name",
+            "country_vi",
+            "map_lat",
+            "map_lon",
+            "_elev",
+            "_radius",
+            "_r",
+            "_g",
+            "_b",
+            "rev_fmt",
+            "qty_fmt",
+            "mrg_fmt",
+            "temp_fmt",
+            "rain_fmt",
+        ]
+        pdk_data = plot_df[pdk_cols].to_dict(orient="records")
+        col_radius = max(180, int(plot_df["_radius"].iloc[0] * 0.5))
+
+        deck = pdk.Deck(
+            map_style="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
+            initial_view_state=pdk.ViewState(
+                latitude=center_lat,
+                longitude=center_lon,
+                zoom=zoom,
+                pitch=38,
+                bearing=8,
+            ),
+            layers=[
+                pdk.Layer(
+                    "ScatterplotLayer",
+                    data=pdk_data,
+                    get_position=["map_lon", "map_lat"],
+                    get_radius="_radius",
+                    get_fill_color=["_r", "_g", "_b", 135],
+                    pickable=True,
+                ),
+                pdk.Layer(
+                    "ColumnLayer",
+                    data=pdk_data,
+                    get_position=["map_lon", "map_lat"],
+                    get_elevation="_elev",
+                    elevation_scale=1,
+                    radius=col_radius,
+                    get_fill_color=["_r", "_g", "_b", 220],
+                    pickable=True,
+                    auto_highlight=True,
+                ),
+            ],
+            tooltip={
+                "html": (
+                    "<b>{display_name}</b> ({country_vi})<br/>"
+                    "Doanh thu: {rev_fmt}<br/>"
+                    "Sản lượng: {qty_fmt}<br/>"
+                    "Tỷ suất LN: {mrg_fmt}<br/>"
+                    "Nhiệt độ TB: {temp_fmt} · Mưa TB: {rain_fmt}"
+                ),
+                "style": {
+                    "backgroundColor": "#0f172a",
+                    "color": "#f8fafc",
+                    "fontSize": "12px",
+                    "padding": "8px 10px",
+                    "borderRadius": "8px",
+                },
+            },
+        )
+        st.pydeck_chart(deck, width="stretch", height=height)
+        return
+
+    color_title_map = {
+        "weighted_margin_pct": "Tỷ suất LN (%)",
+        "avg_temp_mean": "Nhiệt độ TB (°C)",
+        "avg_precip_sum": "Lượng mưa TB (mm)",
+        "line_amount": f"Doanh thu ({disp_ccy})" if disp_ccy else "Doanh thu",
+        "sold_qty": "Sản lượng",
+    }
+    fig_map = px.scatter_map(
+        plot_df,
+        lat="map_lat",
+        lon="map_lon",
+        size="_size_val",
+        color=actual_color_col,
+        hover_name="display_name",
+        custom_data=["country_vi", "rev_fmt", "qty_fmt", "mrg_fmt", "temp_fmt", "rain_fmt", "store_count"],
+        color_continuous_scale=list(palette.continuous_scale),
+        size_max=28 if mode == "cluster" else 20,
+        zoom=zoom,
+        center=dict(lat=center_lat, lon=center_lon),
+        map_style=tile_style,
+    )
+    fig_map.update_traces(
+        hovertemplate=(
+            "<b>%{hovertext}</b> (%{customdata[0]})<br>"
+            "Số cửa hàng: %{customdata[6]}<br>"
+            "Doanh thu: %{customdata[1]}<br>"
+            "Sản lượng: %{customdata[2]}<br>"
+            "Tỷ suất LN: %{customdata[3]}<br>"
+            "Nhiệt độ TB: %{customdata[4]} · Mưa TB: %{customdata[5]}<extra></extra>"
+        )
+    )
+    fig_map.update_coloraxes(colorbar_title_text=color_title_map.get(color_col, "Giá trị"))
+    fig_map.update_layout(
+        height=height,
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(family=palette.font_family, size=12, color=palette.ink),
+    )
+    st.plotly_chart(fig_map, width="stretch", theme=None, config={"displayModeBar": True, "scrollZoom": True, "responsive": True})

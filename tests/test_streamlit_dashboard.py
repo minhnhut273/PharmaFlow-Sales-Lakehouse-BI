@@ -184,6 +184,10 @@ def test_no_query_exposes_non_additive_order_count() -> None:
         queries.sql_atc_month_heatmap("quick_gold_md01", f)[0],
         queries.sql_irpd_top_manufacturers("quick_gold_md01", f)[0],
         queries.sql_atc_category_ranking("quick_gold_md01", f)[0],
+        queries.sql_store_product_mix("quick_gold_md01", f, cur_start=d0, cur_end=d1, prev_start=d0, prev_end=d1)[0],
+        queries.sql_time_series_by_grain("quick_gold_md01", f, grain="week")[0],
+        queries.sql_time_series_by_grain("quick_gold_md01", f, grain="day", products=("PainLess Throat Spray",))[0],
+        queries.sql_store_map_points("quick_gold_md01", f)[0],
     ]
     for sql in built_sqls:
         low = sql.lower()
@@ -262,27 +266,37 @@ def test_reset_all_filters_clears_global_and_page_local_state(monkeypatch: pytes
     fake_state = {
         "f_track": "IRPD_ID_OBSERVED",
         "f_countries": ["ID"],
+        "f_city_clusters": ["K24 Jakarta"],
         "f_stores": ["Some Store"],
         "f_uoms": ["tab"],
         "f_temp_bands": ["5. Hot (>=30C)"],
+        "f_time_grain": "week",
+        "f_display_vnd": True,
         "f_compare_mode": "half_split",
         "f_date_range": (dt.date(2024, 1, 1), dt.date(2024, 6, 30)),
+        "p1_selected_products": ["PainLess Throat Spray"],
         "p2_rain_regimes": ["4. Heavy (>20 mm)"],
         "p2_humidity_bands": ["3. High (>80%)"],
         "p2_cell_temp": "5. Hot (>=30C)",
         "p2_cell_rain": "4. Heavy (>20 mm)",
         "p3_store_search": "Berlin",
+        "p3_map_mode": "cluster",
         "p4_product_search": "AntiBioX",
         "p4_atc_apply_date": True,
+        "p4_compare_mode": "custom",
     }
     monkeypatch.setattr(filter_comp.st, "session_state", fake_state)
     filter_comp.reset_all_filters()
 
     assert fake_state["f_track"] == config.DEFAULT_TRACK
     assert fake_state["f_countries"] == []
+    assert fake_state["f_city_clusters"] == []
     assert fake_state["f_stores"] == []
     assert fake_state["f_uoms"] == []
     assert fake_state["f_temp_bands"] == []
+    assert fake_state["f_time_grain"] == "month"
+    assert fake_state["f_display_vnd"] is False
+    assert "p1_selected_products" not in fake_state
     assert "p2_rain_regimes" not in fake_state
     assert "p2_humidity_bands" not in fake_state
     assert "p2_cell_temp" not in fake_state
@@ -349,10 +363,12 @@ def test_irpd_single_uom_unlocks_quantity_and_unit_price(monkeypatch: pytest.Mon
 # ---------------------------------------------------------------------------
 
 def test_palettes_and_three_state_formatters() -> None:
-    assert {"pharmaflow", "aws_quick", "ocean", "warm"}.issubset(config.PALETTES.keys())
+    assert {"pharmaflow", "aws_quick", "ocean", "warm", "ant", "shadcn", "clean"}.issubset(config.PALETTES.keys())
     for k, pal in config.PALETTES.items():
         assert pal.primary.startswith("#")
         assert len(set(pal.discrete[:4])) == 4, k
+        assert pal.font_family
+        assert pal.mono_family
 
     assert "$" not in config.fmt_currency(8_619_407.63, "EUR")
     assert config.fmt_metric_state(0.0, supported=True, has_rows=True) == "0"
@@ -370,7 +386,7 @@ import numpy as np  # noqa: E402
 _EXPECTED_MOCK_COLUMNS: dict[str, tuple[str, ...]] = {
     "release_state": ("product_domain", "release_id", "status", "sync_mode", "synced_at_utc", "table_counts_json"),
     "available_tracks": ("dataset_track", "currency_code", "provenance_class", "row_count"),
-    "filter_options": ("min_date", "max_date", "countries", "uoms", "stores"),
+    "filter_options": ("min_date", "max_date", "countries", "uoms", "clusters", "stores"),
     "exec_kpis": (
         "total_revenue", "total_sold_qty", "total_line_count", "active_store_days",
         "active_stores", "distinct_uoms", "total_margin", "weighted_margin_pct",
@@ -409,6 +425,9 @@ _EXPECTED_MOCK_COLUMNS: dict[str, tuple[str, ...]] = {
     "atc_month_heatmap": ("month_num", "category_code", "category_name", "total_observed_qty"),
     "irpd_top_manufacturers": ("manufacturer_name", "line_amount", "sold_qty", "line_count", "active_store_days"),
     "atc_category_ranking": ("category_code", "category_name", "total_observed_qty", "avg_daily_qty", "observation_count"),
+    "store_product_mix": ("product_name", "clean_uom", "brand_name", "sold_qty", "line_amount", "margin_amount", "line_count", "active_store_days", "weighted_margin_pct", "weighted_unit_price", "cur_qty", "prev_qty", "cur_rev", "prev_rev"),
+    "time_series_by_grain": ("period_date", "series_name", "clean_uom", "sold_qty", "line_amount", "margin_amount", "line_count", "active_store_days", "avg_temp_mean", "avg_apparent_temp_mean", "avg_precip_sum", "avg_humidity_mean"),
+    "store_map_points": ("store_code", "store_name", "city_cluster", "country_code", "dataset_track", "provenance_class", "currency_code", "map_lat", "map_lon", "sold_qty", "line_amount", "margin_amount", "weighted_margin_pct", "line_count", "active_store_days", "avg_temp_mean", "avg_precip_sum"),
 }
 
 
@@ -439,6 +458,12 @@ def _classify_sql(sql: str) -> str:
             return "dim_variance_country"
         if "as product_name" in norm and "as clean_uom" in norm:
             return "dim_variance_product"
+    if "as weighted_unit_price" in norm and "as cur_qty" in norm and "as cur_weighted_margin_pct" not in norm:
+        return "store_product_mix"
+    if "as period_date" in norm and "as series_name" in norm:
+        return "time_series_by_grain"
+    if "as map_lat" in norm and "as city_cluster" in norm:
+        return "store_map_points"
     if "as distinct_uom_count" in norm:
         return "track_currency_summary"
     if "as rainy_store_days" in norm:
@@ -532,6 +557,7 @@ def _mock_query_df(sql: str, params: tuple = (), *, track_mode: str = "onyx") ->
                     "max_date": dt.date(2025, 12, 31),
                     "countries": ["ID"],
                     "uoms": ["tab", "pcs", "fls"],
+                    "clusters": ["K24 Jakarta"],
                     "stores": ["K24 Jakarta"],
                 }]
             ))
@@ -542,6 +568,7 @@ def _mock_query_df(sql: str, params: tuple = (), *, track_mode: str = "onyx") ->
                     "max_date": dt.date(2019, 10, 8),
                     "countries": ["RS"],
                     "uoms": ["ATC_DEFINED_DAILY_DOSE_X10"],
+                    "clusters": ["Belgrade Central Pharmacy"],
                     "stores": ["Belgrade Central Pharmacy"],
                 }]
             ))
@@ -551,6 +578,7 @@ def _mock_query_df(sql: str, params: tuple = (), *, track_mode: str = "onyx") ->
                 "max_date": dt.date(2025, 12, 31),
                 "countries": ["DE", "FR", "IT"],
                 "uoms": ["ONYX_UNIT"],
+                "clusters": ["Berlin", "Paris"],
                 "stores": ["Berlin HealthPoint #014", "Paris HealthPoint #013"],
             }]
         ))
@@ -843,6 +871,186 @@ def _mock_query_df(sql: str, params: tuple = (), *, track_mode: str = "onyx") ->
         return _finish(pd.DataFrame(
             [{"category_code": "N02BE", "category_name": "Anilides", "total_observed_qty": 63005.4, "avg_daily_qty": 30.01, "observation_count": 2106}]
         ))
+    if kind == "store_product_mix":
+        uom = "tab" if track_mode == "irpd" else ("ATC_DEFINED_DAILY_DOSE_X10" if track_mode == "serbia" else "ONYX_UNIT")
+        has_rev = track_mode != "serbia"
+        has_mrg = track_mode == "onyx"
+        return _finish(pd.DataFrame(
+            [
+                {
+                    "product_name": "PainLess Throat Spray",
+                    "clean_uom": uom,
+                    "brand_name": "PainLess" if track_mode == "onyx" else "Chưa xác định",
+                    "sold_qty": 12000.0,
+                    "line_amount": 240000.0 if has_rev else None,
+                    "margin_amount": 69600.0 if has_mrg else None,
+                    "line_count": 1500,
+                    "active_store_days": 520,
+                    "weighted_margin_pct": 29.0 if has_mrg else None,
+                    "weighted_unit_price": 20.0 if has_rev else None,
+                    "cur_qty": 1100.0,
+                    "prev_qty": 1000.0,
+                    "cur_rev": 22000.0 if has_rev else None,
+                    "prev_rev": 20000.0 if has_rev else None,
+                },
+                {
+                    "product_name": "AntiBioX 10 mg",
+                    "clean_uom": uom,
+                    "brand_name": "Medica" if track_mode == "onyx" else "Chưa xác định",
+                    "sold_qty": 9500.0,
+                    "line_amount": 180000.0 if has_rev else None,
+                    "margin_amount": 48600.0 if has_mrg else None,
+                    "line_count": 1200,
+                    "active_store_days": 460,
+                    "weighted_margin_pct": 27.0 if has_mrg else None,
+                    "weighted_unit_price": 18.95 if has_rev else None,
+                    "cur_qty": 820.0,
+                    "prev_qty": 900.0,
+                    "cur_rev": 15500.0 if has_rev else None,
+                    "prev_rev": 17000.0 if has_rev else None,
+                },
+            ]
+        ))
+    if kind == "time_series_by_grain":
+        uom = "tab" if track_mode == "irpd" else ("ATC_DEFINED_DAILY_DOSE_X10" if track_mode == "serbia" else "ONYX_UNIT")
+        has_rev = track_mode != "serbia"
+        has_mrg = track_mode == "onyx"
+        is_multi_prod = "trim(product_name)" in sql.lower()
+        rows = [
+            {
+                "period_date": dt.date(2024, 1, 1),
+                "series_name": "PainLess Throat Spray" if is_multi_prod else "Toàn bộ danh mục",
+                "clean_uom": uom,
+                "sold_qty": 9000.0,
+                "line_amount": 180000.0 if has_rev else None,
+                "margin_amount": 50400.0 if has_mrg else None,
+                "line_count": 1100,
+                "active_store_days": 420,
+                "avg_temp_mean": 8.5,
+                "avg_apparent_temp_mean": 7.1,
+                "avg_precip_sum": 2.4,
+                "avg_humidity_mean": 76.0,
+            },
+            {
+                "period_date": dt.date(2024, 2, 1),
+                "series_name": "PainLess Throat Spray" if is_multi_prod else "Toàn bộ danh mục",
+                "clean_uom": uom,
+                "sold_qty": 9600.0,
+                "line_amount": 192000.0 if has_rev else None,
+                "margin_amount": 53760.0 if has_mrg else None,
+                "line_count": 1150,
+                "active_store_days": 435,
+                "avg_temp_mean": 10.2,
+                "avg_apparent_temp_mean": 9.0,
+                "avg_precip_sum": 1.8,
+                "avg_humidity_mean": 72.5,
+            },
+        ]
+        if is_multi_prod:
+            rows.append(
+                {
+                    "period_date": dt.date(2024, 1, 1),
+                    "series_name": "AntiBioX 10 mg",
+                    "clean_uom": uom,
+                    "sold_qty": 5400.0,
+                    "line_amount": 102000.0 if has_rev else None,
+                    "margin_amount": 27540.0 if has_mrg else None,
+                    "line_count": 680,
+                    "active_store_days": 300,
+                    "avg_temp_mean": 8.5,
+                    "avg_apparent_temp_mean": 7.1,
+                    "avg_precip_sum": 2.4,
+                    "avg_humidity_mean": 76.0,
+                }
+            )
+        return _finish(pd.DataFrame(rows))
+    if kind == "store_map_points":
+        if track_mode == "irpd":
+            return _finish(pd.DataFrame(
+                [{
+                    "store_code": "IRPD:ID_JAVA",
+                    "store_name": "Apotek Simulasi IRPD - Jawa Tengah",
+                    "city_cluster": "Apotek Simulasi IRPD - Jawa Tengah",
+                    "country_code": "ID",
+                    "dataset_track": "IRPD_ID_OBSERVED",
+                    "provenance_class": "OBSERVED",
+                    "currency_code": "IDR",
+                    "map_lat": -7.15,
+                    "map_lon": 110.14,
+                    "sold_qty": 4638081.0,
+                    "line_amount": 12599183524.0,
+                    "margin_amount": None,
+                    "weighted_margin_pct": None,
+                    "line_count": 627389,
+                    "active_store_days": 1088,
+                    "avg_temp_mean": 27.4,
+                    "avg_precip_sum": 5.2,
+                }]
+            ))
+        if track_mode == "serbia":
+            return _finish(pd.DataFrame(
+                [{
+                    "store_code": "RS:01",
+                    "store_name": "Belgrade Central Pharmacy",
+                    "city_cluster": "Belgrade Central Pharmacy",
+                    "country_code": "RS",
+                    "dataset_track": "SERBIA_RS_SYNTHETIC",
+                    "provenance_class": "SYNTHETIC",
+                    "currency_code": None,
+                    "map_lat": 44.82,
+                    "map_lon": 20.46,
+                    "sold_qty": 1275900.0,
+                    "line_amount": None,
+                    "margin_amount": None,
+                    "weighted_margin_pct": None,
+                    "line_count": 25534,
+                    "active_store_days": 2080,
+                    "avg_temp_mean": 13.1,
+                    "avg_precip_sum": 1.9,
+                }]
+            ))
+        return _finish(pd.DataFrame(
+            [
+                {
+                    "store_code": "ONYX:PH0014",
+                    "store_name": "Berlin HealthPoint #014",
+                    "city_cluster": "Berlin",
+                    "country_code": "DE",
+                    "dataset_track": "ONYX_EU_SYNTHETIC",
+                    "provenance_class": "SYNTHETIC",
+                    "currency_code": "EUR",
+                    "map_lat": 52.52,
+                    "map_lon": 13.405,
+                    "sold_qty": 5100.0,
+                    "line_amount": 95100.0,
+                    "margin_amount": 27674.1,
+                    "weighted_margin_pct": 29.10,
+                    "line_count": 720,
+                    "active_store_days": 720,
+                    "avg_temp_mean": 11.4,
+                    "avg_precip_sum": 2.1,
+                },
+                {
+                    "store_code": "ONYX:PH0120",
+                    "store_name": "Naples HealthPoint #120",
+                    "city_cluster": "Naples",
+                    "country_code": "IT",
+                    "dataset_track": "ONYX_EU_SYNTHETIC",
+                    "provenance_class": "SYNTHETIC",
+                    "currency_code": "EUR",
+                    "map_lat": 40.85,
+                    "map_lon": 14.27,
+                    "sold_qty": 4592.0,
+                    "line_amount": 83794.15,
+                    "margin_amount": 23557.29,
+                    "weighted_margin_pct": 28.11,
+                    "line_count": 659,
+                    "active_store_days": 659,
+                    "avg_temp_mean": 17.8,
+                    "avg_precip_sum": 1.7,
+                },
+            ]
+        ))
     raise AssertionError(f"Unhandled classified query kind: {kind}")
 
 
@@ -1025,6 +1233,10 @@ def test_mock_classifier_covers_all_sql_builders() -> None:
         ("atc_month_heatmap", queries.sql_atc_month_heatmap("quick_gold_md01", f)[0]),
         ("irpd_top_manufacturers", queries.sql_irpd_top_manufacturers("quick_gold_md01", f)[0]),
         ("atc_category_ranking", queries.sql_atc_category_ranking("quick_gold_md01", f)[0]),
+        ("store_product_mix", queries.sql_store_product_mix("quick_gold_md01", f, cur_start=d0, cur_end=d1, prev_start=d0, prev_end=d1)[0]),
+        ("time_series_by_grain", queries.sql_time_series_by_grain("quick_gold_md01", f, grain="week")[0]),
+        ("time_series_by_grain", queries.sql_time_series_by_grain("quick_gold_md01", f, grain="day", products=("PainLess Throat Spray",))[0]),
+        ("store_map_points", queries.sql_store_map_points("quick_gold_md01", f)[0]),
     ]
     for expected_kind, sql in samples:
         assert _classify_sql(sql) == expected_kind
@@ -1377,4 +1589,102 @@ def test_kpi_period_separation_multi_year_single_and_partial_month(monkeypatch: 
         assert "Lũy kế lọc: 05/02/2024–20/02/2024" in md_p
         assert "Kỳ 13/02/24–20/02/24:" in md_p
         assert "So với 05/02/24–12/02/24:" in md_p
+
+
+# ---------------------------------------------------------------------------
+# 6. Visual-First Redesign Tests: Clusters, VND, Granularity, Maps & Drawer
+# ---------------------------------------------------------------------------
+
+def test_cluster_extraction_vnd_conversion_and_new_sql_builders() -> None:
+    assert config.extract_city_cluster("Munich HealthPoint #003") == "Munich"
+    assert config.extract_city_cluster("Apotek Simulasi IRPD - Jawa Tengah") == "Apotek Simulasi IRPD - Jawa Tengah"
+    assert config.extract_city_cluster("") == "Chưa rõ"
+
+    assert config.fmt_currency(100.0, "EUR", to_vnd=True) == "2.75M ₫"
+    assert config.fmt_currency(10_000.0, "IDR", to_vnd=True) == "16.00K ₫"
+    assert config.fmt_currency(100.0, None, to_vnd=True) == "—"
+    assert "Quy đổi tham chiếu" in config.vnd_rate_note("EUR", True)
+    assert config.vnd_rate_note(None, True) == ""
+
+    f = queries.FilterState(
+        dataset_track="ONYX_EU_SYNTHETIC",
+        city_clusters=("Munich", "Frankfurt"),
+        time_grain="week",
+        display_vnd=True,
+    )
+    where_sql, params = queries.build_where_clause(f)
+    assert "SPLIT_PART(store_name, ' HealthPoint', 1) = ANY(%s)" in where_sql
+    assert ["Munich", "Frankfurt"] in params
+
+    for g, trunc_kw in (("day", "'day'"), ("week", "'week'"), ("month", "'month'"), ("quarter", "'quarter'")):
+        ts_sql, _ = queries.sql_time_series_by_grain("quick_gold_md01", f, grain=g, products=("PainLess Throat Spray",))
+        assert f"DATE_TRUNC({trunc_kw}" in ts_sql
+        assert "COALESCE(NULLIF(TRIM(product_name), ''), 'Chưa xác định') = ANY(%s)" in ts_sql
+
+    mix_sql, _ = queries.sql_store_product_mix(
+        "quick_gold_md01",
+        f,
+        cur_start=dt.date(2025, 12, 1),
+        cur_end=dt.date(2025, 12, 31),
+        prev_start=dt.date(2025, 11, 1),
+        prev_end=dt.date(2025, 11, 30),
+        search_text="Pain",
+    )
+    assert "LIMIT" not in mix_sql.upper()
+    assert "weighted_unit_price" in mix_sql
+    assert "ILIKE %s" in mix_sql
+
+    map_sql, map_params = queries.sql_store_map_points("quick_gold_md01", f, force_onyx=True)
+    assert "map_lat" in map_sql and "map_lon" in map_sql and "city_cluster" in map_sql
+    assert map_params[0] == "ONYX_EU_SYNTHETIC"
+
+
+def test_redesigned_pages_drawer_product_trend_map_and_custom_compare(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("QUICK_NEON_DATABASE_URL", "postgresql://user:pass@localhost:5432/neondb")
+    monkeypatch.setenv("QUICK_NEON_SCHEMA", "quick_gold_md01")
+    db.get_db_settings.cache_clear()
+
+    # Page 1: right explanation drawer open + multi-product weekly series + VND display
+    with patch("db.run_query_df", side_effect=lambda s, p=(): _mock_query_df(s, p, track_mode="onyx")):
+        at1 = AppTest.from_file(str(STREAMLIT_DIR / "pages/01_tong_quan.py"), default_timeout=20)
+        at1.session_state["ui_info_drawer_open"] = True
+        at1.session_state["f_display_vnd"] = True
+        at1.session_state["f_time_grain"] = "week"
+        at1.session_state["p1_selected_products"] = ["PainLess Throat Spray", "AntiBioX 10 mg"]
+        at1.run()
+        assert not at1.exception
+        md1 = "\n".join(m.value for m in at1.markdown)
+        assert "ⓘ Giải thích ·" in md1
+        assert "₫" in md1
+
+    # Page 2: right drawer open without leaking weather filters
+    with patch("db.run_query_df", side_effect=lambda s, p=(): _mock_query_df(s, p, track_mode="onyx")):
+        at2 = AppTest.from_file(str(STREAMLIT_DIR / "pages/02_thoi_tiet_dia_diem.py"), default_timeout=20)
+        at2.session_state["ui_info_drawer_open"] = True
+        at2.session_state["p2_selected_products"] = ["PainLess Throat Spray"]
+        at2.run()
+        assert not at2.exception
+        md2 = "\n".join(m.value for m in at2.markdown)
+        assert "ⓘ Giải thích · Thời Tiết &amp; Mùa Vụ" in md2
+
+    # Page 3: cluster street map + PyDeck 3D columns engine
+    with patch("db.run_query_df", side_effect=lambda s, p=(): _mock_query_df(s, p, track_mode="onyx")):
+        at3 = AppTest.from_file(str(STREAMLIT_DIR / "pages/03_cua_hang_loi_nhuan.py"), default_timeout=20)
+        at3.session_state["p3_map_mode"] = "cluster"
+        at3.session_state["p3_map_engine"] = "pydeck"
+        at3.run()
+        assert not at3.exception
+
+    # Page 4: custom Period A vs Period B comparison
+    with patch("db.run_query_df", side_effect=lambda s, p=(): _mock_query_df(s, p, track_mode="onyx")):
+        at4 = AppTest.from_file(str(STREAMLIT_DIR / "pages/04_san_pham_atc.py"), default_timeout=20)
+        at4.session_state["p4_compare_mode"] = "custom"
+        at4.session_state["p4_custom_a"] = (dt.date(2025, 11, 1), dt.date(2025, 12, 31))
+        at4.session_state["p4_custom_b"] = (dt.date(2025, 9, 1), dt.date(2025, 10, 31))
+        at4.run()
+        assert not at4.exception
+        md4 = "\n".join(m.value for m in at4.markdown)
+        assert "01/11/2025–31/12/2025" in md4
+        assert "01/09/2025–31/10/2025" in md4
+
 

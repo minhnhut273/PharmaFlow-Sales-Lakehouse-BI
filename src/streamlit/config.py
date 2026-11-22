@@ -23,6 +23,8 @@ class ThemePalette:
     muted: str
     continuous_scale: tuple[str, ...]
     discrete: tuple[str, ...]
+    font_family: str = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    mono_family: str = "'JetBrains Mono', 'Fira Code', monospace"
 
 
 PALETTES: dict[str, ThemePalette] = {
@@ -121,6 +123,84 @@ PALETTES: dict[str, ThemePalette] = {
             "#059669",
             "#44403c",
         ),
+    ),
+    "ant": ThemePalette(
+        key="ant",
+        label="Ant Enterprise (Xanh Lam B2B)",
+        primary="#1677ff",
+        primary_dark="#0958d9",
+        soft_bg="#eff6ff",
+        border="#bfdbfe",
+        accent="#7c3aed",
+        page_bg="#f5f7fa",
+        card_bg="#ffffff",
+        ink="#111827",
+        muted="#4b5563",
+        continuous_scale=("#eff6ff", "#93c5fd", "#3b82f6", "#1677ff", "#1e3a8a"),
+        discrete=(
+            "#1677ff",
+            "#7c3aed",
+            "#0d9488",
+            "#d97706",
+            "#dc2626",
+            "#16a34a",
+            "#db2777",
+            "#475569",
+        ),
+        font_family="'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif",
+        mono_family="'JetBrains Mono', monospace",
+    ),
+    "shadcn": ThemePalette(
+        key="shadcn",
+        label="Shadcn Minimal (Đơn Sắc Tinh Gọn)",
+        primary="#0f172a",
+        primary_dark="#020617",
+        soft_bg="#f1f5f9",
+        border="#e2e8f0",
+        accent="#2563eb",
+        page_bg="#f8fafc",
+        card_bg="#ffffff",
+        ink="#0f172a",
+        muted="#64748b",
+        continuous_scale=("#f1f5f9", "#cbd5e1", "#64748b", "#334155", "#0f172a"),
+        discrete=(
+            "#0f172a",
+            "#2563eb",
+            "#0d9488",
+            "#d97706",
+            "#dc2626",
+            "#7c3aed",
+            "#16a34a",
+            "#64748b",
+        ),
+        font_family="'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+        mono_family="'JetBrains Mono', monospace",
+    ),
+    "clean": ThemePalette(
+        key="clean",
+        label="Clean Analytics (Sáng & Thoáng)",
+        primary="#2563eb",
+        primary_dark="#1d4ed8",
+        soft_bg="#eff6ff",
+        border="#dbeafe",
+        accent="#0891b2",
+        page_bg="#f8fafc",
+        card_bg="#ffffff",
+        ink="#111827",
+        muted="#475569",
+        continuous_scale=("#eff6ff", "#93c5fd", "#3b82f6", "#2563eb", "#1e40af"),
+        discrete=(
+            "#2563eb",
+            "#0891b2",
+            "#7c3aed",
+            "#16a34a",
+            "#d97706",
+            "#dc2626",
+            "#db2777",
+            "#475569",
+        ),
+        font_family="'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif",
+        mono_family="'JetBrains Mono', monospace",
     ),
 }
 
@@ -252,6 +332,19 @@ WEEKEND_VI: dict[Any, str] = {
     "true": "Cuối tuần",
 }
 
+TIME_GRAIN_ORDER: tuple[str, ...] = ("day", "week", "month", "quarter")
+TIME_GRAIN_VI: dict[str, str] = {
+    "day": "Theo Ngày",
+    "week": "Theo Tuần",
+    "month": "Theo Tháng",
+    "quarter": "Theo Quý",
+}
+
+VND_REFERENCE_RATES: dict[str, float] = {
+    "EUR": 27_500.0,
+    "IDR": 1.60,
+}
+
 PROVENANCE_VI: dict[str, str] = {
     "OBSERVED": "Thực tế (OBSERVED)",
     "SYNTHETIC": "Mô phỏng (SYNTHETIC)",
@@ -350,6 +443,44 @@ def atc_label(code: str | None, fallback_name: str | None = None) -> str:
     return str(code or "Khác")
 
 
+def time_grain_label(grain: str | None) -> str:
+    if not grain:
+        return TIME_GRAIN_VI["month"]
+    return TIME_GRAIN_VI.get(str(grain), str(grain))
+
+
+def extract_city_cluster(store_name: str | None) -> str:
+    txt = str(store_name or "").strip()
+    if not txt:
+        return "Chưa rõ"
+    if " HealthPoint" in txt:
+        return txt.split(" HealthPoint", 1)[0].strip() or txt
+    return txt
+
+
+def currency_multiplier(currency_code: str | None, to_vnd: bool = False) -> float:
+    if not to_vnd or not currency_code:
+        return 1.0
+    return float(VND_REFERENCE_RATES.get(str(currency_code).upper(), 1.0))
+
+
+def currency_display_unit(currency_code: str | None, to_vnd: bool = False) -> str | None:
+    if not currency_code:
+        return None
+    return "₫" if to_vnd else str(currency_code)
+
+
+def vnd_rate_note(currency_code: str | None, to_vnd: bool = False) -> str:
+    if not to_vnd or not currency_code:
+        return ""
+    code = str(currency_code).upper()
+    rate = VND_REFERENCE_RATES.get(code)
+    if rate is None:
+        return ""
+    rate_str = f"{rate:,.0f}" if rate >= 10 else f"{rate:,.2f}"
+    return f"Quy đổi tham chiếu: 1 {code} ≈ {rate_str} ₫"
+
+
 def fmt_compact(value: float | int | None, *, decimals: int = 2) -> str:
     if value is None:
         return "—"
@@ -392,15 +523,30 @@ def fmt_pct(value: float | None, *, decimals: int = 2, already_scaled: bool = Fa
     return f"{pct:.{decimals}f}%"
 
 
-def fmt_currency(value: float | int | None, currency_code: str | None = None, *, compact: bool = True) -> str:
+def fmt_currency(
+    value: float | int | None,
+    currency_code: str | None = None,
+    *,
+    compact: bool = True,
+    to_vnd: bool = False,
+    vnd_rate: float | None = None,
+) -> str:
     if value is None:
         return "—"
     v = float(value)
     if v != v:
         return "—"
+    if to_vnd:
+        if not currency_code:
+            return "—"
+        rate = vnd_rate if vnd_rate is not None else currency_multiplier(currency_code, to_vnd=True)
+        v = v * rate
+        ccy_out = "₫"
+    else:
+        ccy_out = currency_code
     num = fmt_compact(v, decimals=2) if compact else f"{v:,.2f}"
-    if currency_code:
-        return f"{num} {currency_code}"
+    if ccy_out:
+        return f"{num} {ccy_out}"
     return num
 
 
