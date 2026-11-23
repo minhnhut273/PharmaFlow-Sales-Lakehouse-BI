@@ -1,14 +1,15 @@
-# PharmaFlow BI — Dashboard Streamlit Multipage (4 Trang Tiếng Việt)
+# PharmaFlow BI — Dashboard Streamlit Multipage (5 Trang Tiếng Việt)
 
-Ứng dụng Business Intelligence 4 trang bằng **100% tiếng Việt**, mô phỏng và nâng cấp bố cục từ AWS QuickSight (*Phân tích Bán lẻ Dược phẩm — Thời tiết, Cửa hàng & ATC*), truy vấn trực tiếp Neon PostgreSQL (`quick_gold_md01`) bằng **SQL aggregation pushdown** qua `psycopg` + `@st.cache_data`.
+Ứng dụng Business Intelligence 5 trang bằng **100% tiếng Việt**, mô phỏng và nâng cấp bố cục từ AWS QuickSight (*Phân tích Bán lẻ Dược phẩm — Thời tiết, Cửa hàng & ATC*), truy vấn trực tiếp Neon PostgreSQL (`quick_gold_md01`) bằng **SQL aggregation pushdown** qua `psycopg` + `@st.cache_data` và đọc artifact dự báo ML (`artifacts/forecasting/`) cho Trang 5.
 
 ---
 
-## 1. Cấu trúc 4 trang & Mô-đun phân tích (`analytics.py`)
+## 1. Cấu trúc 5 trang & Mô-đun phân tích (`analytics.py` · `forecast_data.py`)
 1. **Tổng Quan (`01_tong_quan.py`)**: 6 thẻ KPI kèm biến động so với kỳ so sánh tương thích (`Tóm tắt điều hành` tự sinh theo rule), tăng trưởng tổng MoM tính từ tổng kỳ cùng phạm vi (tự ngắt đường khi thiếu tháng hoặc tháng chưa đủ ngày), biểu đồ đóng góp biến động số học (`Quốc gia` / `Thương hiệu` / `Sản phẩm`), bảng tách ĐVT (khi gặp đa ĐVT như IRPD) và bảng đối chiếu `OBSERVED` vs `SYNTHETIC`.
 2. **Thời Tiết & Địa Điểm (`02_thoi_tiet_dia_diem.py`)**: Bộ lọc cục bộ **chỉ áp dụng Trang 2** (`Mức mưa`, `Mức độ ẩm`, chọn nhanh ô `Nhiệt độ × Mức mưa`), chỉ số chuẩn hóa theo **Cửa hàng-Ngày có bán** (`active_store_days`, cảnh báo ô `n < 30`, nêu rõ không gồm ngày bán = 0), mùa vụ thời tiết (`apparent_temp_mean` oi bức, mưa, nhiệt độ TB) theo tháng và bảng tra cứu ngày ở cuối trang.
 3. **Cửa Hàng & Biên Lợi Nhuận (`03_cua_hang_loi_nhuan.py`)**: Biến động cùng cửa hàng (*Same-Store*), danh sách cửa hàng cần xem xét (*Watchlist* theo rule doanh thu/biên LN gia quyền/suy giảm), ma trận doanh thu × biên lợi nhuận gia quyền (số cửa hàng động theo bộ lọc), bản đồ & mùa vụ EU, tỷ trọng sản lượng có khuyến mãi + bảng so sánh mô tả (không suy diễn nhân quả) và bảng tra cứu cuối trang.
 4. **Sản Phẩm & ATC (`04_san_pham_atc.py`)**: Sản phẩm tăng/giảm mạnh ở đúng grain `Sản phẩm × ĐVT`, dịch chuyển cơ cấu (*Mix Shift — điểm %*), Treemap, Histogram đơn giá cấp dòng mart (khóa an toàn khi trộn đa ĐVT), Top 15 Nhà sản xuất (`IRPD — OBSERVED`) và chuỗi quan sát 8 nhóm ATC (`PHARMA_SALES_DAILY_ATC · OBSERVED`) kèm thanh phạm vi rõ ràng.
+5. **Dự Báo Nhu Cầu ML (`05_du_bao_nhu_cau.py` · `forecast_data.py`)**: Tab 1 trực quan hóa Fan Chart dự báo `52W` / `365D` trên `store_id = 5631 · OBSERVED`, dải tin cậy **Split CQR `P10–P90`**, giải thích **Top 10 `TreeSHAP`** (`F1/F2/ERA5 F3`) bằng tiếng Việt và xếp hạng `WAPE` 8 nhóm ATC; Tab 2 đối chiếu Ablation, độ phủ CQR, ổn định 4-Fold, kiểm định `DM'` và bảng 2 tầng Fourkiotis & Tsadiras (2024) (`DATA -> FORECAST`, không gồm Tồn kho/ROP).
 
 ---
 
@@ -24,7 +25,7 @@
 
 ## 3. Cài đặt & Chạy nhanh trong 3 bước
 
-### Bước 1 — Clone repo, tạo môi trường ảo & cài 5 thư viện nhẹ
+### Bước 1 — Clone repo, tạo môi trường ảo & cài 6 thư viện nhẹ
 
 ```bash
 git clone https://github.com/minhnhut273/PharmaFlow-Sales-Lakehouse-BI.git
@@ -32,7 +33,7 @@ cd PharmaFlow-Sales-Lakehouse-BI
 python -m venv .venv
 ```
 
-Cài đúng 5 gói Streamlit bằng file [`src/streamlit/requirements.txt`](requirements.txt):
+Cài đúng 6 gói Streamlit bằng file [`src/streamlit/requirements.txt`](requirements.txt):
 
 - **Windows (PowerShell):**
   ```powershell
@@ -76,8 +77,8 @@ Sau khi chạy, mở trình duyệt tại **`http://localhost:8501`**.
 ## 4. Hướng dẫn sử dụng giao diện
 
 - **Thanh điều hướng & Bộ lọc phân tầng (Sidebar trái):**
-  - Chuyển qua lại giữa 4 trang (`Tổng Quan`, `Thời Tiết & Địa Điểm`, `Cửa Hàng & Lợi Nhuận`, `Sản Phẩm & ATC`); bộ lọc được giữ xuyên suốt khi đổi trang.
-  - Chọn **Bảng màu giao diện** gồm 4 preset (`PharmaFlow Teal`, `AWS Quick Classic`, `Ocean Blue`, `Warm Amber`).
+  - Chuyển qua lại giữa 5 trang (`Cửa Hàng & Mặt Hàng`, `Cụm CH & Bản Đồ`, `Thời Tiết & Mùa Vụ`, `So Sánh Kỳ & Danh Mục`, `Dự Báo Nhu Cầu (ML)`); bộ lọc toàn cục giữ xuyên suốt cho Trang 1–4, còn Trang 5 dùng bộ chọn cục bộ độc lập cho 8 nhóm ATC (`store_id = 5631 · OBSERVED`).
+  - Chọn **Bảng màu giao diện** gồm 7 preset (`PharmaFlow Xanh Ngọc`, `AWS Quick Tím Chàm`, `Đại Dương Hiện Đại`, `Hổ Phách Ấm`, `Ant Enterprise`, `Shadcn Minimal`, `Clean Analytics`).
   - Lọc phân tầng theo **Nhóm dữ liệu (`Track`) → Quốc gia → Cửa hàng → Đơn vị tính (`UOM`) → Khoảng ngày bán → Mức nhiệt độ**.
   - Có nút **Đặt lại toàn bộ bộ lọc** ở cuối sidebar.
 - **Nguyên tắc toàn vẹn dữ liệu & Giới hạn Data Contract:**
@@ -110,7 +111,7 @@ Sau đó thay user/password trong `QUICK_NEON_DATABASE_URL` bằng `bi_reader` r
 ### Deploy miễn phí lên Streamlit Community Cloud (xem qua link web)
 1. Truy cập https://share.streamlit.io và đăng nhập GitHub.
 2. Chọn repo `minhnhut273/PharmaFlow-Sales-Lakehouse-BI`, branch `main`, **Main file path:** `src/streamlit/app.py`.
-3. Streamlit Cloud sẽ tự cài gói từ file [`requirements.txt`](../../requirements.txt) hoặc bạn có thể trỏ/sao chép 5 dòng từ [`src/streamlit/requirements.txt`](requirements.txt).
+3. Streamlit Cloud sẽ tự cài gói từ file [`requirements.txt`](../../requirements.txt) hoặc bạn có thể trỏ/sao chép 6 dòng từ [`src/streamlit/requirements.txt`](requirements.txt).
 4. Trong **Advanced settings → Secrets**, dán cấu hình dạng TOML:
    ```toml
    QUICK_NEON_DATABASE_URL = "postgresql://..."
@@ -142,3 +143,10 @@ Sau đó thay user/password trong `QUICK_NEON_DATABASE_URL` bằng `bi_reader` r
 # macOS / Linux
 ./.venv/bin/python -B -m pytest tests/test_streamlit_dashboard.py -v -p no:cacheprovider
 ```
+
+---
+
+## 8. Tài liệu liên quan & Hướng mở rộng ML Forecasting
+
+* **Module ML Dự báo Nhu cầu (`src/ml/`, `DATA -> FORECAST`):** [src/ml/README.md](../ml/README.md) | [Tổng Giải pháp & Kết quả](../../docs/design/demand-forecasting-solution.md) | [Google Docs đầy đủ (4 Tab)](https://docs.google.com/document/d/1Qxpmm4v4zUI8wN-NiUiOeSF5nTUlwOTYJmPgSZRZLJo/edit)
+* **Trạng thái tích hợp vào Streamlit:** Trang 5 ([`pages/05_du_bao_nhu_cau.py`](pages/05_du_bao_nhu_cau.py) + [`forecast_data.py`](forecast_data.py)) đã được tích hợp theo mô hình đọc trực tiếp precomputed artifacts trong [`artifacts/forecasting/`](../../artifacts/forecasting/) qua `@st.cache_data`, giữ nguyên 6 gói gọn nhẹ trong [`src/streamlit/requirements.txt`](requirements.txt) mà không huấn luyện mô hình trực tiếp trong app web.

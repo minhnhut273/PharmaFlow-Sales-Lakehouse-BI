@@ -25,6 +25,7 @@ pages = [
     st.Page("pages/03_cua_hang_loi_nhuan.py", title="Cụm CH & Bản Đồ", icon="🗺️", url_path="cua-hang-loi-nhuan"),
     st.Page("pages/02_thoi_tiet_dia_diem.py", title="Thời Tiết & Mùa Vụ", icon="🌦️", url_path="thoi-tiet-dia-diem"),
     st.Page("pages/04_san_pham_atc.py", title="So Sánh Kỳ & Danh Mục", icon="⚡", url_path="san-pham-atc"),
+    st.Page("pages/05_du_bao_nhu_cau.py", title="Dự Báo Nhu Cầu (ML)", icon="📈", url_path="du-bao-nhu-cau"),
 ]
 
 nav = st.navigation(pages, position="sidebar")

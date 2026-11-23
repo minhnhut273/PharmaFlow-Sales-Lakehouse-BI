@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 960" width="1680" height="960" font-family="Inter, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2040 960" width="2040" height="960" font-family="Inter, 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif">
   <defs>
     <!-- Background Gradient -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -23,6 +23,10 @@
     <linearGradient id="zoneBi" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.94"/>
       <stop offset="100%" stop-color="#F5F3FF" stop-opacity="0.75"/>
+    </linearGradient>
+    <linearGradient id="zoneMl" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#F0FDFA" stop-opacity="0.80"/>
     </linearGradient>
 
     <!-- Medallion Layer Gradients -->
@@ -60,6 +64,9 @@
     <marker id="arrowSolidGreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#059669"/>
     </marker>
+    <marker id="arrowSolidTeal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#0D9488"/>
+    </marker>
     <marker id="arrowDashedPink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
       <path d="M 0 1.5 L 8.5 5 L 0 8.5 z" fill="#DB2777"/>
     </marker>
@@ -72,27 +79,31 @@
   </defs>
 
   <!-- Canvas Background -->
-  <rect width="1680" height="960" fill="url(#bgGrad)"/>
+  <rect width="2040" height="960" fill="url(#bgGrad)"/>
   <pattern id="dotGrid" width="24" height="24" patternUnits="userSpaceOnUse">
     <circle cx="2" cy="2" r="1" fill="#CBD5E1" opacity="0.55"/>
   </pattern>
-  <rect width="1680" height="960" fill="url(#dotGrid)"/>
+  <rect width="2040" height="960" fill="url(#dotGrid)"/>
 
   <!-- ==================== HEADER BANNER ==================== -->
-  <rect x="28" y="18" width="1624" height="68" rx="14" fill="#0F172A" filter="url(#cardShadow)"/>
+  <rect x="28" y="18" width="1984" height="68" rx="14" fill="#0F172A" filter="url(#cardShadow)"/>
   <text x="52" y="48" font-size="22" font-weight="800" fill="#FFFFFF" letter-spacing="-0.3">
-    PharmaFlow Sales &amp; Weather Data Lakehouse — End-to-End BI Architecture
+    PharmaFlow Sales &amp; Weather Data Lakehouse — End-to-End BI &amp; ML Architecture
   </text>
-  <text x="52" y="71" font-size="13" font-weight="500" fill="#94A3B8">
-    Module 01 (Sales &amp; Demand Data Pipeline) • Multi-Source Ingestion • AWS Serverless &amp; Terraform IaC • Databricks Medallion • Neon BI Mirror → AWS QuickSight
+  <text x="52" y="71" font-size="12.5" font-weight="500" fill="#94A3B8">
+    Module 01 (Sales &amp; Demand) • Multi-Source Ingestion • AWS Serverless &amp; Terraform IaC • Databricks Medallion • Neon BI → QuickSight &amp; Streamlit (5P) • ML Forecasting
   </text>
-  <rect x="1310" y="34" width="150" height="34" rx="17" fill="#065F46" stroke="#10B981" stroke-width="1.2"/>
-  <circle cx="1329" cy="51" r="5" fill="#34D399"/>
-  <text x="1342" y="56" font-size="12.5" font-weight="700" fill="#ECFDF5">MD-01 GOLD LIVE</text>
+  <rect x="1414" y="34" width="150" height="34" rx="17" fill="#065F46" stroke="#10B981" stroke-width="1.2"/>
+  <circle cx="1433" cy="51" r="5" fill="#34D399"/>
+  <text x="1446" y="56" font-size="12.2" font-weight="700" fill="#ECFDF5">MD-01 GOLD LIVE</text>
 
-  <rect x="1474" y="34" width="154" height="34" rx="17" fill="#3B0764" stroke="#A855F7" stroke-width="1.2"/>
-  <circle cx="1493" cy="51" r="5" fill="#C084FC"/>
-  <text x="1506" y="56" font-size="12.5" font-weight="700" fill="#FAF5FF">AWS QUICK READY</text>
+  <rect x="1576" y="34" width="168" height="34" rx="17" fill="#3B0764" stroke="#A855F7" stroke-width="1.2"/>
+  <circle cx="1595" cy="51" r="5" fill="#C084FC"/>
+  <text x="1608" y="56" font-size="12.2" font-weight="700" fill="#FAF5FF">BI &amp; STREAMLIT 5P</text>
+
+  <rect x="1756" y="34" width="238" height="34" rx="17" fill="#134E4A" stroke="#14B8A6" stroke-width="1.2"/>
+  <circle cx="1775" cy="51" r="5" fill="#2DD4BF"/>
+  <text x="1788" y="56" font-size="12.2" font-weight="700" fill="#F0FDFA">ML FORECAST (DATA → FORECAST)</text>
 
   <!-- ==================== ZONE 1: UPSTREAM DATA SOURCES ==================== -->
   <rect x="28" y="120" width="276" height="726" rx="16" fill="url(#zoneSource)" stroke="#10B981" stroke-width="2" filter="url(#zoneShadow)"/>
@@ -116,7 +127,7 @@
     <text x="14" y="150" font-size="11" fill="#475569">• catalog.product (5,674) &amp; pack</text>
     <text x="14" y="167" font-size="11" fill="#475569">• org.store (2,816 VN &amp; EU/ID)</text>
     <rect x="14" y="177" width="216" height="19" rx="5" fill="#ECFDF5"/>
-    <text x="20" y="190" font-size="9.8" font-weight="700" fill="#047857">Observed (IRPD) + Synthetic (ONYX/ATC)</text>
+    <text x="20" y="190" font-size="9.8" font-weight="700" fill="#047857">Observed (IRPD/ATC) + Synthetic (ONYX)</text>
   </g>
 
   <!-- Card 1.2: MongoDB Atlas -->
@@ -147,7 +158,7 @@
     <line x1="14" y1="62" x2="230" y2="62" stroke="#E2E8F0" stroke-width="1"/>
     <text x="14" y="81" font-size="11.5" font-weight="700" fill="#334155">3 External Data Streams:</text>
     <text x="14" y="100" font-size="11" fill="#475569">• ERA5 Reanalysis (&lt; 2022-01-01)</text>
-    <text x="14" y="117" font-size="11" fill="#475569">• GFS Historical Stitched (&ge; 2022)</text>
+    <text x="14" y="117" font-size="11" fill="#475569">• GFS Historical Stitched (≥ 2022)</text>
     <text x="14" y="134" font-size="11" fill="#475569">• Daily 16-Day GFS Forecast</text>
     <text x="14" y="151" font-size="11" fill="#475569">• 880 P5 Grid Points (2,816 stores)</text>
     <rect x="14" y="166" width="216" height="19" rx="5" fill="#E0F2FE"/>
@@ -366,59 +377,133 @@
   </g>
 
   <!-- ==================== ZONE 4: BI SERVING & ANALYTICS ==================== -->
-  <rect x="1352" y="120" width="300" height="726" rx="16" fill="url(#zoneBi)" stroke="#7C3AED" stroke-width="2" filter="url(#zoneShadow)"/>
-  <rect x="1352" y="120" width="300" height="42" rx="16" fill="#6D28D9"/>
-  <rect x="1352" y="146" width="300" height="16" fill="#6D28D9"/>
+  <rect x="1352" y="120" width="310" height="726" rx="16" fill="url(#zoneBi)" stroke="#7C3AED" stroke-width="2" filter="url(#zoneShadow)"/>
+  <rect x="1352" y="120" width="310" height="42" rx="16" fill="#6D28D9"/>
+  <rect x="1352" y="146" width="310" height="16" fill="#6D28D9"/>
   <text x="1368" y="146" font-size="13.5" font-weight="800" fill="#FFFFFF" letter-spacing="0.3">4. BI SERVING &amp; ANALYTICS</text>
 
   <!-- Card 4.1: Auto-Sync Job -->
-  <g transform="translate(1370, 182)" filter="url(#cardShadow)">
-    <rect width="264" height="130" rx="12" fill="#FFFFFF" stroke="#DDD6FE" stroke-width="1.5"/>
-    <rect x="14" y="14" width="36" height="36" rx="9" fill="#F5F3FF"/>
-    <text x="23" y="39" font-size="20">⚡</text>
-    <text x="60" y="29" font-size="13" font-weight="800" fill="#0F172A">Gold → BI Sync Job</text>
-    <text x="60" y="45" font-size="10.5" font-weight="600" fill="#6D28D9">[aux] quick_gold_md01_sync</text>
-    <line x1="14" y1="58" x2="250" y2="58" stroke="#F1F5F9" stroke-width="1"/>
-    <text x="14" y="76" font-size="10.8" fill="#475569">• Triggered on product_release</text>
-    <text x="14" y="93" font-size="10.8" fill="#475569">• Spark PG / psycopg COPY</text>
-    <text x="14" y="110" font-size="10.8" fill="#475569">• Atomic staging table swap</text>
+  <g transform="translate(1376, 174)" filter="url(#cardShadow)">
+    <rect width="266" height="108" rx="12" fill="#FFFFFF" stroke="#DDD6FE" stroke-width="1.5"/>
+    <rect x="12" y="12" width="34" height="34" rx="9" fill="#F5F3FF"/>
+    <text x="21" y="35" font-size="18">⚡</text>
+    <text x="54" y="26" font-size="12.5" font-weight="800" fill="#0F172A">Gold → BI Sync Job</text>
+    <text x="54" y="42" font-size="10.2" font-weight="600" fill="#6D28D9">[aux] quick_gold_md01_sync</text>
+    <line x1="12" y1="53" x2="254" y2="53" stroke="#F1F5F9" stroke-width="1"/>
+    <text x="12" y="69" font-size="10.3" fill="#475569">• Triggered on ops.product_release</text>
+    <text x="12" y="84" font-size="10.3" fill="#475569">• Spark PG / psycopg COPY</text>
+    <text x="12" y="99" font-size="10.3" fill="#475569">• Atomic staging table swap</text>
   </g>
 
   <!-- Card 4.2: Neon BI Mirror -->
-  <g transform="translate(1370, 338)" filter="url(#cardShadow)">
-    <rect width="264" height="202" rx="12" fill="#FFFFFF" stroke="#A7F3D0" stroke-width="1.5"/>
-    <rect x="14" y="14" width="36" height="36" rx="9" fill="#0F172A"/>
-    <path d="M24 21 L38 21 L38 38 L33 32 L33 41 L24 41 Z" fill="none" stroke="#00E599" stroke-width="2.2" stroke-linejoin="round"/>
-    <text x="60" y="29" font-size="13" font-weight="800" fill="#0F172A">Neon #2 (BI Mirror)</text>
-    <text x="60" y="45" font-size="10.5" font-weight="600" fill="#059669">landing_datamart_md01</text>
-    <line x1="14" y1="58" x2="250" y2="58" stroke="#F1F5F9" stroke-width="1"/>
-    <text x="14" y="76" font-size="11" font-weight="700" fill="#334155">Schema: quick_gold_md01 (449MB)</text>
-    <text x="14" y="95" font-size="10.5" fill="#475569">• 3 Physical Gold Tables + View</text>
-    <text x="14" y="112" font-size="10.5" fill="#475569">• bi_sales_weather_enriched</text>
-    <text x="14" y="129" font-size="10.5" fill="#475569">• bi_weather_impact_summary</text>
-    <text x="14" y="146" font-size="10.5" fill="#475569">• bi_atc_category_monthly</text>
-    <rect x="14" y="164" width="236" height="24" rx="5" fill="#ECFDF5"/>
-    <text x="24" y="180" font-size="10.2" font-weight="700" fill="#047857">PostgreSQL SSL • Port 5432 (SPICE)</text>
+  <g transform="translate(1376, 302)" filter="url(#cardShadow)">
+    <rect width="266" height="162" rx="12" fill="#FFFFFF" stroke="#A7F3D0" stroke-width="1.5"/>
+    <rect x="12" y="12" width="34" height="34" rx="9" fill="#0F172A"/>
+    <path d="M22 19 L35 19 L35 35 L30 29 L30 38 L22 38 Z" fill="none" stroke="#00E599" stroke-width="2.1" stroke-linejoin="round"/>
+    <text x="54" y="26" font-size="12.5" font-weight="800" fill="#0F172A">Neon #2 (BI Mirror)</text>
+    <text x="54" y="42" font-size="10.2" font-weight="600" fill="#059669">landing_datamart_md01</text>
+    <line x1="12" y1="53" x2="254" y2="53" stroke="#F1F5F9" stroke-width="1"/>
+    <text x="12" y="69" font-size="10.5" font-weight="700" fill="#334155">Schema: quick_gold_md01 (449MB)</text>
+    <text x="12" y="85" font-size="10.1" fill="#475569">• 3 Gold Marts + kpi_sales_trend</text>
+    <text x="12" y="100" font-size="10.1" fill="#475569">• bi_sales_weather_enriched</text>
+    <text x="12" y="115" font-size="10.1" fill="#475569">• bi_weather_impact • bi_atc_monthly</text>
+    <rect x="12" y="127" width="242" height="23" rx="5" fill="#ECFDF5"/>
+    <text x="24" y="142" font-size="9.9" font-weight="700" fill="#047857">PostgreSQL SSL • Port 5432 (SPICE)</text>
   </g>
 
   <!-- Card 4.3: AWS QuickSight / Power BI -->
-  <g transform="translate(1370, 566)" filter="url(#cardShadow)">
-    <rect width="264" height="242" rx="12" fill="#FFFFFF" stroke="#C4B5FD" stroke-width="1.8"/>
-    <rect x="14" y="14" width="38" height="38" rx="9" fill="#5B21B6"/>
-    <rect x="21" y="34" width="5" height="11" rx="1.5" fill="#E9D5FF"/>
-    <rect x="29" y="27" width="5" height="18" rx="1.5" fill="#C084FC"/>
-    <rect x="37" y="21" width="5" height="24" rx="1.5" fill="#FFFFFF"/>
-    <text x="62" y="30" font-size="13.5" font-weight="800" fill="#0F172A">AWS Quick (QuickSight)</text>
-    <text x="62" y="46" font-size="10.5" font-weight="600" fill="#7C3AED">&amp; Power BI Executive Layer</text>
-    <line x1="14" y1="60" x2="250" y2="60" stroke="#F1F5F9" stroke-width="1"/>
-    <text x="14" y="80" font-size="11" font-weight="700" fill="#334155">4 Interactive BI Sheets:</text>
-    <text x="14" y="100" font-size="10.5" fill="#475569">1. Executive Sales Monitoring (ID)</text>
-    <text x="14" y="118" font-size="10.5" fill="#475569">2. Weather × Calendar Impact</text>
-    <text x="14" y="136" font-size="10.5" fill="#475569">3. EU Store Promo &amp; Margin %</text>
-    <text x="14" y="154" font-size="10.5" fill="#475569">4. 8 ATC Groups Seasonality</text>
-    <rect x="14" y="172" width="236" height="54" rx="8" fill="#F5F3FF" stroke="#DDD6FE" stroke-width="1"/>
-    <text x="24" y="192" font-size="10.5" font-weight="700" fill="#5B21B6">BI Capabilities Enabled:</text>
-    <text x="24" y="210" font-size="10" fill="#6D28D9">KPI Cards • Heatmaps • Drill-down</text>
+  <g transform="translate(1376, 484)" filter="url(#cardShadow)">
+    <rect width="266" height="144" rx="12" fill="#FFFFFF" stroke="#C4B5FD" stroke-width="1.6"/>
+    <rect x="12" y="12" width="34" height="34" rx="9" fill="#5B21B6"/>
+    <rect x="19" y="30" width="4.5" height="9" rx="1.2" fill="#E9D5FF"/>
+    <rect x="26.5" y="24" width="4.5" height="15" rx="1.2" fill="#C084FC"/>
+    <rect x="34" y="19" width="4.5" height="20" rx="1.2" fill="#FFFFFF"/>
+    <text x="54" y="26" font-size="12.5" font-weight="800" fill="#0F172A">AWS Quick (QuickSight)</text>
+    <text x="54" y="42" font-size="10.2" font-weight="600" fill="#7C3AED">&amp; Power BI Executive Layer</text>
+    <line x1="12" y1="53" x2="254" y2="53" stroke="#F1F5F9" stroke-width="1"/>
+    <text x="12" y="70" font-size="10.5" font-weight="700" fill="#334155">4 Interactive BI Sheets:</text>
+    <text x="12" y="86" font-size="10.1" fill="#475569">• Sales Monitoring (ID) • Weather Impact</text>
+    <text x="12" y="102" font-size="10.1" fill="#475569">• EU Margin % • 8 ATC Seasonality</text>
+    <rect x="12" y="112" width="242" height="23" rx="6" fill="#F5F3FF" stroke="#DDD6FE" stroke-width="1"/>
+    <text x="24" y="127" font-size="9.8" font-weight="700" fill="#5B21B6">SPICE / Direct Query • KPI &amp; Drill-down</text>
+  </g>
+
+  <!-- Card 4.4: Streamlit BI App (5 Pages) -->
+  <g transform="translate(1376, 648)" filter="url(#cardShadow)">
+    <rect width="266" height="184" rx="12" fill="#FFFFFF" stroke="#FDA4AF" stroke-width="1.8"/>
+    <rect x="12" y="12" width="34" height="34" rx="9" fill="#E11D48"/>
+    <path d="M29 19 L38 35 L20 35 Z" fill="#FFFFFF" opacity="0.95"/>
+    <text x="54" y="26" font-size="12.5" font-weight="800" fill="#0F172A">Streamlit BI App (5 Pages)</text>
+    <text x="54" y="42" font-size="10.2" font-weight="600" fill="#BE123C">src/streamlit/ • 100% Tiếng Việt</text>
+    <line x1="12" y1="53" x2="254" y2="53" stroke="#F1F5F9" stroke-width="1"/>
+    <text x="12" y="69" font-size="10.3" font-weight="700" fill="#334155">SQL Pushdown (0.08–0.48s) + ML Page 5:</text>
+    <text x="12" y="85" font-size="10.0" fill="#475569">• P1 Cửa Hàng  • P2 Cụm CH &amp; Map</text>
+    <text x="12" y="101" font-size="10.0" fill="#475569">• P3 Thời Tiết • P4 So Sánh Kỳ &amp; ATC</text>
+    <text x="12" y="118" font-size="9.7" font-weight="700" fill="#0F766E">• P5 Dự Báo ML (CQR P10–90, TreeSHAP)</text>
+    <rect x="12" y="131" width="242" height="40" rx="7" fill="#FFF1F2" stroke="#FECDD3" stroke-width="1"/>
+    <text x="20" y="147" font-size="9.7" font-weight="700" fill="#9F1239">7 Themes • 6 Slim Deps (Zero Heavy ML)</text>
+    <text x="20" y="162" font-size="9.7" font-weight="600" fill="#BE123C">47/47 Unit &amp; AppTest Checks Verified</text>
+  </g>
+
+  <!-- ==================== ZONE 5: ML DEMAND FORECASTING & XAI ==================== -->
+  <rect x="1690" y="120" width="322" height="726" rx="16" fill="url(#zoneMl)" stroke="#0D9488" stroke-width="2" filter="url(#zoneShadow)"/>
+  <rect x="1690" y="120" width="322" height="42" rx="16" fill="#0F766E"/>
+  <rect x="1690" y="146" width="322" height="16" fill="#0F766E"/>
+  <text x="1706" y="146" font-size="13.2" font-weight="800" fill="#FFFFFF" letter-spacing="0.25">5. ML DEMAND FORECASTING &amp; XAI</text>
+
+  <!-- Card 5.1: NB01-03 Audit, EDA & Feature Store -->
+  <g transform="translate(1712, 174)" filter="url(#cardShadow)">
+    <rect width="280" height="156" rx="12" fill="#FFFFFF" stroke="#99F6E4" stroke-width="1.5"/>
+    <rect x="12" y="12" width="34" height="34" rx="9" fill="#0F766E"/>
+    <text x="20" y="34" font-size="16" fill="#FFFFFF">🧬</text>
+    <text x="54" y="26" font-size="12.2" font-weight="800" fill="#0F172A">NB01–03: Audit, EDA &amp; Features</text>
+    <text x="54" y="42" font-size="10.2" font-weight="600" fill="#0F766E">src/ml/01..03_*.ipynb</text>
+    <line x1="12" y1="53" x2="268" y2="53" stroke="#F1F5F9" stroke-width="1"/>
+    <text x="12" y="69" font-size="10.1" fill="#475569">• Gold store_id=5631 (100% OBSERVED)</text>
+    <text x="12" y="84" font-size="10.1" fill="#475569">• 16,848 sales + 2,080 ERA5 + RS Holidays</text>
+    <text x="12" y="99" font-size="10.1" fill="#475569">• qty_rate = qty / active_days • .ffill() only</text>
+    <text x="12" y="114" font-size="10.1" fill="#475569">• Compact 7-var ERA5 (F3) • 302W / 2,106D</text>
+    <rect x="12" y="125" width="256" height="22" rx="5" fill="#ECFDF5"/>
+    <text x="20" y="140" font-size="9.8" font-weight="700" fill="#047857">✓ Perturbation Leakage Diff = 0.0 (W &amp; D)</text>
+  </g>
+
+  <!-- Card 5.2: NB04-05 Unified Modeling & XAI -->
+  <g transform="translate(1712, 352)" filter="url(#cardShadow)">
+    <rect width="280" height="212" rx="12" fill="#FFFFFF" stroke="#5EEAD4" stroke-width="1.6"/>
+    <rect x="12" y="12" width="34" height="34" rx="9" fill="#115E59"/>
+    <text x="20" y="34" font-size="16" fill="#FFFFFF">🧠</text>
+    <text x="54" y="26" font-size="12.2" font-weight="800" fill="#0F172A">NB04–05: Unified Modeling &amp; XAI</text>
+    <text x="54" y="42" font-size="10.2" font-weight="600" fill="#0D9488">src/ml/04..05_*.ipynb (1-Flow)</text>
+    <line x1="12" y1="53" x2="268" y2="53" stroke="#F1F5F9" stroke-width="1"/>
+    <text x="12" y="69" font-size="10.1" fill="#475569">• 5 Weekly Folds × 12 Models + Daily 365D</text>
+    <text x="12" y="84" font-size="10.1" fill="#475569">• SNaïve • Croston-SBA • Harmonic ARIMA</text>
+    <text x="12" y="99" font-size="10.1" fill="#475569">• Ridge • LightGBM • AnchorRes • OOF Hybrid</text>
+    <text x="12" y="114" font-size="10.1" fill="#475569">• AutoRouted Champion (Val MAE, Blind Test)</text>
+    <text x="12" y="129" font-size="10.1" fill="#475569">• Split CQR P10–P90 (71.7% → 78.8% Cov)</text>
+    <text x="12" y="144" font-size="10.1" fill="#475569">• Exact TreeSHAP + DM' + Paper 2024 Bench</text>
+    <text x="12" y="160" font-size="10.0" font-weight="600" fill="#0F766E">• ERA5 F3 contributes 11.3%–25.9% |SHAP|</text>
+    <rect x="12" y="174" width="256" height="24" rx="5" fill="#F0FDFA" stroke="#CCFBF1" stroke-width="1"/>
+    <text x="20" y="190" font-size="9.8" font-weight="700" fill="#0F766E">✓ 166.6s (1,167× Paper 54h) • 100% ŷ ≥ 0</text>
+  </g>
+
+  <!-- Card 5.3: Precomputed Serving Artifacts -->
+  <g transform="translate(1712, 586)" filter="url(#cardShadow)">
+    <rect width="280" height="246" rx="12" fill="#FFFFFF" stroke="#14B8A6" stroke-width="1.8"/>
+    <rect x="12" y="12" width="34" height="34" rx="9" fill="#0D9488"/>
+    <text x="20" y="34" font-size="16" fill="#FFFFFF">📦</text>
+    <text x="54" y="26" font-size="12.2" font-weight="800" fill="#0F172A">Precomputed Serving Artifacts</text>
+    <text x="54" y="42" font-size="10.2" font-weight="600" fill="#0F766E">artifacts/forecasting/</text>
+    <line x1="12" y1="53" x2="268" y2="53" stroke="#F1F5F9" stroke-width="1"/>
+    <text x="12" y="69" font-size="9.7" fill="#475569">• predictions_holdout_52w &amp; quantiles_52w</text>
+    <text x="12" y="84" font-size="9.7" fill="#475569">• predictions_daily_365d &amp; shap_values_52w</text>
+    <text x="12" y="99" font-size="9.7" fill="#475569">• metrics_by_atc • ablation • dm_test CSVs</text>
+    <text x="12" y="114" font-size="9.7" fill="#475569">• model_card.json • 7× 300-DPI Figures</text>
+    <rect x="12" y="130" width="256" height="98" rx="8" fill="#F0FDFA" stroke="#99F6E4" stroke-width="1.2"/>
+    <text x="20" y="149" font-size="9.7" font-weight="800" fill="#0F766E">Verified Prediction Quality (DATA → FORECAST):</text>
+    <text x="22" y="167" font-size="10.0" font-weight="600" fill="#134E4A">✓ 8/8 ATCs beat SNaïve (DM' p &lt; 0.05)</text>
+    <text x="22" y="184" font-size="10.0" font-weight="600" fill="#134E4A">✓ 6/8 ATCs beat Paper 2024 XGB MSE</text>
+    <text x="22" y="201" font-size="9.8" fill="#334155">• M01AE &amp; R03 remain behind Paper XGB</text>
+    <text x="22" y="217" font-size="9.8" font-weight="700" fill="#B45309">• Scope: No inventory / stockout / ROP</text>
   </g>
 
   <!-- ==================== ARROWS & DATA FLOWS (ROUTED AROUND CARDS!) ==================== -->
@@ -472,36 +557,54 @@
   <path d="M 1222 752 L 1222 766" fill="none" stroke="#DC2626" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrowDashedRed)"/>
 
   <!-- 13. ops.product_release -> BI Sync Job (Dashed Pink Table Trigger) -->
-  <path d="M 1306 798 L 1338 798 L 1338 258 L 1368 258" fill="none" stroke="#DB2777" stroke-width="2.2" stroke-dasharray="5 4" marker-end="url(#arrowDashedPink)"/>
+  <path d="M 1306 798 L 1338 798 L 1338 244 L 1374 244" fill="none" stroke="#DB2777" stroke-width="2.2" stroke-dasharray="5 4" marker-end="url(#arrowDashedPink)"/>
 
   <!-- 14. Gold Marts -> BI Sync Job (Data Read) -->
-  <path d="M 1306 446 L 1330 446 L 1330 226 L 1368 226" fill="none" stroke="#7C3AED" stroke-width="2.6" marker-end="url(#arrowSolidPurple)"/>
+  <path d="M 1306 446 L 1330 446 L 1330 214 L 1374 214" fill="none" stroke="#7C3AED" stroke-width="2.6" marker-end="url(#arrowSolidPurple)"/>
 
   <!-- 15. BI Sync Job -> Neon #2 BI Mirror -->
-  <path d="M 1502 312 L 1502 336" fill="none" stroke="#7C3AED" stroke-width="2.6" marker-end="url(#arrowSolidPurple)"/>
+  <path d="M 1509 282 L 1509 300" fill="none" stroke="#7C3AED" stroke-width="2.6" marker-end="url(#arrowSolidPurple)"/>
 
-  <!-- 16. Neon #2 BI Mirror -> AWS QuickSight -->
-  <path d="M 1502 540 L 1502 564" fill="none" stroke="#7C3AED" stroke-width="2.6" marker-end="url(#arrowSolidPurple)"/>
+  <!-- 16a. Neon #2 BI Mirror -> AWS QuickSight -->
+  <path d="M 1509 464 L 1509 482" fill="none" stroke="#7C3AED" stroke-width="2.6" marker-end="url(#arrowSolidPurple)"/>
+
+  <!-- 16b. Neon #2 BI Mirror -> Streamlit BI App (SQL Pushdown along Zone 4 inner-left channel) -->
+  <path d="M 1376 410 L 1363 410 L 1363 720 L 1374 720" fill="none" stroke="#7C3AED" stroke-width="2.4" marker-end="url(#arrowSolidPurple)"/>
+
+  <!-- 17. Neon #2 BI Mirror (store_id=5631 Gold) -> ML NB01-03 -->
+  <path d="M 1642 384 L 1674 384 L 1674 248 L 1710 248" fill="none" stroke="#0D9488" stroke-width="2.6" marker-end="url(#arrowSolidTeal)"/>
+
+  <!-- 18. ML NB01-03 -> ML NB04-05 -->
+  <path d="M 1852 330 L 1852 350" fill="none" stroke="#0D9488" stroke-width="2.6" marker-end="url(#arrowSolidTeal)"/>
+
+  <!-- 19. ML NB04-05 -> Precomputed Serving Artifacts -->
+  <path d="M 1852 564 L 1852 584" fill="none" stroke="#0D9488" stroke-width="2.6" marker-end="url(#arrowSolidTeal)"/>
+
+  <!-- 20. Precomputed Serving Artifacts -> Streamlit BI App Page 5 (Offline Cached Read) -->
+  <path d="M 1712 756 L 1644 756" fill="none" stroke="#0D9488" stroke-width="2.6" marker-end="url(#arrowSolidTeal)"/>
 
   <!-- ==================== FOOTER LEGEND BAR ==================== -->
-  <rect x="28" y="894" width="1624" height="46" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.2" filter="url(#cardShadow)"/>
-  <text x="50" y="922" font-size="12" font-weight="800" fill="#0F172A">LEGEND:</text>
+  <rect x="28" y="894" width="1984" height="46" rx="10" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="1.2" filter="url(#cardShadow)"/>
+  <text x="48" y="922" font-size="12" font-weight="800" fill="#0F172A">LEGEND:</text>
 
-  <line x1="125" y1="917" x2="170" y2="917" stroke="#059669" stroke-width="3" marker-end="url(#arrowSolidGreen)"/>
-  <text x="180" y="922" font-size="11.5" font-weight="600" fill="#334155">Source Ingestion (PG / Mongo)</text>
+  <line x1="120" y1="917" x2="162" y2="917" stroke="#059669" stroke-width="3" marker-end="url(#arrowSolidGreen)"/>
+  <text x="170" y="922" font-size="11.2" font-weight="600" fill="#334155">Source Ingestion (PG / Mongo)</text>
 
-  <line x1="385" y1="917" x2="430" y2="917" stroke="#EA580C" stroke-width="3" marker-end="url(#arrowSolidOrange)"/>
-  <text x="440" y="922" font-size="11.5" font-weight="600" fill="#334155">Weather S3 / Volume / Join</text>
+  <line x1="365" y1="917" x2="407" y2="917" stroke="#EA580C" stroke-width="3" marker-end="url(#arrowSolidOrange)"/>
+  <text x="415" y="922" font-size="11.2" font-weight="600" fill="#334155">Weather S3 / Volume / Join</text>
 
-  <line x1="655" y1="917" x2="700" y2="917" stroke="#2563EB" stroke-width="3" marker-end="url(#arrowSolidBlue)"/>
-  <text x="710" y="922" font-size="11.5" font-weight="600" fill="#334155">Medallion DLT Transform</text>
+  <line x1="615" y1="917" x2="657" y2="917" stroke="#2563EB" stroke-width="3" marker-end="url(#arrowSolidBlue)"/>
+  <text x="665" y="922" font-size="11.2" font-weight="600" fill="#334155">Medallion DLT Transform</text>
 
-  <line x1="895" y1="917" x2="940" y2="917" stroke="#7C3AED" stroke-width="3" marker-end="url(#arrowSolidPurple)"/>
-  <text x="950" y="922" font-size="11.5" font-weight="600" fill="#334155">BI Serving &amp; QuickSight Sync</text>
+  <line x1="835" y1="917" x2="877" y2="917" stroke="#7C3AED" stroke-width="3" marker-end="url(#arrowSolidPurple)"/>
+  <text x="885" y="922" font-size="11.2" font-weight="600" fill="#334155">BI Serving (Quick / Streamlit)</text>
 
-  <line x1="1155" y1="917" x2="1200" y2="917" stroke="#DB2777" stroke-width="2.4" stroke-dasharray="5 4" marker-end="url(#arrowDashedPink)"/>
-  <text x="1210" y="922" font-size="11.5" font-weight="600" fill="#334155">Schedule / Table Update Trigger</text>
+  <line x1="1120" y1="917" x2="1162" y2="917" stroke="#0D9488" stroke-width="3" marker-end="url(#arrowSolidTeal)"/>
+  <text x="1170" y="922" font-size="11.2" font-weight="600" fill="#334155">ML Forecast &amp; Artifacts</text>
 
-  <line x1="1430" y1="917" x2="1475" y2="917" stroke="#64748B" stroke-width="2.2" stroke-dasharray="5 4" marker-end="url(#arrowDashedSlate)"/>
-  <text x="1485" y="922" font-size="11.5" font-weight="600" fill="#334155">Metadata / Store Coords</text>
+  <line x1="1395" y1="917" x2="1437" y2="917" stroke="#DB2777" stroke-width="2.4" stroke-dasharray="5 4" marker-end="url(#arrowDashedPink)"/>
+  <text x="1445" y="922" font-size="11.2" font-weight="600" fill="#334155">Schedule / Table Trigger</text>
+
+  <line x1="1670" y1="917" x2="1712" y2="917" stroke="#64748B" stroke-width="2.2" stroke-dasharray="5 4" marker-end="url(#arrowDashedSlate)"/>
+  <text x="1720" y="922" font-size="11.2" font-weight="600" fill="#334155">Metadata / Store Coords</text>
 </svg>

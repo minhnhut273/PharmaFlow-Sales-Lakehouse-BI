@@ -21,6 +21,7 @@ import analytics  # noqa: E402
 from components import filters as filter_comp  # noqa: E402
 import config  # noqa: E402
 import db  # noqa: E402
+import forecast_data  # noqa: E402
 import queries  # noqa: E402
 import ui  # noqa: E402
 
@@ -1061,6 +1062,7 @@ def _mock_query_df(sql: str, params: tuple = (), *, track_mode: str = "onyx") ->
         "pages/02_thoi_tiet_dia_diem.py",
         "pages/03_cua_hang_loi_nhuan.py",
         "pages/04_san_pham_atc.py",
+        "pages/05_du_bao_nhu_cau.py",
     ],
 )
 @pytest.mark.parametrize("track_mode", ["onyx", "irpd", "serbia"])
@@ -1088,6 +1090,7 @@ def test_pages_render_without_exception_across_all_tracks(
         "pages/02_thoi_tiet_dia_diem.py",
         "pages/03_cua_hang_loi_nhuan.py",
         "pages/04_san_pham_atc.py",
+        "pages/05_du_bao_nhu_cau.py",
     ],
 )
 def test_pages_handle_empty_query_results_gracefully(page_rel: str, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1686,5 +1689,114 @@ def test_redesigned_pages_drawer_product_trend_map_and_custom_compare(monkeypatc
         md4 = "\n".join(m.value for m in at4.markdown)
         assert "01/11/2025–31/12/2025" in md4
         assert "01/09/2025–31/10/2025" in md4
+
+
+# ---------------------------------------------------------------------------
+# 7. Page 5 ML Demand Forecasting: Artifacts, TreeSHAP & Interactive UI
+# ---------------------------------------------------------------------------
+
+def test_forecast_data_loads_canonical_artifacts_and_computes_shap_and_overview() -> None:
+    forecast_data.load_forecast_bundle.clear()
+    bundle = forecast_data.load_forecast_bundle()
+    assert bundle["available"] is True
+
+    overview = forecast_data.build_atc_overview_table(
+        bundle["metrics_by_atc"],
+        bundle["benchmark"],
+        bundle["coverage"],
+        bundle["dm_results"],
+        bundle["eda_diagnostics"],
+    )
+    assert len(overview) == 8
+    assert int(overview["beats_paper_xgb"].sum()) == 6
+    assert int(overview["dm_wins_snaive"].sum()) == 8
+
+    shap_card = bundle["model_card"]["shap_weather_share_by_atc"]
+    for atc in forecast_data.ATC_ORDER:
+        top_df, f3_share, _space = forecast_data.compute_shap_driver_table(bundle["shap_weekly"], atc, top_n=10)
+        assert not top_df.empty
+        assert f3_share == pytest.approx(float(shap_card[atc]["f3_weather_shap_share_pct"]), abs=0.2)
+
+    assert forecast_data.hex_to_rgba("#087b71", 0.16) == "rgba(8, 123, 113, 0.16)"
+    assert forecast_data.format_signed_pct(-1.25, decimals=2) == "−1.25%"
+    assert "+-" not in forecast_data.format_signed_pct(-1.25, decimals=2)
+
+
+def test_forecast_data_handles_missing_artifacts_directory_gracefully(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    forecast_data.load_forecast_bundle.clear()
+    bundle = forecast_data.load_forecast_bundle(str(tmp_path))
+    assert bundle["available"] is False
+    assert bundle["metrics_by_atc"].empty
+    assert bundle["pred_weekly"].empty
+
+    empty_top, f3_share, _space = forecast_data.compute_shap_driver_table(pd.DataFrame(), "N02BE")
+    assert empty_top.empty and f3_share == 0.0
+
+    monkeypatch.setenv("QUICK_NEON_DATABASE_URL", "postgresql://user:pass@localhost:5432/neondb")
+    monkeypatch.setenv("QUICK_NEON_SCHEMA", "quick_gold_md01")
+    db.get_db_settings.cache_clear()
+    empty_bundle = {
+        "available": False,
+        "artifacts_dir": str(tmp_path),
+        "metrics_by_atc": pd.DataFrame(),
+        "ablation": pd.DataFrame(),
+        "benchmark": pd.DataFrame(),
+        "coverage": pd.DataFrame(),
+        "dm_results": pd.DataFrame(),
+        "rolling_stability": pd.DataFrame(),
+        "daily_metrics": pd.DataFrame(),
+        "eda_diagnostics": pd.DataFrame(),
+        "pred_weekly": pd.DataFrame(),
+        "quantiles_weekly": pd.DataFrame(),
+        "pred_daily": pd.DataFrame(),
+        "shap_weekly": pd.DataFrame(),
+        "model_card": {},
+        "training_summary": {},
+    }
+    with (
+        patch("db.run_query_df", side_effect=lambda s, p=(): _mock_query_df(s, p, track_mode="onyx")),
+        patch("forecast_data.load_forecast_bundle", return_value=empty_bundle),
+    ):
+        at = AppTest.from_file(str(STREAMLIT_DIR / "pages/05_du_bao_nhu_cau.py"), default_timeout=20)
+        at.run()
+        assert not at.exception
+        assert any("Chưa tìm thấy dữ liệu dự báo" in info.value for info in at.info)
+
+
+def test_page5_forecast_interactions_switch_atc_horizon_and_drawer(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("QUICK_NEON_DATABASE_URL", "postgresql://user:pass@localhost:5432/neondb")
+    monkeypatch.setenv("QUICK_NEON_SCHEMA", "quick_gold_md01")
+    db.get_db_settings.cache_clear()
+    forecast_data.load_forecast_bundle.clear()
+
+    with patch("db.run_query_df", side_effect=lambda s, p=(): _mock_query_df(s, p, track_mode="onyx")):
+        at = AppTest.from_file(str(STREAMLIT_DIR / "pages/05_du_bao_nhu_cau.py"), default_timeout=20)
+        at.run()
+        assert not at.exception, f"Initial render failed: {[e.value for e in at.exception]}"
+        assert not at.error
+        md_init = "\n".join(m.value for m in at.markdown)
+        assert "DATA → FORECAST" in md_init
+        assert "15.44%" in md_init  # Default N02BE AutoRouted WAPE
+
+        # Switch to intermittent N05C
+        at.selectbox(key="p5_atc").select("N05C").run()
+        assert not at.exception, f"Switch ATC failed: {[e.value for e in at.exception]}"
+        md_n05c = "\n".join(m.value for m in at.markdown)
+        assert "47.94%" in md_n05c
+        assert "67.9%" in md_n05c
+
+        # Switch to Daily 365D view
+        at.radio(key="p5_horizon").set_value("Theo Ngày (365D)").run()
+        assert not at.exception, f"Switch Daily failed: {[e.value for e in at.exception]}"
+        assert not at.error
+
+        # Toggle Right Explanation Drawer open
+        at.button(key="p5_toggle_drawer").click().run()
+        assert not at.exception, f"Open drawer failed: {[e.value for e in at.exception]}"
+        md_drawer = "\n".join(m.value for m in at.markdown)
+        assert "ⓘ Giải thích · Dự Báo Nhu Cầu (ML)" in md_drawer
+
 
 

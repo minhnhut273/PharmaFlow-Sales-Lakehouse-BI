@@ -55,6 +55,11 @@ _PAGE_LOCAL_KEYS: tuple[str, ...] = (
     "p4_product_search",
     "p4_atc_apply_date",
     "p4_from_jump",
+    "p5_atc",
+    "p5_horizon",
+    "p5_show_cqr",
+    "p5_compare_weekly",
+    "p5_compare_daily",
     "ui_info_drawer_open",
     "_page_info_panel",
 )
