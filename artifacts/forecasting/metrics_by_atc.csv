@@ -1,0 +1,97 @@
+fold_id,atc_code,model_name,feature_set,MSE,RMSE,MAE,WAPE_pct,MASE,Bias_pct,MAPE_pct
+holdout_52w,M01AB,AutoRouted_Champion,selected=Croston_SBA|valMAE=5.72,58.24,7.63,5.81,15.74,0.614,-6.35,15.92
+holdout_52w,M01AB,Croston_SBA,Rate_alpha=0.05,58.24,7.63,5.81,15.74,0.614,-6.35,15.92
+holdout_52w,M01AB,Harmonic_ARIMA,"Rate_Fourier_K2_(1, 1, 1)",58.35,7.64,5.71,15.47,0.604,-2.34,16.42
+holdout_52w,M01AB,Hybrid_SARIMA_LGBM_F3,Rate_Exp26OOF_alpha=1.00_n15,61.63,7.85,5.86,15.88,0.62,-3.17,16.67
+holdout_52w,M01AB,LightGBM_AnchorRes_F3,Rate_EWMA4Res_n78_k29,61.6,7.85,5.97,16.17,0.631,-1.34,17.2
+holdout_52w,M01AB,LightGBM_F1,Rate_regression_n32_k14,54.38,7.37,5.61,15.22,0.594,-2.35,16.04
+holdout_52w,M01AB,LightGBM_F1F2,Rate_regression_n34_k22,63.63,7.98,6.14,16.64,0.65,-7.56,16.55
+holdout_52w,M01AB,LightGBM_F1F2F3,Rate_regression_n44_k29,62.18,7.89,6.21,16.83,0.657,-8.57,16.56
+holdout_52w,M01AB,LightGBM_F1F2F3_LagOnly,Rate_regression_n29_k30,61.08,7.82,6.0,16.26,0.635,-7.15,16.22
+holdout_52w,M01AB,Ridge_F1F2F3,Rate_alpha=562.3_k29,52.68,7.26,5.55,15.03,0.587,-3.23,15.72
+holdout_52w,M01AB,Seasonal_Naive,lag52_raw_qty,107.08,10.35,8.47,22.96,0.896,-7.41,27.48
+holdout_52w,M01AB,Seasonal_Naive_Weighted,"Paper2024_[0.4,0.3,0.2,0.1]",72.49,8.51,6.83,18.51,0.723,-2.59,24.28
+holdout_52w,M01AE,AutoRouted_Champion,selected=Ridge_F1F2F3|valMAE=4.78,72.64,8.52,6.64,25.17,0.993,2.27,27.05
+holdout_52w,M01AE,Croston_SBA,Rate_alpha=0.05,86.03,9.28,7.07,26.78,1.056,-0.08,27.94
+holdout_52w,M01AE,Harmonic_ARIMA,"Rate_Fourier_K2_(1, 1, 1)",69.46,8.33,6.59,24.97,0.985,2.22,26.96
+holdout_52w,M01AE,Hybrid_SARIMA_LGBM_F3,Rate_Exp26OOF_alpha=0.00_n15,69.46,8.33,6.59,24.97,0.985,2.22,26.96
+holdout_52w,M01AE,LightGBM_AnchorRes_F3,Rate_EWMA4Res_n37_k29,67.56,8.22,6.63,25.13,0.991,3.57,27.51
+holdout_52w,M01AE,LightGBM_F1,Rate_regression_n20_k14,89.29,9.45,7.1,26.91,1.062,3.12,28.91
+holdout_52w,M01AE,LightGBM_F1F2,Rate_regression_n20_k22,85.89,9.27,6.89,26.1,1.03,2.74,27.82
+holdout_52w,M01AE,LightGBM_F1F2F3,Rate_regression_n20_k29,84.42,9.19,6.85,25.96,1.024,2.8,27.7
+holdout_52w,M01AE,LightGBM_F1F2F3_LagOnly,Rate_regression_n20_k30,85.92,9.27,6.97,26.42,1.042,3.6,28.4
+holdout_52w,M01AE,Ridge_F1F2F3,Rate_alpha=348.1_k29,72.64,8.52,6.64,25.17,0.993,2.27,27.05
+holdout_52w,M01AE,Seasonal_Naive,lag52_raw_qty,105.88,10.29,7.76,29.42,1.16,1.01,34.77
+holdout_52w,M01AE,Seasonal_Naive_Weighted,"Paper2024_[0.4,0.3,0.2,0.1]",86.98,9.33,7.44,28.18,1.111,5.03,34.87
+holdout_52w,N02BA,AutoRouted_Champion,selected=Harmonic_ARIMA|valMAE=3.72,29.06,5.39,4.45,20.92,0.623,-0.78,22.99
+holdout_52w,N02BA,Croston_SBA,Rate_alpha=0.1,28.89,5.38,4.24,19.92,0.593,-5.69,20.72
+holdout_52w,N02BA,Harmonic_ARIMA,"Rate_Fourier_K2_(0, 1, 1)",29.06,5.39,4.45,20.92,0.623,-0.78,22.99
+holdout_52w,N02BA,Hybrid_SARIMA_LGBM_F3,Rate_Exp26OOF_alpha=0.00_n35,29.06,5.39,4.45,20.92,0.623,-0.78,22.99
+holdout_52w,N02BA,LightGBM_AnchorRes_F3,Rate_EWMA4Res_n18_k29,29.21,5.41,4.31,20.25,0.603,-0.2,22.36
+holdout_52w,N02BA,LightGBM_F1,Rate_regression_n68_k14,28.31,5.32,4.29,20.15,0.6,-1.28,22.4
+holdout_52w,N02BA,LightGBM_F1F2,Rate_regression_n78_k22,27.72,5.26,4.4,20.67,0.615,1.89,23.22
+holdout_52w,N02BA,LightGBM_F1F2F3,Rate_regression_n62_k29,32.7,5.72,4.69,22.06,0.656,4.63,25.55
+holdout_52w,N02BA,LightGBM_F1F2F3_LagOnly,Rate_regression_n80_k30,34.8,5.9,4.8,22.55,0.671,4.35,25.32
+holdout_52w,N02BA,Ridge_F1F2F3,Rate_alpha=51.1_k29,32.35,5.69,4.54,21.34,0.635,-3.14,22.69
+holdout_52w,N02BA,Seasonal_Naive,lag52_raw_qty,52.07,7.22,5.87,27.57,0.821,6.33,37.24
+holdout_52w,N02BA,Seasonal_Naive_Weighted,"Paper2024_[0.4,0.3,0.2,0.1]",75.57,8.69,7.04,33.11,0.986,23.26,46.4
+holdout_52w,N02BE,AutoRouted_Champion,selected=LightGBM_F1F2F3|valMAE=26.81,2042.84,45.2,32.13,15.44,0.523,-1.59,16.08
+holdout_52w,N02BE,Croston_SBA,Rate_alpha=0.2,4014.57,63.36,44.23,21.26,0.72,-9.3,20.01
+holdout_52w,N02BE,Harmonic_ARIMA,"Rate_Fourier_K2_(1, 0, 1)",1841.96,42.92,32.93,15.83,0.536,-0.25,16.02
+holdout_52w,N02BE,Hybrid_SARIMA_LGBM_F3,Rate_Exp26OOF_alpha=0.00_n15,1841.96,42.92,32.93,15.83,0.536,-0.25,16.02
+holdout_52w,N02BE,LightGBM_AnchorRes_F3,Rate_EWMA4Res_n237_k29,1392.2,37.31,26.96,12.96,0.439,-1.47,13.01
+holdout_52w,N02BE,LightGBM_F1,Rate_regression_n63_k14,2111.92,45.96,34.41,16.54,0.56,0.03,17.65
+holdout_52w,N02BE,LightGBM_F1F2,Rate_regression_n115_k22,1983.25,44.53,32.0,15.38,0.521,-1.46,16.23
+holdout_52w,N02BE,LightGBM_F1F2F3,Rate_regression_n84_k29,2042.84,45.2,32.13,15.44,0.523,-1.59,16.08
+holdout_52w,N02BE,LightGBM_F1F2F3_LagOnly,Rate_regression_n87_k30,1697.91,41.21,28.99,13.94,0.472,-2.57,14.25
+holdout_52w,N02BE,Ridge_F1F2F3,Rate_alpha=31.6_k29,1718.77,41.46,29.87,14.36,0.486,-2.09,14.54
+holdout_52w,N02BE,Seasonal_Naive,lag52_raw_qty,3605.15,60.04,45.42,21.83,0.739,0.33,24.42
+holdout_52w,N02BE,Seasonal_Naive_Weighted,"Paper2024_[0.4,0.3,0.2,0.1]",2404.25,49.03,31.76,15.27,0.517,2.64,18.13
+holdout_52w,N05B,AutoRouted_Champion,selected=LightGBM_AnchorRes_F3|valMAE=11.02,139.66,11.82,9.68,16.49,0.365,-2.2,17.52
+holdout_52w,N05B,Croston_SBA,Rate_alpha=0.05,126.26,11.24,9.72,16.57,0.367,-0.27,18.05
+holdout_52w,N05B,Harmonic_ARIMA,"Rate_Fourier_K2_(0, 1, 1)",152.58,12.35,10.53,17.94,0.397,0.97,19.61
+holdout_52w,N05B,Hybrid_SARIMA_LGBM_F3,Rate_Exp26OOF_alpha=0.00_n15,152.58,12.35,10.53,17.94,0.397,0.97,19.61
+holdout_52w,N05B,LightGBM_AnchorRes_F3,Rate_EWMA4Res_n37_k29,139.66,11.82,9.68,16.49,0.365,-2.2,17.52
+holdout_52w,N05B,LightGBM_F1,Rate_regression_n56_k14,147.45,12.14,10.15,17.3,0.383,-4.64,17.82
+holdout_52w,N05B,LightGBM_F1F2,Rate_regression_n20_k22,144.77,12.03,10.28,17.52,0.388,-2.13,18.52
+holdout_52w,N05B,LightGBM_F1F2F3,Rate_regression_n20_k29,130.48,11.42,9.84,16.76,0.371,-1.9,17.85
+holdout_52w,N05B,LightGBM_F1F2F3_LagOnly,Rate_regression_n20_k30,125.47,11.2,9.58,16.32,0.361,-2.25,17.32
+holdout_52w,N05B,Ridge_F1F2F3,Rate_alpha=348.1_k29,118.65,10.89,9.13,15.55,0.344,-2.29,16.53
+holdout_52w,N05B,Seasonal_Naive,lag52_raw_qty,450.79,21.23,16.46,28.04,0.621,3.81,31.78
+holdout_52w,N05B,Seasonal_Naive_Weighted,"Paper2024_[0.4,0.3,0.2,0.1]",239.42,15.47,11.9,20.27,0.449,-0.78,22.84
+holdout_52w,N05C,AutoRouted_Champion,selected=LightGBM_F1F2F3|valMAE=2.84,8.66,2.94,2.4,47.94,0.72,-25.6,inf
+holdout_52w,N05C,Croston_SBA,Rate_alpha=0.05,7.76,2.79,2.21,44.24,0.665,-10.54,inf
+holdout_52w,N05C,Harmonic_ARIMA,"Rate_Fourier_K2_(1, 0, 0)",8.4,2.9,2.36,47.22,0.71,-18.9,inf
+holdout_52w,N05C,Hybrid_SARIMA_LGBM_F3,Rate_Exp26OOF_alpha=0.00_n15,8.4,2.9,2.36,47.22,0.71,-18.9,inf
+holdout_52w,N05C,LightGBM_AnchorRes_F3,Rate_EWMA4Res_n204_k29,7.99,2.83,2.33,46.5,0.699,-22.26,inf
+holdout_52w,N05C,LightGBM_F1,Rate_tweedie_n20_k14,8.57,2.93,2.34,46.87,0.704,-25.31,inf
+holdout_52w,N05C,LightGBM_F1F2,Rate_tweedie_n20_k22,9.02,3.0,2.42,48.44,0.728,-21.85,inf
+holdout_52w,N05C,LightGBM_F1F2F3,Rate_tweedie_n20_k29,8.66,2.94,2.4,47.94,0.72,-25.6,inf
+holdout_52w,N05C,LightGBM_F1F2F3_LagOnly,Rate_tweedie_n20_k30,8.27,2.88,2.34,46.74,0.702,-26.98,inf
+holdout_52w,N05C,Ridge_F1F2F3,Rate_alpha=2371.4_k29,8.81,2.97,2.42,48.31,0.726,-26.59,inf
+holdout_52w,N05C,Seasonal_Naive,lag52_raw_qty,21.75,4.66,3.48,69.62,1.046,-23.46,inf
+holdout_52w,N05C,Seasonal_Naive_Weighted,"Paper2024_[0.4,0.3,0.2,0.1]",10.95,3.31,2.71,54.13,0.813,-23.96,inf
+holdout_52w,R03,AutoRouted_Champion,selected=LightGBM_AnchorRes_F3|valMAE=12.60,688.8,26.25,20.78,38.32,1.182,-0.83,44.19
+holdout_52w,R03,Croston_SBA,Rate_alpha=0.3,721.19,26.85,19.91,36.71,1.133,-12.7,39.95
+holdout_52w,R03,Harmonic_ARIMA,"Rate_Fourier_K2_(1, 1, 1)",662.25,25.73,20.37,37.56,1.159,-0.12,48.64
+holdout_52w,R03,Hybrid_SARIMA_LGBM_F3,Rate_Exp26OOF_alpha=1.00_n15,674.88,25.98,21.05,38.83,1.198,2.93,51.39
+holdout_52w,R03,LightGBM_AnchorRes_F3,Rate_EWMA4Res_n15_k29,688.8,26.25,20.78,38.32,1.182,-0.83,44.19
+holdout_52w,R03,LightGBM_F1,Rate_regression_n34_k14,886.72,29.78,21.52,39.68,1.224,-20.45,42.56
+holdout_52w,R03,LightGBM_F1F2,Rate_regression_n32_k22,866.52,29.44,20.87,38.49,1.188,-23.52,37.62
+holdout_52w,R03,LightGBM_F1F2F3,Rate_regression_n92_k29,889.54,29.83,20.85,38.46,1.187,-22.9,38.12
+holdout_52w,R03,LightGBM_F1F2F3_LagOnly,Rate_regression_n52_k30,918.57,30.31,21.07,38.86,1.199,-22.83,38.89
+holdout_52w,R03,Ridge_F1F2F3,Rate_alpha=215.4_k29,768.06,27.71,19.77,36.46,1.125,-17.65,38.11
+holdout_52w,R03,Seasonal_Naive,lag52_raw_qty,1142.61,33.8,26.75,49.34,1.522,-18.14,61.9
+holdout_52w,R03,Seasonal_Naive_Weighted,"Paper2024_[0.4,0.3,0.2,0.1]",1087.25,32.97,25.38,46.8,1.444,-26.77,50.84
+holdout_52w,R06,AutoRouted_Champion,selected=LightGBM_AnchorRes_F3|valMAE=5.52,57.04,7.55,5.79,24.67,0.83,-0.64,35.27
+holdout_52w,R06,Croston_SBA,Rate_alpha=0.3,95.65,9.78,6.75,28.75,0.967,-15.09,35.05
+holdout_52w,R06,Harmonic_ARIMA,"Rate_Fourier_K2_(1, 0, 1)",64.18,8.01,5.87,25.01,0.841,-7.93,31.56
+holdout_52w,R06,Hybrid_SARIMA_LGBM_F3,Rate_Exp26OOF_alpha=0.85_n68,58.51,7.65,5.9,25.12,0.845,-1.06,36.61
+holdout_52w,R06,LightGBM_AnchorRes_F3,Rate_EWMA4Res_n119_k29,57.04,7.55,5.79,24.67,0.83,-0.64,35.27
+holdout_52w,R06,LightGBM_F1,Rate_regression_n89_k14,61.95,7.87,6.39,27.22,0.916,-0.99,41.63
+holdout_52w,R06,LightGBM_F1F2,Rate_regression_n93_k22,49.75,7.05,5.46,23.26,0.783,-0.2,35.26
+holdout_52w,R06,LightGBM_F1F2F3,Rate_regression_n133_k29,63.64,7.98,6.3,26.84,0.903,-4.82,36.33
+holdout_52w,R06,LightGBM_F1F2F3_LagOnly,Rate_regression_n136_k30,65.78,8.11,6.42,27.35,0.92,0.73,42.95
+holdout_52w,R06,Ridge_F1F2F3,Rate_alpha=51.1_k29,61.43,7.84,5.83,24.84,0.835,-4.28,32.54
+holdout_52w,R06,Seasonal_Naive,lag52_raw_qty,137.75,11.74,8.63,36.75,1.236,-4.36,72.02
+holdout_52w,R06,Seasonal_Naive_Weighted,"Paper2024_[0.4,0.3,0.2,0.1]",86.5,9.3,6.47,27.56,0.927,-12.18,54.84

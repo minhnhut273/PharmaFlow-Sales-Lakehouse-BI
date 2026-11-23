@@ -1,0 +1,221 @@
+{
+  "pipeline": "Unified 5-Notebook PharmaFlow Demand Forecasting",
+  "scope": "DATA -> FORECAST (Prediction Quality only; OBSERVED data)",
+  "total_training_elapsed_sec": 166.6,
+  "speedup_vs_paper2024": 1166.9,
+  "leakage_checks": {
+    "is_holiday_zero_removed": true,
+    "bfill_removed": true,
+    "active_days_not_in_tree_features": true,
+    "weekly_perturbation_diff": 0.0,
+    "daily_perturbation_diff": 0.0
+  },
+  "autorouted_champions": [
+    {
+      "atc_code": "M01AB",
+      "feature_set": "selected=Croston_SBA|valMAE=5.72",
+      "WAPE_pct": 15.74,
+      "MASE": 0.614,
+      "MSE": 58.24,
+      "Bias_pct": -6.35
+    },
+    {
+      "atc_code": "M01AE",
+      "feature_set": "selected=Ridge_F1F2F3|valMAE=4.78",
+      "WAPE_pct": 25.17,
+      "MASE": 0.993,
+      "MSE": 72.64,
+      "Bias_pct": 2.27
+    },
+    {
+      "atc_code": "N02BA",
+      "feature_set": "selected=Harmonic_ARIMA|valMAE=3.72",
+      "WAPE_pct": 20.92,
+      "MASE": 0.623,
+      "MSE": 29.06,
+      "Bias_pct": -0.78
+    },
+    {
+      "atc_code": "N02BE",
+      "feature_set": "selected=LightGBM_F1F2F3|valMAE=26.81",
+      "WAPE_pct": 15.44,
+      "MASE": 0.523,
+      "MSE": 2042.84,
+      "Bias_pct": -1.59
+    },
+    {
+      "atc_code": "N05B",
+      "feature_set": "selected=LightGBM_AnchorRes_F3|valMAE=11.02",
+      "WAPE_pct": 16.49,
+      "MASE": 0.365,
+      "MSE": 139.66,
+      "Bias_pct": -2.2
+    },
+    {
+      "atc_code": "N05C",
+      "feature_set": "selected=LightGBM_F1F2F3|valMAE=2.84",
+      "WAPE_pct": 47.94,
+      "MASE": 0.72,
+      "MSE": 8.66,
+      "Bias_pct": -25.6
+    },
+    {
+      "atc_code": "R03",
+      "feature_set": "selected=LightGBM_AnchorRes_F3|valMAE=12.60",
+      "WAPE_pct": 38.32,
+      "MASE": 1.182,
+      "MSE": 688.8,
+      "Bias_pct": -0.83
+    },
+    {
+      "atc_code": "R06",
+      "feature_set": "selected=LightGBM_AnchorRes_F3|valMAE=5.52",
+      "WAPE_pct": 24.67,
+      "MASE": 0.83,
+      "MSE": 57.04,
+      "Bias_pct": -0.64
+    }
+  ],
+  "lowest_mse_by_atc": [
+    {
+      "atc_code": "M01AB",
+      "model_name": "Ridge_F1F2F3",
+      "MSE": 52.68,
+      "WAPE_pct": 15.03,
+      "MASE": 0.587
+    },
+    {
+      "atc_code": "M01AE",
+      "model_name": "LightGBM_AnchorRes_F3",
+      "MSE": 67.56,
+      "WAPE_pct": 25.13,
+      "MASE": 0.991
+    },
+    {
+      "atc_code": "N02BA",
+      "model_name": "LightGBM_F1F2",
+      "MSE": 27.72,
+      "WAPE_pct": 20.67,
+      "MASE": 0.615
+    },
+    {
+      "atc_code": "N02BE",
+      "model_name": "LightGBM_AnchorRes_F3",
+      "MSE": 1392.2,
+      "WAPE_pct": 12.96,
+      "MASE": 0.439
+    },
+    {
+      "atc_code": "N05B",
+      "model_name": "Ridge_F1F2F3",
+      "MSE": 118.65,
+      "WAPE_pct": 15.55,
+      "MASE": 0.344
+    },
+    {
+      "atc_code": "N05C",
+      "model_name": "Croston_SBA",
+      "MSE": 7.76,
+      "WAPE_pct": 44.24,
+      "MASE": 0.665
+    },
+    {
+      "atc_code": "R03",
+      "model_name": "Harmonic_ARIMA",
+      "MSE": 662.25,
+      "WAPE_pct": 37.56,
+      "MASE": 1.159
+    },
+    {
+      "atc_code": "R06",
+      "model_name": "LightGBM_F1F2",
+      "MSE": 49.75,
+      "WAPE_pct": 23.26,
+      "MASE": 0.783
+    }
+  ],
+  "cqr_coverage_raw_mean_pct": 71.7,
+  "cqr_coverage_calibrated_mean_pct": 78.8,
+  "shap_weather_share_by_atc": {
+    "M01AB": {
+      "top5": {
+        "time_idx": 1.804,
+        "lag_2": 0.637,
+        "lag_4": 0.457,
+        "lag_52": 0.437,
+        "ewma_4": 0.375
+      },
+      "f3_weather_shap_share_pct": 16.1
+    },
+    "M01AE": {
+      "top5": {
+        "rolling_max_4": 0.662,
+        "lag_12": 0.508,
+        "time_idx": 0.495,
+        "lag_3": 0.277,
+        "rolling_mean_12": 0.233
+      },
+      "f3_weather_shap_share_pct": 11.3
+    },
+    "N02BA": {
+      "top5": {
+        "time_idx": 3.547,
+        "ewma_4": 0.881,
+        "lag_52": 0.699,
+        "hdd": 0.49,
+        "temp_mean": 0.485
+      },
+      "f3_weather_shap_share_pct": 19.7
+    },
+    "N02BE": {
+      "top5": {
+        "lag_1": 25.249,
+        "daylight_duration_s": 8.06,
+        "time_idx": 5.562,
+        "rolling_mean_4": 4.837,
+        "lag_2": 3.941
+      },
+      "f3_weather_shap_share_pct": 16.4
+    },
+    "N05B": {
+      "top5": {
+        "time_idx": 0.979,
+        "lag_2": 0.568,
+        "rolling_mean_4": 0.549,
+        "lag_52": 0.439,
+        "lag_1": 0.434
+      },
+      "f3_weather_shap_share_pct": 17.3
+    },
+    "N05C": {
+      "top5": {
+        "temp_mean_lag1": 0.064,
+        "rolling_std_12": 0.026,
+        "humidity_mean_lag1": 0.025,
+        "lag_8": 0.024,
+        "hdd": 0.014
+      },
+      "f3_weather_shap_share_pct": 50.5
+    },
+    "R03": {
+      "top5": {
+        "week_cos52": 4.73,
+        "temp_mean_lag1": 2.346,
+        "time_idx": 2.23,
+        "lag_3": 1.463,
+        "atc_share_lag1": 1.234
+      },
+      "f3_weather_shap_share_pct": 18.9
+    },
+    "R06": {
+      "top5": {
+        "rolling_max_4": 2.399,
+        "lag_1": 2.157,
+        "week_sin52": 1.674,
+        "daylight_duration_s": 1.269,
+        "humidity_mean_lag1": 1.178
+      },
+      "f3_weather_shap_share_pct": 25.9
+    }
+  }
+}

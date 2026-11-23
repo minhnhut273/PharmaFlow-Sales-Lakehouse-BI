@@ -1,0 +1,494 @@
+{
+  "total_elapsed_seconds": 166.6,
+  "daily_elapsed_seconds": 5.8,
+  "weekly_folds": [
+    [
+      "holdout_52w",
+      208,
+      250,
+      302
+    ],
+    [
+      "roll_f1",
+      208,
+      250,
+      263
+    ],
+    [
+      "roll_f2",
+      221,
+      263,
+      276
+    ],
+    [
+      "roll_f3",
+      234,
+      276,
+      289
+    ],
+    [
+      "roll_f4",
+      247,
+      289,
+      302
+    ]
+  ],
+  "holdout_rows": 4992,
+  "rolling_rows": 4576,
+  "quantile_rows": 416,
+  "daily_rows": 8760,
+  "hybrid_alphas": [
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "M01AB",
+      "alpha_star": 1.0
+    },
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "M01AE",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "N02BA",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "N02BE",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "N05B",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "N05C",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "R03",
+      "alpha_star": 1.0
+    },
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "R06",
+      "alpha_star": 0.85
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "M01AB",
+      "alpha_star": 1.0
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "M01AE",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "N02BA",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "N02BE",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "N05B",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "N05C",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "R03",
+      "alpha_star": 1.0
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "R06",
+      "alpha_star": 0.85
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "M01AB",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "M01AE",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "N02BA",
+      "alpha_star": 1.0
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "N02BE",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "N05B",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "N05C",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "R03",
+      "alpha_star": 1.0
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "R06",
+      "alpha_star": 1.0
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "M01AB",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "M01AE",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "N02BA",
+      "alpha_star": 1.0
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "N02BE",
+      "alpha_star": 1.0
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "N05B",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "N05C",
+      "alpha_star": 1.0
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "R03",
+      "alpha_star": 1.0
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "R06",
+      "alpha_star": 0.85
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "M01AB",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "M01AE",
+      "alpha_star": 1.0
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "N02BA",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "N02BE",
+      "alpha_star": 0.9
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "N05B",
+      "alpha_star": 1.0
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "N05C",
+      "alpha_star": 1.0
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "R03",
+      "alpha_star": 0.0
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "R06",
+      "alpha_star": 0.55
+    }
+  ],
+  "autorouted_choices": [
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "M01AB",
+      "selected_model": "Croston_SBA",
+      "val_mae": 5.72
+    },
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "M01AE",
+      "selected_model": "Ridge_F1F2F3",
+      "val_mae": 4.78
+    },
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "N02BA",
+      "selected_model": "Harmonic_ARIMA",
+      "val_mae": 3.72
+    },
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "N02BE",
+      "selected_model": "LightGBM_F1F2F3",
+      "val_mae": 26.81
+    },
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "N05B",
+      "selected_model": "LightGBM_AnchorRes_F3",
+      "val_mae": 11.02
+    },
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "N05C",
+      "selected_model": "LightGBM_F1F2F3",
+      "val_mae": 2.84
+    },
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "R03",
+      "selected_model": "LightGBM_AnchorRes_F3",
+      "val_mae": 12.6
+    },
+    {
+      "fold_id": "holdout_52w",
+      "atc_code": "R06",
+      "selected_model": "LightGBM_AnchorRes_F3",
+      "val_mae": 5.52
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "M01AB",
+      "selected_model": "Croston_SBA",
+      "val_mae": 5.72
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "M01AE",
+      "selected_model": "Ridge_F1F2F3",
+      "val_mae": 4.78
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "N02BA",
+      "selected_model": "Harmonic_ARIMA",
+      "val_mae": 3.72
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "N02BE",
+      "selected_model": "LightGBM_F1F2F3",
+      "val_mae": 26.81
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "N05B",
+      "selected_model": "LightGBM_AnchorRes_F3",
+      "val_mae": 11.02
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "N05C",
+      "selected_model": "LightGBM_F1F2F3",
+      "val_mae": 2.84
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "R03",
+      "selected_model": "LightGBM_AnchorRes_F3",
+      "val_mae": 12.6
+    },
+    {
+      "fold_id": "roll_f1",
+      "atc_code": "R06",
+      "selected_model": "LightGBM_AnchorRes_F3",
+      "val_mae": 5.52
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "M01AB",
+      "selected_model": "Croston_SBA",
+      "val_mae": 5.78
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "M01AE",
+      "selected_model": "LightGBM_F1F2",
+      "val_mae": 4.24
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "N02BA",
+      "selected_model": "Croston_SBA",
+      "val_mae": 3.54
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "N02BE",
+      "selected_model": "Ridge_F1F2F3",
+      "val_mae": 25.62
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "N05B",
+      "selected_model": "LightGBM_F1F2",
+      "val_mae": 8.77
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "N05C",
+      "selected_model": "LightGBM_AnchorRes_F3",
+      "val_mae": 2.32
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "R03",
+      "selected_model": "Hybrid_SARIMA_LGBM_F3",
+      "val_mae": 15.3
+    },
+    {
+      "fold_id": "roll_f2",
+      "atc_code": "R06",
+      "selected_model": "Hybrid_SARIMA_LGBM_F3",
+      "val_mae": 5.56
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "M01AB",
+      "selected_model": "Croston_SBA",
+      "val_mae": 5.29
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "M01AE",
+      "selected_model": "LightGBM_AnchorRes_F3",
+      "val_mae": 6.78
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "N02BA",
+      "selected_model": "LightGBM_F1",
+      "val_mae": 3.89
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "N02BE",
+      "selected_model": "LightGBM_AnchorRes_F3",
+      "val_mae": 32.35
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "N05B",
+      "selected_model": "Croston_SBA",
+      "val_mae": 8.62
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "N05C",
+      "selected_model": "LightGBM_F1F2",
+      "val_mae": 1.9
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "R03",
+      "selected_model": "Hybrid_SARIMA_LGBM_F3",
+      "val_mae": 20.73
+    },
+    {
+      "fold_id": "roll_f3",
+      "atc_code": "R06",
+      "selected_model": "Hybrid_SARIMA_LGBM_F3",
+      "val_mae": 4.84
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "M01AB",
+      "selected_model": "LightGBM_F1",
+      "val_mae": 5.54
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "M01AE",
+      "selected_model": "LightGBM_AnchorRes_F3",
+      "val_mae": 6.93
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "N02BA",
+      "selected_model": "LightGBM_F1",
+      "val_mae": 4.3
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "N02BE",
+      "selected_model": "LightGBM_AnchorRes_F3",
+      "val_mae": 29.07
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "N05B",
+      "selected_model": "LightGBM_AnchorRes_F3",
+      "val_mae": 9.09
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "N05C",
+      "selected_model": "LightGBM_F1",
+      "val_mae": 2.03
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "R03",
+      "selected_model": "Ridge_F1F2F3",
+      "val_mae": 22.29
+    },
+    {
+      "fold_id": "roll_f4",
+      "atc_code": "R06",
+      "selected_model": "LightGBM_F1F2",
+      "val_mae": 5.67
+    }
+  ],
+  "cqr_qhat_map": {
+    "M01AB": 1.881,
+    "M01AE": 0.403,
+    "N02BA": -0.612,
+    "N02BE": 22.715,
+    "N05B": -4.881,
+    "N05C": 1.25,
+    "R03": 7.398,
+    "R06": 1.503
+  }
+}

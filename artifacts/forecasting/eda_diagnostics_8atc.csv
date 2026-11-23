@@ -1,0 +1,9 @@
+atc_code,daily_mean,daily_zero_pct,adi,cv2,sb_class,weekly_mean,weekly_cov,weekly_zero_cnt,acf1_w,acf52_w,adf_p,kpss_p,lb12_p,mk_p,sw_p,model_recommendation,selection_rationale
+M01AB,5.03,1.9,1.02,0.27,Smooth,35.1,0.25,0,0.21,0.01,0.0052,0.01,0.0,0.0001,0.0692,Harmonic ARIMA / LightGBM (F1),"Chuỗi mượt gần chuẩn, không có mùa vụ năm ACF52~0"
+M01AE,3.9,1.7,1.02,0.28,Smooth,27.17,0.26,0,0.34,0.06,0.0,0.1,0.0,0.647,0.0,Harmonic ARIMA / Hybrid / Ridge,"Có trôi mức / tự tương quan ngắn, mùa vụ năm yếu"
+N02BA,3.88,3.7,1.04,0.33,Smooth,27.06,0.3,0,0.43,0.34,0.4201,0.01,0.0,0.0,0.0127,LightGBM + ERA5 + Hybrid,"Tự tương quan & mùa vụ năm mạnh (ACF52 >= 0.30), nhạy thời tiết"
+N02BE,29.92,1.2,1.01,0.26,Smooth,208.63,0.36,0,0.8,0.44,0.0003,0.1,0.0,0.7331,0.0,LightGBM + ERA5 + Hybrid,"Tự tương quan & mùa vụ năm mạnh (ACF52 >= 0.30), nhạy thời tiết"
+N05B,8.85,2.0,1.02,0.37,Smooth,61.74,0.36,0,0.49,-0.03,0.0058,0.0363,0.0,0.0085,0.0,Harmonic ARIMA / Hybrid / Ridge,"Có trôi mức / tự tương quan ngắn, mùa vụ năm yếu"
+N05C,0.59,67.9,3.12,0.41,Intermittent,4.14,0.76,36,0.14,0.01,0.0,0.1,0.0516,0.8277,0.0,Croston-SBA + LightGBM (Tweedie),Mật độ số 0 rất cao (WAPE/MASE bắt buộc; MAPE nổ inf%)
+R03,5.51,23.0,1.3,0.82,Erratic,38.44,0.6,0,0.49,0.21,0.0104,0.01,0.0,0.0,0.0,LightGBM + ERA5 + Hybrid,"Tự tương quan & mùa vụ năm mạnh (ACF52 >= 0.30), nhạy thời tiết"
+R06,2.9,12.2,1.14,0.49,Smooth,20.22,0.56,0,0.75,0.51,0.0,0.1,0.0,0.0002,0.0,LightGBM + ERA5 + Hybrid,"Tự tương quan & mùa vụ năm mạnh (ACF52 >= 0.30), nhạy thời tiết"

@@ -1,0 +1,27 @@
+{
+  "generated_at_utc": "2026-11-22T14:47:13.253542+00:00",
+  "store_id": 5631,
+  "provenance_class": "OBSERVED",
+  "source": "PHARMA_SALES_DAILY_ATC",
+  "date_range": [
+    "2014-01-02",
+    "2019-10-08"
+  ],
+  "expected_calendar_days": 2106,
+  "weather_observed_days": 2080,
+  "missing_weather_days": 26,
+  "files": {
+    "raw_sales_5631.parquet": {
+      "rows": 16848,
+      "sha256": "e10b9a7ed2e87cb830d6175b94a2fcff0d219082ad192562d3d88997962c4226"
+    },
+    "raw_weather_5631.parquet": {
+      "rows": 2080,
+      "sha256": "7b8fc47d2c776277a7930a87497f79f740f94dd185ccd5e329f5003675db7cbf"
+    },
+    "raw_holidays_rs.parquet": {
+      "rows": 75,
+      "sha256": "4e802ed397865d7aa80a73d7a1bb559cc315581a1ce857516c89b8abc9ce67c5"
+    }
+  }
+}
