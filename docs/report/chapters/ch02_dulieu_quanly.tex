@@ -1,0 +1,61 @@
+\chapter{Dữ liệu, Lưu trữ và Kiểm soát Chất lượng}
+\label{ch:dulieu_quanly}
+
+\section{Danh mục Nguồn Dữ liệu và Provenance}
+Hệ thống tích hợp đồng thời \textbf{3 hệ nguồn khác cấu trúc} (Bảng~\ref{tab:sources}), bảo toàn tuyệt đối trường phân loại nguồn gốc \texttt{provenance\_class} (\texttt{OBSERVED} tách biệt khỏi \texttt{SYNTHETIC}), đơn vị tính (\texttt{UOM}) và ngày địa phương (\texttt{local\_date}). Không có bất kỳ dữ liệu định danh cá nhân nhạy cảm (PII) hay thông tin mật nào được lưu trong kho mã nguồn.
+
+\begin{table}[H]
+\centering
+\caption{Tổng hợp các nguồn dữ liệu đầu vào trong PharmaFlow (Module 01)}
+\label{tab:sources}
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{4pt}
+\footnotesize
+\begin{tabularx}{\textwidth}{|p{0.23\textwidth}|p{0.17\textwidth}|p{0.15\textwidth}|p{0.13\textwidth}|X|}
+\hline
+\textbf{Nguồn / Bảng chính} & \textbf{Công nghệ lưu trữ} & \textbf{Số dòng / Tệp} & \textbf{Nhãn nguồn} & \textbf{Mô tả, URL \& Giấy phép tóm tắt} \\
+\hline
+\path{pos.sales_order}, \path{pos.sales_order_line} & Neon PostgreSQL v2 & \texttt{393,942} đơn; \texttt{714,959} dòng POS & \texttt{OBSERVED} (IRPD) & Bán lẻ nhà thuốc Indonesia (IRPD, tiền tệ IDR, đa ĐVT). [Chờ nhóm điền URL/License]. \\
+\hline
+\path{pos.sales_observation} (\path{PHARMA_SALES_DAILY_ATC}) & Neon PostgreSQL v2 $\rightarrow$ Gold Mart & \texttt{78,884} dòng tổng (\texttt{16,848} ATC) & \texttt{OBSERVED} (ATC) + \texttt{SYNTHETIC} & Tập 8 nhóm ATC tại Ni\v{s}, Serbia (2014--2019, \texttt{store 5631}, \texttt{2,106} ngày) dùng cho \cite{fourkiotis2024} \& ML, cộng tập ONYX EU (\texttt{EUR}). \\
+\hline
+\path{catalog.product}, \path{org.store} & Neon PostgreSQL v2 & \texttt{5,674} SP; \texttt{2,816} CH & Mixed & Danh mục sản phẩm và tọa độ 2,816 nhà thuốc (VN, ID, EU/RS) quy cụm \texttt{880} điểm P5. \\
+\hline
+\path{product_snapshots} & MongoDB Atlas & \texttt{2,481} tài liệu JSON & \texttt{OBSERVED} & Ảnh chụp tri thức dược phẩm Long Châu (thành phần, bảo quản), kiểm tra SHA-256 duy nhất. \\
+\hline
+Open-Meteo Weather API (ERA5 \& GFS) & Amazon S3 (\path{weather_raw}) & \texttt{19,902} tệp JSON gốc & \texttt{OBSERVED} / Forecast & ERA5 (\texttt{< 2022}), GFS Stitched (\texttt{$\ge$ 2022}), dự báo 16 ngày; giấy phép mở CC BY 4.0 (\url{https://open-meteo.com/}). \\
+\hline
+Lịch nghỉ lễ Serbia (\texttt{holidays RS}) & Python \texttt{holidays} & \texttt{75} ngày (2014--2019) & Công khai & Ngày lễ chính thức Serbia biết trước cho mọi kỳ dự báo, không gây rò rỉ. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Mô hình Lưu trữ Đa Tầng và Bảo mật}
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Lưu trữ phân tán theo cấu trúc dữ liệu:} PostgreSQL đảm nhiệm dữ liệu giao dịch/tổng hợp có quan hệ chặt chẽ; MongoDB Atlas lưu tài liệu JSON bán cấu trúc có độ sâu biến thiên; Amazon S3 giữ nguyên vẹn bytes JSON thô từ API thời tiết kèm manifest \texttt{accepted.json} và checksum SHA-256 bất biến (\textit{S3 Object Lock / Versioning}).
+  \item \textbf{Tầng Lakehouse (Databricks Delta):} Tầng \textbf{Bronze} lưu bản sao thô giữ nguyên lược đồ nguồn; \textbf{Silver} tách riêng \texttt{fact\_sales\_line} và \texttt{fact\_sales\_observation}, chuẩn hóa \texttt{local\_date} theo múi giờ từng cửa hàng; \textbf{Gold} tạo 4 Data Mart (\texttt{mart\_sales\_daily}, \texttt{mart\_sales\_weather\_daily}, \texttt{kpi\_sales\_trend}, \texttt{mart\_sales\_observation\_period}) dung lượng \texttt{449 MB} trên Neon BI Mirror.
+  \item \textbf{Quản lý mật khẩu và phân quyền:} Toàn bộ chuỗi kết nối nằm trong tệp \texttt{.env} cục bộ (bị chặn bởi \texttt{.gitignore}) hoặc AWS SSM \texttt{SecureString}; Dashboard Streamlit chỉ sử dụng vai trò chỉ đọc \texttt{SELECT} (\texttt{bi\_reader}) trên schema \texttt{quick\_gold\_md01}.
+\end{itemize}
+
+\section{Kiểm toán Dữ liệu và Bảng Chất lượng Trước--Sau Xử lý}
+Khi kiểm toán trực tiếp 2 bảng Gold đầu vào cho bài toán ML Forecast (\texttt{mart\_sales\_observation\_period} và \texttt{mart\_sales\_weather\_daily} tại \texttt{store\_id = 5631}, \texttt{2014-01-02 $\rightarrow$ 2019-10-08}), nhóm phát hiện \textbf{4 vấn đề chất lượng trọng yếu} và xử lý triệt để mà không làm rò rỉ tương lai (Bảng~\ref{tab:dq_before_after}):
+
+\begin{table}[H]
+\centering
+\caption{Bảng kiểm tra chất lượng dữ liệu trước và sau quy trình làm sạch (\texttt{NB01--NB03})}
+\label{tab:dq_before_after}
+\renewcommand{\arraystretch}{1.22}
+\begin{tabularx}{\textwidth}{|p{0.18\textwidth}|p{0.25\textwidth}|p{0.28\textwidth}|X|}
+\hline
+\textbf{Hạng mục kiểm tra} & \textbf{Trước xử lý (Raw Gold)} & \textbf{Sau xử lý (\texttt{NB01--NB03})} & \textbf{Ghi chú chống rò rỉ} \\
+\hline
+Khớp khóa \& độ đầy đủ ngày bán & \texttt{16,848} dòng (\texttt{8 ATC $\times$ 2,106} ngày), \texttt{0} trùng khóa & Khẳng định \texttt{100\% OBSERVED}, không thiếu ngày & Lưu \texttt{data\_manifest.json} kèm SHA-256. \\
+\hline
+Biến \texttt{uv\_index\_max} từ ERA5 & Khuyết \texttt{100\% NULL} toàn bộ chuỗi 2014--2019 & Loại bỏ hoàn toàn khỏi tập đặc trưng \texttt{F3} & Tránh cột rỗng gây nhiễu hoặc lỗi suy biến. \\
+\hline
+\texttt{26} ngày khuyết bản ghi thời tiết (\texttt{2,080 / 2,106} ngày) & Trùng khớp 100\% \texttt{26} ngày đóng cửa lễ Quốc gia Serbia (tổng bán \texttt{= 0.00}) & Điền khuyết thuần \texttt{.ffill()} từ ngày liền trước (mốc đầu \texttt{2014-01-02} đủ dữ liệu); bỏ \texttt{is\_holiday\_zero(t)} khỏi feature & Loại bỏ triệt để \texttt{.bfill()} và biến quan sát \texttt{y(t)=0} vốn gây rò rỉ mục tiêu ở bản nháp cũ. \\
+\hline
+Tuần cuối \texttt{W302} chỉ có \texttt{2} ngày bán (\texttt{07--08/10/2019}) & Sản lượng tuần \texttt{W302} sụt giả \texttt{$\sim$70\%}, kéo tăng MSE baseline +\texttt{338} đến +\texttt{583} & Chuẩn hóa tốc độ bán ngày \texttt{qty\_rate = qty / active\_days}; hậu xử lý $\hat{y} = \hat{r} \cdot \text{active\_days}$ & Không đưa \texttt{active\_days} vào đầu vào mô hình cây; kiểm thử nhiễu đạt \texttt{max\_abs\_diff = 0.0}. \\
+\hline
+\end{tabularx}
+\end{table}

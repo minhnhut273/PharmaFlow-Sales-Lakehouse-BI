@@ -1,0 +1,12 @@
+\chapter*{Lời cam đoan và Liêm chính học thuật}
+\addcontentsline{toc}{chapter}{Lời cam đoan và Liêm chính học thuật}
+
+Nhóm tác giả xin cam đoan toàn bộ mã nguồn, pipeline xử lý dữ liệu, kết quả thí nghiệm và báo cáo bài tập lớn môn \textbf{CO4033 -- Phân tích Dữ liệu Lớn và Trí tuệ Kinh doanh} là sản phẩm do nhóm tự nghiên cứu, thiết kế, triển khai và kiểm chứng. Mọi số liệu công bố trong báo cáo đều xuất phát trực tiếp từ kết quả chạy thực nghiệm và kiểm thử tự động trong kho mã nguồn, không sửa đổi hay ngụy tạo số liệu.
+
+\section*{Tuyên bố sử dụng công cụ AI hỗ trợ (Theo quy định CO4033)}
+Trong quá trình thực hiện bài tập lớn, nhóm tuân thủ nguyên tắc liêm chính học thuật: không nộp sản phẩm do AI tự sinh nguyên khối mà luôn kiểm soát thiết kế, chạy lại toàn bộ mã nguồn và kiểm thử xác minh độc lập. Cụ thể:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{Công cụ AI đã sử dụng:} [Chờ nhóm điền/chốt: ví dụ trợ lý lập trình AI hỗ trợ rà soát mã nguồn Terraform/PySpark/Streamlit, định dạng khung tài liệu \LaTeX{} và kiểm tra lỗi chính tả].
+  \item \textbf{Phạm vi sử dụng:} Hỗ trợ gợi ý khung mã nguồn, viết unit test kiểm tra biên rò rỉ dữ liệu, chuẩn hóa trực quan hóa Plotly và tổng hợp tài liệu đối chiếu nghiên cứu.
+  \item \textbf{Cách nhóm kiểm chứng:} Toàn bộ mã nguồn được nhóm chạy thực thi trực tiếp trên Neon PostgreSQL, MongoDB Atlas, AWS S3, Databricks Free Edition, 5 Jupyter Notebooks (\texttt{NB01--NB05}) và vượt qua bộ kiểm thử \texttt{pytest} (\texttt{142} Weather + \texttt{47} Streamlit + \texttt{17} Databricks + \texttt{6} Sync tests) kèm kiểm toán rò rỉ (\texttt{max\_abs\_diff = 0.0}).
+\end{itemize}

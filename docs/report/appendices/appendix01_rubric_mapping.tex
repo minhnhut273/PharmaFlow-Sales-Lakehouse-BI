@@ -1,0 +1,28 @@
+\chapter{Đối chiếu Tiêu chí Rubric CO4033 (100 điểm)}
+\label{app:rubric}
+
+Bảng~\ref{tab:rubric_map} ánh xạ trực tiếp 6 tiêu chí chấm điểm trong tài liệu hướng dẫn BTL CO4033 tới từng chương báo cáo và đường dẫn minh chứng trong kho mã nguồn GitHub.
+
+\begin{table}[H]
+\centering
+\caption{Ma trận đối chiếu Rubric CO4033 với cấu trúc báo cáo và minh chứng repo}
+\label{tab:rubric_map}
+\renewcommand{\arraystretch}{1.22}
+\begin{tabularx}{\textwidth}{|p{0.21\textwidth}|c|p{0.18\textwidth}|X|}
+\hline
+\textbf{Tiêu chí Rubric} & \textbf{Điểm} & \textbf{Vị trí Báo cáo} & \textbf{Minh chứng trong Repo \texttt{BTL\_BI/}} \\
+\hline
+1. Bài toán và KPI & 15 & Chương~\ref{ch:baitoan_kpi} & \path{docs/domain/sales-and-demand/}, \path{docs/design/demand-forecasting-literature-review.md} \\
+\hline
+2. Dữ liệu và quản lý dữ liệu & 15 & Chương~\ref{ch:dulieu_quanly} & \path{docs/data-model/Relations-DataSource/}, \path{src/synthetic_data_source/}, \path{artifacts/forecasting/data_manifest.json} \\
+\hline
+3. Pipeline và tính đúng & 20 & Chương~\ref{ch:kientruc_pipeline} & \path{src/infra/terrafrom/}, \path{src/weather/}, \path{src/pipeline/databricks/}, \path{src/ml/01..05_*.ipynb}, \path{tests/} \\
+\hline
+4. Phân tích và so sánh & 20 & Chương~\ref{ch:phantich_sosanh} & \path{docs/design/demand-forecasting-solution.md}, \path{artifacts/forecasting/*.csv} \\
+\hline
+5. BI và giá trị quyết định & 15 & Chương~\ref{ch:bi_quyetdinh} & \path{src/streamlit/app.py}, \path{pages/01..05_*.py}, \path{src/sync_quick/} \\
+\hline
+6. Báo cáo, demo, tái lập & 15 & Lời cam đoan, Phân công, Chương~\ref{ch:tongket_tailap} & \path{README.md}, \path{src/ml/README.md}, \path{src/streamlit/README.md}, \path{docs/report/} \\
+\hline
+\end{tabularx}
+\end{table}

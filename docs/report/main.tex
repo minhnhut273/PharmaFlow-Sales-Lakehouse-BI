@@ -1,0 +1,84 @@
+\documentclass[a4paper,10pt,openany]{report}
+\usepackage[utf8]{vntex}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\usepackage{array,booktabs,longtable,tabularx,multirow}
+\usepackage{caption,subcaption}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{fancyhdr,lastpage}
+\usepackage{listings,xcolor}
+\usepackage[unicode,hypertexnames=false]{hyperref}
+\usepackage{url}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{tocloft}
+
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue}
+\renewcommand{\chaptername}{Chương}
+\renewcommand{\appendixname}{Phụ lục}
+\renewcommand{\contentsname}{Mục lục}
+\renewcommand{\listfigurename}{Danh mục hình}
+\renewcommand{\listtablename}{Danh mục bảng}
+\renewcommand{\bibname}{Tài liệu tham khảo}
+\usepackage{pharmaflow-btl-report}
+
+\newcommand{\reporttitle}{PharmaFlow: Hệ thống Data Lakehouse, Trí tuệ Kinh doanh và Dự báo Nhu cầu Dược phẩm Đa nguồn}
+\newcommand{\studentnames}{[Chờ nhóm điền: Họ tên Sinh viên 1 -- MSSV] \\ {[Chờ nhóm điền: Họ tên Sinh viên 2 -- MSSV]} \\ {[Chờ nhóm điền: Họ tên Sinh viên 3 -- MSSV]}}
+\newcommand{\advisor}{[Chờ nhóm điền: Học vị, Họ tên Giảng viên hướng dẫn]}
+\newcommand{\reportyear}{2026}
+
+\newcommand{\universityheader}{Trường Đại học Bách khoa, Tp. Hồ Chí Minh}
+\newcommand{\facultyheader}{Khoa Khoa học và Kỹ thuật máy tính}
+\newcommand{\reportfooter}{BTL CO4033 -- PharmaFlow Data Lakehouse \& BI}
+\newcommand{\reportpagelabel}{Trang}
+\newcommand{\covernational}{ĐẠI HỌC QUỐC GIA TP. HỒ CHÍ MINH}
+\newcommand{\coveruniversity}{TRƯỜNG ĐẠI HỌC BÁCH KHOA}
+\newcommand{\coverfaculty}{KHOA KHOA HỌC VÀ KỸ THUẬT MÁY TÍNH}
+\newcommand{\coverreporttype}{BÁO CÁO BÀI TẬP LỚN\\PHÂN TÍCH DỮ LIỆU LỚN VÀ TRÍ TUỆ KINH DOANH}
+\newcommand{\covercourselabel}{Môn học}
+\newcommand{\covercourse}{CO4033 -- Phân tích Dữ liệu Lớn và Trí tuệ Kinh doanh}
+\newcommand{\coveradvisorlabel}{Giảng viên}
+\newcommand{\covertermlabel}{Học kỳ/Năm học}
+\newcommand{\coverterm}{HK261 -- Năm học 2026--2027}
+\newcommand{\coverstudentlabel}{\textbf{Nhóm thực hiện:}}
+\newcommand{\covercity}{TP. HỒ CHÍ MINH}
+
+\begin{document}
+\makereportcover
+
+\pagenumbering{roman}
+\input{frontmatter/camdoan}
+\clearpage
+\input{frontmatter/phancong}
+\clearpage
+\input{frontmatter/tomtat}
+\clearpage
+\tableofcontents
+\clearpage
+\input{frontmatter/danhmuctuviettat}
+\clearpage
+\listoffigures
+\clearpage
+\listoftables
+\clearpage
+
+\hypersetup{pageanchor=false}
+\pagenumbering{arabic}
+\hypersetup{pageanchor=true}
+\input{chapters/ch01_baitoan_kpi}
+\input{chapters/ch02_dulieu_quanly}
+\input{chapters/ch03_kientruc_pipeline}
+\input{chapters/ch04_phantich_sosanh}
+\input{chapters/ch05_bi_quyetdinh}
+\input{chapters/ch06_tongket_tailap}
+
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{Tài liệu tham khảo}
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+\appendix
+\input{appendices/appendix01_rubric_mapping}
+\end{document}

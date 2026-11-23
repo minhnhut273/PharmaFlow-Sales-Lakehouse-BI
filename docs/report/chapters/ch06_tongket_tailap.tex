@@ -1,0 +1,32 @@
+\chapter{Tổng kết, Tái lập Hệ thống và Hướng phát triển}
+\label{ch:tongket_tailap}
+
+\section{Tổng kết Kết quả Đạt được}
+Bài tập lớn đã hoàn thành trọn vẹn chuỗi kiến trúc dữ liệu đa nguồn $\rightarrow$ AWS Serverless/Terraform $\rightarrow$ Databricks Medallion Lakehouse $\rightarrow$ Neon BI Mirror $\rightarrow$ Streamlit 5 trang \& AWS QuickSight $\rightarrow$ Pipeline ML Dự báo Nhu cầu (5 Notebooks). Toàn bộ sản phẩm đều đã chạy thực tế, kiểm chứng tự động (\texttt{212} test scripts + kiểm toán rò rỉ \texttt{= 0.0}) và đồng bộ mã nguồn trên GitHub.
+
+\section{Hướng dẫn Tái lập Hệ thống (\textit{Reproducibility})}
+Nhóm hoặc giảng viên có thể kiểm chứng và chạy lại toàn bộ hệ thống theo các bước chuẩn hóa trong tệp \texttt{README.md} gốc của repository \url{https://github.com/minhnhut273/PharmaFlow-Sales-Lakehouse-BI}:
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Chạy Dashboard Streamlit 5 trang (kể cả offline trên Trang 5 ML):}
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize,frame=single,breaklines=true]
+git clone https://github.com/minhnhut273/PharmaFlow-Sales-Lakehouse-BI.git
+cd PharmaFlow-Sales-Lakehouse-BI
+python -m venv .venv
+.\.venv\Scripts\pip.exe install -r src\streamlit\requirements.txt
+# Tao file .env voi QUICK_NEON_DATABASE_URL & QUICK_NEON_SCHEMA=quick_gold_md01
+.\.venv\Scripts\streamlit.exe run src\streamlit\app.py --server.port 8501
+\end{lstlisting}
+  \item \textbf{Chạy bộ kiểm thử tự động offline (không cần kết nối cloud):}
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize,frame=single,breaklines=true]
+.\.venv\Scripts\python.exe -B -m pytest tests\test_streamlit_dashboard.py tests\weather -v -p no:cacheprovider
+.\.venv\Scripts\python.exe -B -m pytest src\pipeline\databricks\tests src\sync_quick\test_sync_quick.py -v -p no:cacheprovider
+\end{lstlisting}
+  \item \textbf{Chạy lại luồng 5 Notebooks ML (\texttt{src/ml/01..05\_*.ipynb}):} Chỉ Notebook 01 cần \texttt{.env} kết nối Neon BI Mirror; Notebooks \texttt{02 $\rightarrow$ 05} chạy hoàn toàn offline từ snapshot trong \texttt{artifacts/forecasting/} hết \texttt{166.6 giây}. Tài liệu thiết kế và đối chứng đầy đủ được lưu kèm tại \url{https://docs.google.com/document/d/1Qxpmm4v4zUI8wN-NiUiOeSF5nTUlwOTYJmPgSZRZLJo/edit}.
+\end{enumerate}
+
+\section{Hướng Phát triển Tiếp theo}
+\begin{itemize}[leftmargin=1.5em]
+  \item Bổ sung bảng dữ liệu tồn kho thực (\textit{on-hand}, \textit{lead time}, lô/hạn dùng FEFO) để nối tiếp tầng \texttt{FORECAST $\rightarrow$ RISK $\rightarrow$ DECISION} tính Safety Stock và điểm đặt hàng lại (ROP) dựa trên dải phân vị Split CQR.
+  \item Đóng gói hàm sinh đặc trưng \texttt{qty\_rate} và \texttt{AutoRouted\_Champion} thành job định kỳ hằng tuần ghi thẳng bảng dự báo vào schema \texttt{quick\_gold\_md01} trên Neon.
+  \item Hoàn thiện quy đổi \texttt{base\_qty} cho các nguồn đa ĐVT như \texttt{IRPD Indonesia} để mở khóa cộng gộp sản lượng chuẩn hóa liên sản phẩm.
+\end{itemize}

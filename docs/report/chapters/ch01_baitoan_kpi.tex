@@ -1,0 +1,58 @@
+\chapter{Bài toán, Câu hỏi Nghiệp vụ và Khung KPI}
+\label{ch:baitoan_kpi}
+
+\section{Bối cảnh và Phạm vi Hệ thống}
+Trong vận hành chuỗi cung ứng bán lẻ dược phẩm, nhà quản lý đồng thời đối mặt hai nhu cầu cốt lõi: (1) theo dõi doanh số, biên lợi nhuận và biến động mùa vụ -- thời tiết theo thời gian thực qua giao diện \textbf{Business Intelligence (BI)}; và (2) dự báo lượng tiêu thụ theo nhóm thuốc điều trị (mã \texttt{ATC}) kèm khoảng bất định và lý do giải thích phục vụ lập kế hoạch nhân sự, phân bổ và chuẩn bị nguồn hàng. Tuy nhiên, dữ liệu thực tế phân mảnh trên nhiều hệ quản trị khác nhau (giao dịch quan hệ, tài liệu sản phẩm phi cấu trúc, chuỗi thời gian khí tượng), khác đơn vị tính (\texttt{UOM}), khác tiền tệ (\texttt{EUR}, \texttt{IDR}) và pha trộn giữa dữ liệu quan sát thực tế (\texttt{OBSERVED}) với dữ liệu mô phỏng (\texttt{SYNTHETIC}).
+
+\textbf{PharmaFlow} được định vị là một \textbf{Hệ thống Hỗ trợ Ra quyết định (DSS -- Decision Support System)} tuân thủ nghiêm ngặt chuỗi khái niệm:
+\begin{center}
+\texttt{DATA $\rightarrow$ FORECAST $\rightarrow$ RISK $\rightarrow$ DECISION $\rightarrow$ OPERATIONAL OUTCOME}
+\end{center}
+Trong phạm vi bài tập lớn môn \textbf{CO4033}, hệ thống tập trung trọn vẹn vào \textbf{Module 01 (Sales \& Demand Analytics)} ở hai tầng đầu (\texttt{DATA $\rightarrow$ FORECAST}), tách biệt rõ \textbf{Chất lượng Dự báo (\textit{Prediction Quality})} với \textbf{Chất lượng Quyết định tồn kho (\textit{Decision Quality})}. Hệ thống tuyệt đối \textbf{không} tự suy diễn hoặc ngụy tạo cột tồn kho đầu kỳ, cờ hết hàng (\textit{stockout}) hay công thức đặt hàng tự động (ROP) trên tập dữ liệu vốn chỉ ghi nhận sản lượng bán ra.
+
+\section{Người dùng Mục tiêu và Câu hỏi Kinh doanh Kiểm chứng}
+Dashboard BI và pipeline dự báo được thiết kế cho \textbf{ba nhóm người dùng cuối}:
+\begin{enumerate}[leftmargin=1.5em]
+  \item \textbf{Quản lý Cửa hàng trưởng:} Theo dõi doanh số, biên lợi nhuận gia quyền, mặt hàng tăng/giảm đột biến và phân rã yếu tố tác động tại từng cửa hàng/cụm cửa hàng.
+  \item \textbf{Chuyên viên Phân tích Cung ứng \& Kế hoạch:} Khảo sát mức liên hệ quan sát giữa điều kiện thời tiết (nhiệt độ, lượng mưa, độ ẩm) với nhu cầu thuốc, theo dõi dự báo 8 nhóm ATC kèm khoảng tin cậy 80\% và giải thích \texttt{TreeSHAP}.
+  \item \textbf{Kỹ sư Dữ liệu / Kiểm định Chất lượng:} Giám sát độ khớp đối soát Silver--Gold, nguồn gốc dữ liệu (\texttt{OBSERVED} / \texttt{SYNTHETIC}), tốc độ truy vấn BI và khả năng tái lập pipeline.
+\end{enumerate}
+
+Các \textbf{câu hỏi kinh doanh có thể kiểm chứng} mà hệ thống trực tiếp giải đáp:
+\begin{itemize}[leftmargin=1.5em]
+  \item \textbf{BQ1 (Doanh số \& Độ toàn vẹn đa ĐVT):} Trong từng thị trường (\texttt{IRPD Indonesia}, \texttt{ONYX EU}, \texttt{Serbia ATC}), doanh thu thuần, biên lợi nhuận gia quyền và đóng góp tăng trưởng số học theo kỳ biến động ra sao mà vẫn giữ nguyên ngữ nghĩa đơn vị tính (\texttt{UOM}) và không cộng trùng đơn hàng (\texttt{order\_count})?
+  \item \textbf{BQ2 (Thời tiết \& Mùa vụ quan sát):} Nhu cầu bán lẻ trên \texttt{active\_store\_days} biến thiên thế nào giữa các ô nhiệt độ $\times$ mức mưa khi đã kiểm soát cỡ mẫu nhỏ (\texttt{n < 30})?
+  \item \textbf{BQ3 (Dự báo đa trường phái \& Thời tiết ERA5 -- RQ1--RQ3):} Khi chuẩn hóa theo tốc độ bán ngày (\texttt{qty\_rate}), việc kết hợp 4 trường phái mô hình thông qua \texttt{AutoRouted\_Champion} (chọn mù Test theo Validation MAE) có đánh bại baseline mùa vụ với ý nghĩa thống kê (\texttt{DM' p < 0.05}) và đối sánh thế nào với nghiên cứu chuẩn \cite{fourkiotis2024}? Cụm 7 biến thời tiết ERA5 đóng góp bao nhiêu phần trăm theo \texttt{TreeSHAP} và độ phủ thực nghiệm 80\% đạt được sau hiệu chuẩn \textbf{Split CQR}?
+\end{itemize}
+
+\section{Bảng Định nghĩa KPI Bắt buộc}
+Mỗi KPI trong hệ thống đều khóa chặt công thức, đơn vị tính, phạm vi áp dụng và được hiển thị kèm tooltip giải thích trên giao diện Streamlit (Bảng~\ref{tab:kpi_defs}).
+
+\begin{table}[H]
+\centering
+\caption{Định nghĩa công thức, đơn vị và phạm vi của các KPI chính trong PharmaFlow}
+\label{tab:kpi_defs}
+\renewcommand{\arraystretch}{1.22}
+\begin{tabularx}{\textwidth}{|p{0.21\textwidth}|p{0.34\textwidth}|p{0.13\textwidth}|X|}
+\hline
+\textbf{Tên KPI} & \textbf{Công thức chuẩn} & \textbf{Đơn vị} & \textbf{Phạm vi \& Quy tắc toàn vẹn} \\
+\hline
+Doanh thu thuần & $\sum \text{line\_amount}$ & EUR / IDR & Không trộn tiền tệ khác nhau; hỗ trợ quy đổi tham chiếu sang VNĐ. \\
+\hline
+Biên lợi nhuận gia quyền & $\dfrac{\sum \text{margin\_amount}}{\sum \text{line\_amount\_with\_cost}} \times 100\%$ & \% & Chỉ tính trên nguồn \texttt{ONYX\_EU\_SYNTHETIC} có giá vốn; không lấy trung bình cộng từng dòng. \\
+\hline
+Tăng trưởng kỳ (MoM / Mix Shift) & $\Delta\% = \dfrac{V_{\text{cur}} - V_{\text{prev}}}{V_{\text{prev}}}$; $\text{Mix}_i = s_{i,\text{cur}} - s_{i,\text{prev}}$ & \% / điểm \% & Ngắt đường khi thiếu tháng hoặc tháng cuối chưa đủ ngày (\texttt{partial month}). \\
+\hline
+Sai số WAPE (\%) & $\dfrac{\sum_{t} |y_t - \hat{y}_t|}{\sum_{t} y_t} \times 100\%$ & \% & Thay thế \texttt{MAPE} vốn nổ \texttt{inf\%} ở nhóm bán thưa \texttt{N05C} (\texttt{67.9\%} ngày bằng 0). \\
+\hline
+Sai số chuẩn hóa MASE & $\dfrac{\frac{1}{h}\sum |y_t - \hat{y}_t|}{\frac{1}{T-m}\sum |y_t - y_{t-m}|}$ & Vô thứ nguyên & \texttt{MASE < 1.0} chứng minh vượt baseline mùa vụ chu kỳ $m$ ($m=52$ tuần / $7$ ngày). \\
+\hline
+Sai số MSE \& Kiểm định DM' & $\frac{1}{n}\sum (y_t - \hat{y}_t)^2$; Harvey--DM' & $(\text{đv})^2$, $p$ & Đối chiếu trực tiếp 1:1 Bảng 2 nghiên cứu \cite{fourkiotis2024} và kiểm định ý nghĩa thống kê \cite{harvey1997dm}. \\
+\hline
+Độ phủ Split CQR ($P_{10}$--$P_{90}$) & $\dfrac{1}{n}\sum \mathbb{I}(y_t \in [\hat{q}_{10,t}^{\text{cal}}, \hat{q}_{90,t}^{\text{cal}}])$ & \% & Mục tiêu \texttt{80\%}; hiệu chuẩn trên tập Validation \cite{romano2019cqr} đảm bảo không nhìn tập Test. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Cơ sở Khoa học từ Tài liệu Tham khảo}
+Thiết kế tầng ML Dự báo của nhóm được neo trực tiếp vào \textbf{7 bài báo khoa học giai đoạn 2022--2026}: Burinskiene (2022) \cite{burinskiene2022} cảnh báo méo phương sai nếu tự suy diễn bù dữ liệu thiếu hàng khi thiếu cột tồn kho; Fourkiotis \& Tsadiras (2024) \cite{fourkiotis2024} cung cấp cột mốc đối sánh 1:1 trên chính 8 nhóm ATC của nhà thuốc \texttt{store\_id = 5631} (cho thấy XGBoost chỉ thắng 3/8 nhóm, thống kê thắng 5/8 nhóm và mất \texttt{54 giờ} Grid Search); Abac\i{} (2026) \cite{abaci2026} cung cấp bộ kiểm định tiền huấn luyện (\texttt{ADF/KPSS/Ljung-Box/MK/SW}) cùng mô hình lai phần dư $\alpha$-Hybrid; Ramadhan et al. (2026) \cite{ramadhan2026} chỉ ra nhu cầu \textbf{Hybrid + Thời tiết ngoại sinh + SHAP}; E et al. (2024) \cite{e2024} chuẩn hóa chẩn đoán \texttt{Syntetos--Boylan} \cite{syntetos2005}; Sbrana \& Babai (2026) \cite{sbrana2026} chứng minh bẫy dự báo âm ở AutoARIMA và giải pháp phân phối không âm cho chuỗi gián đoạn; và Khan et al. (2026) \cite{khan2026} cung cấp khung kiểm toán chống rò rỉ dữ liệu kết hợp \texttt{TreeSHAP}. Chi tiết đối chiếu đầy đủ được lưu tại tài liệu Google Docs (4 Tab) của nhóm.

@@ -1,0 +1,102 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{pharmaflow-btl-report}[2026/11/23 HCMUT CO4033 BTL report layout]
+
+% Derived from HCMUT reference layout (70% A4 text block, 10pt VNR type, 12pt baselines)
+\RequirePackage[a4paper,left=31.5mm,right=31.5mm,top=44.55mm,bottom=44.55mm,
+  headheight=27pt,headsep=22.4pt,footskip=33pt]{geometry}
+\RequirePackage{indentfirst}
+\RequirePackage{float}
+\setstretch{1.08}
+\setlength{\parindent}{15pt}
+\setlength{\parskip}{2pt}
+\setlength{\emergencystretch}{2em}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+\raggedbottom
+
+% Keep supplied 300dpi logo unchanged; crop surrounding whitespace cleanly
+\newcommand{\hcmutlogo}[1]{\includegraphics[
+  trim=225.36bp 124.08bp 218.88bp 69.60bp,clip,width=#1]{Images/01_logobachkhoa.png}}
+
+\newcommand{\reportheader}{%
+  \hspace*{2.1mm}\hcmutlogo{8mm}\hspace{7mm}%
+  \begin{tabular}[b]{@{}l@{}}
+    \normalfont\ttfamily\fontsize{10}{12.2}\selectfont\universityheader\\
+    \normalfont\ttfamily\fontsize{10}{12.2}\selectfont\facultyheader
+  \end{tabular}}
+
+\newcommand{\reportpagestyle}{%
+  \fancyhf{}%
+  \fancyhead[L]{\reportheader}%
+  \fancyfoot[L]{\normalfont\ttfamily\fontsize{7}{9}\selectfont\reportfooter}%
+  \fancyfoot[R]{\normalfont\ttfamily\fontsize{7}{9}\selectfont\reportpagelabel\ \thepage/\pageref*{LastPage}}%
+  \renewcommand{\headrulewidth}{0.4pt}%
+  \renewcommand{\footrulewidth}{0.4pt}}
+\pagestyle{fancy}
+\reportpagestyle
+\fancypagestyle{plain}{\reportpagestyle}
+
+\makeatletter
+\renewcommand{\@makechapterhead}[1]{%
+  \vspace*{2.65bp}%
+  {\parindent\z@\raggedright\normalfont
+   \interlinepenalty\@M
+   \Large\bfseries
+   \ifnum\c@secnumdepth>\m@ne\thechapter\hspace{1em}\fi
+   \MakeUppercase{#1}\par\nobreak\vskip13.2pt}}
+\renewcommand{\@makeschapterhead}[1]{%
+  {\parindent\z@\raggedright\normalfont
+   \interlinepenalty\@M\Large\bfseries #1\par\nobreak\vskip18pt}}
+\renewcommand{\section}{\@startsection{section}{1}{\z@}%
+  {-3.5ex\@plus-1ex\@minus-.2ex}{2.05ex\@plus.2ex}{\normalfont\large\bfseries}}
+\renewcommand{\subsection}{\@startsection{subsection}{2}{\z@}%
+  {-3.25ex\@plus-1ex\@minus-.2ex}{1.8ex\@plus.2ex}{\normalfont\normalsize\bfseries}}
+\renewcommand{\subsubsection}{\@startsection{subsubsection}{3}{\z@}%
+  {-3.25ex\@plus-1ex\@minus-.2ex}{1.5ex\@plus.2ex}{\normalfont\normalsize\bfseries}}
+\makeatother
+
+\renewcommand{\cftchappresnum}{}
+\renewcommand{\cftchapaftersnum}{}
+\setlength{\cftchapnumwidth}{1.8em}
+\setlength{\cftbeforetoctitleskip}{0pt}
+\setlength{\cftaftertoctitleskip}{18pt}
+\setlength{\cftbeforeloftitleskip}{0pt}
+\setlength{\cftafterloftitleskip}{18pt}
+\setlength{\cftbeforelottitleskip}{0pt}
+\setlength{\cftafterlottitleskip}{18pt}
+\renewcommand{\cfttoctitlefont}{\Large\bfseries}
+\renewcommand{\cftloftitlefont}{\Large\bfseries}
+\renewcommand{\cftlottitlefont}{\Large\bfseries}
+\captionsetup{font=normalsize,labelfont=normal,justification=justified}
+
+\newcommand{\makereportcover}{%
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{tikzpicture}[remember picture,overlay]
+  \draw[blue!75!black,line width=3pt]
+    ([xshift=10mm,yshift=-10mm]current page.north west) rectangle
+    ([xshift=-10mm,yshift=10mm]current page.south east);
+  \node[anchor=north,align=center,text width=165mm,inner sep=0pt]
+    at ([yshift=-46mm]current page.north) {\fontsize{12}{17.2}\selectfont\bfseries
+    \covernational\\\coveruniversity\\\coverfaculty\par};
+  \node[inner sep=0pt] at ([yshift=-94mm]current page.north) {\hcmutlogo{30mm}};
+  \node[anchor=north,align=center,text width=147mm,inner sep=0pt]
+    at ([yshift=-134mm]current page.north) {\fontsize{14.4}{20.12}\selectfont\bfseries\coverreporttype\par};
+  \node[anchor=north,align=center,text width=152mm,inner sep=0pt]
+    at ([yshift=-155mm]current page.north) {\fontsize{13.5}{18.8}\selectfont\bfseries
+    \hyphenpenalty=10000\exhyphenpenalty=10000\MakeUppercase{\reporttitle}\par};
+  \node[anchor=north,align=left,text width=147mm,inner sep=0pt]
+    at ([yshift=-186mm]current page.north) {\hrule\vspace{4.5mm}\centering
+    \renewcommand{\arraystretch}{1.5}
+    \begin{tabular}{@{}rl@{}}
+    \covercourselabel: & \covercourse\\
+    \coveradvisorlabel: & \advisor\\
+    \covertermlabel: & \coverterm
+    \end{tabular}\par\vspace{4.5mm}\hrule};
+  \node[anchor=north,align=center,text width=147mm,inner sep=0pt]
+    at ([yshift=-228mm]current page.north) {\coverstudentlabel\\\vspace{2mm}\studentnames};
+  \node[anchor=north,align=center,inner sep=0pt]
+    at ([yshift=-262mm]current page.north) {\footnotesize\covercity, \reportyear};
+\end{tikzpicture}
+\null
+\end{titlepage}}
