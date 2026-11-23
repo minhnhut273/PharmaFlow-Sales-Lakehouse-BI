@@ -2,6 +2,8 @@
 
 Ứng dụng Business Intelligence 5 trang bằng **100% tiếng Việt**, mô phỏng và nâng cấp bố cục từ AWS QuickSight (*Phân tích Bán lẻ Dược phẩm — Thời tiết, Cửa hàng & ATC*), truy vấn trực tiếp Neon PostgreSQL (`quick_gold_md01`) bằng **SQL aggregation pushdown** qua `psycopg` + `@st.cache_data` và đọc artifact dự báo ML (`artifacts/forecasting/`) cho Trang 5.
 
+> 🌐 **Live Demo (Streamlit Community Cloud):** https://pharmaflow-sales-lakehouse-bi-ut7zhiigkcrzqwvz93krzy.streamlit.app/
+
 ---
 
 ## 1. Cấu trúc 5 trang & Mô-đun phân tích (`analytics.py` · `forecast_data.py`)
@@ -109,6 +111,9 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA quick_gold_md01
 Sau đó thay user/password trong `QUICK_NEON_DATABASE_URL` bằng `bi_reader` rồi gửi cho thành viên. Dòng `ALTER DEFAULT PRIVILEGES` đảm bảo sau mỗi lần job Databricks sync/swap bảng mới, `bi_reader` vẫn giữ nguyên quyền `SELECT`.
 
 ### Deploy miễn phí lên Streamlit Community Cloud (xem qua link web)
+
+> ✅ **Trạng thái hiện tại:** Đã deploy thành công tại https://pharmaflow-sales-lakehouse-bi-ut7zhiigkcrzqwvz93krzy.streamlit.app/ (kết nối bằng role PostgreSQL chỉ đọc `bi_reader` trên Neon #2; `pydeck>=0.9,<1` đã được khai báo trong [`requirements.txt`](../../requirements.txt)).
+
 1. Truy cập https://share.streamlit.io và đăng nhập GitHub.
 2. Chọn repo `minhnhut273/PharmaFlow-Sales-Lakehouse-BI`, branch `main`, **Main file path:** `src/streamlit/app.py`.
 3. Streamlit Cloud sẽ tự cài gói từ file [`requirements.txt`](../../requirements.txt) hoặc bạn có thể trỏ/sao chép 6 dòng từ [`src/streamlit/requirements.txt`](requirements.txt).

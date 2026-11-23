@@ -11,7 +11,7 @@
 [![AWS](https://img.shields.io/badge/AWS-S3%20%7C%20Lambda%20%7C%20EventBridge-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)](https://aws.amazon.com/)
 [![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?style=for-the-badge&logo=terraform&logoColor=white)](https://www.terraform.io/)
 [![AWS QuickSight](https://img.shields.io/badge/BI-AWS%20Quick%20%26%20Power%20BI-8C4FFF?style=for-the-badge&logo=amazon&logoColor=white)](#-bi-serving--analytics-layer-aws-quick--power-bi)
-[![Streamlit](https://img.shields.io/badge/Dashboard-Streamlit%20%2B%20Plotly-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](#5-chạy-dashboard-streamlit-multipage-5-trang-tiếng-việt)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit%20Cloud-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://pharmaflow-sales-lakehouse-bi-ut7zhiigkcrzqwvz93krzy.streamlit.app/)
 [![ML Forecasting](https://img.shields.io/badge/ML%20Forecasting-LightGBM%20%7C%20CQR%20%7C%20SHAP-10B981?style=for-the-badge&logo=scikitlearn&logoColor=white)](#6-chạy-pipeline-ml-dự-báo-nhu-cầu-5-notebooks--1-luồng-thống-nhất)
 [![Google Docs](https://img.shields.io/badge/Design%20Docs-Google%20Docs%20(4%20Tabs)-4285F4?style=for-the-badge&logo=googledocs&logoColor=white)](https://docs.google.com/document/d/1Qxpmm4v4zUI8wN-NiUiOeSF5nTUlwOTYJmPgSZRZLJo/edit)
 
@@ -41,7 +41,7 @@ Dự án giải quyết bài toán tích hợp dữ liệu đa nguồn có cấu
 - 🧱 **Databricks Asset Bundles (DABs) & Lakeflow DLT:** Triển khai Pipeline khai báo (Declarative SQL + PySpark) với quy tắc kiểm soát chất lượng dữ liệu (*Expectations*), giữ nguyên ngữ nghĩa đơn vị tính (`UOM`), múi giờ địa phương (`local_date`), và phân tách rạch ròi nguồn gốc dữ liệu (`OBSERVED` vs `SYNTHETIC` vs `UNVERIFIED`).
 - 🛡️ **Atomic Reconciliation Gate:** Chốt phát hành dữ liệu qua bảng kiểm soát `ops.product_release`, đối soát khớp 100% số lượng và doanh thu giữa tầng Silver và tầng Gold trước khi mở cho tầng BI.
 - 📊 **Automated BI Serving Layer:** Đồng bộ tự động Gold Sales Marts sang **Neon BI Mirror** (`landing_datamart_md01`) kèm 3 Analytical Views tối ưu sẵn cho **AWS QuickSight (SPICE / Direct Query)** và **Power BI**.
-- 🎛️ **5-Page Vietnamese Streamlit BI Dashboard:** Ứng dụng **Streamlit + Plotly** tại `src/streamlit/` gồm 4 trang BI doanh số/thời tiết/cửa hàng/ATC (**SQL aggregation pushdown** trực tiếp trên PostgreSQL `0.08–0.48s`/query) và **Trang 5 Dự Báo Nhu Cầu ML** (đọc precomputed artifacts `52W/365D`, Split CQR `P10–P90`, `TreeSHAP`, đối chuẩn Paper 2024), hỗ trợ chọn bảng màu, bản đồ Châu Âu và xuất CSV UTF-8.
+- 🎛️ **5-Page Vietnamese Streamlit BI Dashboard:** Ứng dụng **Streamlit + Plotly** tại `src/streamlit/` (**[Live Demo](https://pharmaflow-sales-lakehouse-bi-ut7zhiigkcrzqwvz93krzy.streamlit.app/)**) gồm 4 trang BI doanh số/thời tiết/cửa hàng/ATC (**SQL aggregation pushdown** trực tiếp trên PostgreSQL `0.08–0.48s`/query) và **Trang 5 Dự Báo Nhu Cầu ML** (đọc precomputed artifacts `52W/365D`, Split CQR `P10–P90`, `TreeSHAP`, đối chuẩn Paper 2024), hỗ trợ chọn bảng màu, bản đồ Châu Âu và xuất CSV UTF-8.
 - 📈 **Demand Forecasting ML & XAI Pipeline (`DATA -> FORECAST`):** Luồng thống nhất **5 Notebooks (`src/ml/01..05_*.ipynb`)** trên dữ liệu `OBSERVED` (`store_id = 5631`, 8 nhóm ATC, `302` tuần & `2,106` ngày) kết hợp **Compact 7-var Open-Meteo ERA5**, chuẩn hóa tốc độ ngày `qty_rate`, **Perturbation Leakage Unit-Test (`max_abs_diff = 0.0`)**, **`AutoRouted Champion`** (đánh bại `Seasonal Naïve` với `DM' p < 0.05` trên **`8/8` nhóm ATC** và vượt MSE của Paper Fourkiotis & Tsadiras 2024 trên **`6/8` nhóm**), hiệu chuẩn bất định **Split CQR `P10–P90`** (`78.8%` độ phủ TB) và giải thích **TreeSHAP** — chạy trọn luồng hết **`166.6 giây`** (~`1,166.9×` nhanh hơn `54h` của Paper 2024). Xem [src/ml/README.md](src/ml/README.md) và [Google Docs (4 Tab)](https://docs.google.com/document/d/1Qxpmm4v4zUI8wN-NiUiOeSF5nTUlwOTYJmPgSZRZLJo/edit).
 
 ---
@@ -276,6 +276,9 @@ Sau khi đồng bộ xong, mở **Amazon QuickSight (AWS Quick)** → **New Data
 - Xem chi tiết bộ **4 Prompt tạo Dashboard Sheets tự động** tại [src/sync_quick/README.md](src/sync_quick/README.md).
 
 ### 5. Chạy Dashboard Streamlit Multipage (5 Trang Tiếng Việt)
+
+> 🌐 **Trải nghiệm trực tiếp (Live Demo — Streamlit Community Cloud):** https://pharmaflow-sales-lakehouse-bi-ut7zhiigkcrzqwvz93krzy.streamlit.app/
+
 Thành viên chỉ chạy giao diện BI làm nhanh theo 3 bước:
 
 ```bash
@@ -309,7 +312,7 @@ python -m venv .venv
 
 * **Tài liệu Chi tiết ML Dự báo Nhu cầu (Google Docs — 4 Tab đầy đủ):** [Mở Google Docs](https://docs.google.com/document/d/1Qxpmm4v4zUI8wN-NiUiOeSF5nTUlwOTYJmPgSZRZLJo/edit) — [Tab 1 (7 Bài báo)](https://docs.google.com/document/d/1Qxpmm4v4zUI8wN-NiUiOeSF5nTUlwOTYJmPgSZRZLJo/edit?tab=t.str8dzlshch7) | [Tab 2 (Kiến trúc & Phương pháp)](https://docs.google.com/document/d/1Qxpmm4v4zUI8wN-NiUiOeSF5nTUlwOTYJmPgSZRZLJo/edit?tab=t.0) | [Tab 3 (Thiết kế & Kết quả)](https://docs.google.com/document/d/1Qxpmm4v4zUI8wN-NiUiOeSF5nTUlwOTYJmPgSZRZLJo/edit?tab=t.s40qjatkb5g8) | [Tab 4 (Hướng dẫn 5 Notebooks)](https://docs.google.com/document/d/1Qxpmm4v4zUI8wN-NiUiOeSF5nTUlwOTYJmPgSZRZLJo/edit?tab=t.3fqlb8ix6shl)
 * **Module ML Dự báo Nhu cầu (`DATA -> FORECAST`):** [src/ml/README.md](src/ml/README.md) | [Cơ sở 7 Bài báo](docs/design/demand-forecasting-literature-review.md) | [Tổng Giải pháp & Kết quả](docs/design/demand-forecasting-solution.md) | [Step-by-Step Colab](docs/design/demand-forecasting-colab-step-by-step.md)
-* **Hướng dẫn Dashboard Streamlit (5 trang):** [src/streamlit/README.md](src/streamlit/README.md)
+* **Hướng dẫn Dashboard Streamlit (5 trang):** [src/streamlit/README.md](src/streamlit/README.md) | [🌐 Live Demo Streamlit Cloud](https://pharmaflow-sales-lakehouse-bi-ut7zhiigkcrzqwvz93krzy.streamlit.app/)
 
 * **Software Design Document (SDD) Databricks Pipeline:** [src/pipeline/databricks/SDD.md](src/pipeline/databricks/SDD.md)
 * **Thiết kế 3 tầng Medallion Lakehouse:** [docs/design/databricks-medallion/02-thiet-ke-medallion.md](docs/design/databricks-medallion/02-thiet-ke-medallion.md)
