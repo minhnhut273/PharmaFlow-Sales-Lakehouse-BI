@@ -152,6 +152,7 @@ def test_no_query_exposes_non_additive_order_count() -> None:
     built_sqls = [
         queries.build_where_clause(f)[0],
         queries.sql_release_state("quick_gold_md01")[0],
+        queries.sql_filter_taxonomy("quick_gold_md01", "ONYX_EU_SYNTHETIC")[0],
         queries.sql_filter_options("quick_gold_md01", "ONYX_EU_SYNTHETIC", ("DE",))[0],
         queries.sql_available_tracks("quick_gold_md01")[0],
         queries.sql_exec_kpis("quick_gold_md01", f)[0],
@@ -276,20 +277,24 @@ def test_reset_all_filters_clears_global_and_page_local_state(monkeypatch: pytes
         "f_compare_mode": "half_split",
         "f_date_range": (dt.date(2024, 1, 1), dt.date(2024, 6, 30)),
         "p1_selected_products": ["PainLess Throat Spray"],
+        "p1_series_grain": "week",
         "p2_rain_regimes": ["4. Heavy (>20 mm)"],
         "p2_humidity_bands": ["3. High (>80%)"],
         "p2_cell_temp": "5. Hot (>=30C)",
         "p2_cell_rain": "4. Heavy (>20 mm)",
         "p3_store_search": "Berlin",
         "p3_map_mode": "cluster",
+        "p3_map_force_eu": True,
         "p4_product_search": "AntiBioX",
         "p4_atc_apply_date": True,
         "p4_compare_mode": "custom",
+        "p4_custom_a": (dt.date(2024, 1, 1), dt.date(2024, 1, 31)),
+        "p4_custom_b": (dt.date(2023, 12, 1), dt.date(2023, 12, 31)),
     }
     monkeypatch.setattr(filter_comp.st, "session_state", fake_state)
     filter_comp.reset_all_filters()
 
-    assert fake_state["f_track"] == config.DEFAULT_TRACK
+    assert fake_state["f_track"] is None
     assert fake_state["f_countries"] == []
     assert fake_state["f_city_clusters"] == []
     assert fake_state["f_stores"] == []
@@ -298,12 +303,17 @@ def test_reset_all_filters_clears_global_and_page_local_state(monkeypatch: pytes
     assert fake_state["f_time_grain"] == "month"
     assert fake_state["f_display_vnd"] is False
     assert "p1_selected_products" not in fake_state
+    assert "p1_series_grain" not in fake_state
     assert "p2_rain_regimes" not in fake_state
     assert "p2_humidity_bands" not in fake_state
     assert "p2_cell_temp" not in fake_state
     assert "p3_store_search" not in fake_state
+    assert "p3_map_force_eu" not in fake_state
     assert "p4_product_search" not in fake_state
     assert "p4_atc_apply_date" not in fake_state
+    assert "p4_compare_mode" not in fake_state
+    assert "p4_custom_a" not in fake_state
+    assert "p4_custom_b" not in fake_state
 
 
 def test_page2_filters_do_not_leak_to_global_filter_state(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -387,6 +397,7 @@ import numpy as np  # noqa: E402
 _EXPECTED_MOCK_COLUMNS: dict[str, tuple[str, ...]] = {
     "release_state": ("product_domain", "release_id", "status", "sync_mode", "synced_at_utc", "table_counts_json"),
     "available_tracks": ("dataset_track", "currency_code", "provenance_class", "row_count"),
+    "filter_taxonomy": ("dataset_track", "currency_code", "provenance_class", "country_code", "city_cluster", "store_name", "clean_uom", "temp_band", "rain_regime", "humidity_band", "min_date", "max_date"),
     "filter_options": ("min_date", "max_date", "countries", "uoms", "clusters", "stores"),
     "exec_kpis": (
         "total_revenue", "total_sold_qty", "total_line_count", "active_store_days",
@@ -440,6 +451,8 @@ def _classify_sql(sql: str) -> str:
         return "release_state"
     if "as row_count" in norm and "group by dataset_track order by" in norm:
         return "available_tracks"
+    if "group by 1, 2, 3, 4, 5, 6, 7" in norm and "as city_cluster" in norm:
+        return "filter_taxonomy"
     if "cross join store_list" in norm:
         return "filter_options"
     if "as weighted_margin_pct" in norm and "as total_line_count" in norm:
@@ -550,6 +563,94 @@ def _mock_query_df(sql: str, params: tuple = (), *, track_mode: str = "onyx") ->
         elif track_mode == "serbia":
             rows = [rows[2], rows[0], rows[1]]
         return _finish(pd.DataFrame(rows))
+    if kind == "filter_taxonomy":
+        irpd_rows = [
+            {
+                "dataset_track": "IRPD_ID_OBSERVED",
+                "currency_code": "IDR",
+                "provenance_class": "OBSERVED",
+                "country_code": "ID",
+                "city_cluster": "Apotek Simulasi IRPD - Jawa Tengah",
+                "store_name": "Apotek Simulasi IRPD - Jawa Tengah",
+                "clean_uom": uom,
+                "temp_band": tb,
+                "rain_regime": rr,
+                "humidity_band": "2. Normal (60-80%)",
+                "min_date": dt.date(2023, 1, 2),
+                "max_date": dt.date(2025, 12, 31),
+            }
+            for uom in ("tab", "pcs", "fls")
+            for tb in ("3. Mild (20-27C)", "4. Warm (27-30C)", "5. Hot (>=30C)")
+            for rr in ("1. Dry (0 mm)", "2. Light (0-5 mm)")
+        ]
+        serbia_rows = [
+            {
+                "dataset_track": "SERBIA_RS_SYNTHETIC",
+                "currency_code": None,
+                "provenance_class": "SYNTHETIC",
+                "country_code": "RS",
+                "city_cluster": "Neven Farma (simulated) - Niš",
+                "store_name": "Neven Farma (simulated) - Niš",
+                "clean_uom": "SIM_PHARMA_SALES_UNIT",
+                "temp_band": tb,
+                "rain_regime": "1. Dry (0 mm)",
+                "humidity_band": "2. Normal (60-80%)",
+                "min_date": dt.date(2014, 1, 2),
+                "max_date": dt.date(2019, 10, 8),
+            }
+            for tb in ("1. Cold (<10C)", "2. Cool (10-20C)", "3. Mild (20-27C)")
+        ]
+        onyx_rows = [
+            {
+                "dataset_track": "ONYX_EU_SYNTHETIC",
+                "currency_code": "EUR",
+                "provenance_class": "SYNTHETIC",
+                "country_code": "DE",
+                "city_cluster": "Berlin",
+                "store_name": "Berlin HealthPoint #014",
+                "clean_uom": "ONYX_UNIT",
+                "temp_band": "1. Cold (<10C)",
+                "rain_regime": "1. Dry (0 mm)",
+                "humidity_band": "2. Normal (60-80%)",
+                "min_date": dt.date(2024, 1, 1),
+                "max_date": dt.date(2025, 12, 31),
+            },
+            {
+                "dataset_track": "ONYX_EU_SYNTHETIC",
+                "currency_code": "EUR",
+                "provenance_class": "SYNTHETIC",
+                "country_code": "FR",
+                "city_cluster": "Paris",
+                "store_name": "Paris HealthPoint #013",
+                "clean_uom": "ONYX_UNIT",
+                "temp_band": "2. Cool (10-20C)",
+                "rain_regime": "2. Light (0-5 mm)",
+                "humidity_band": "3. High (>80%)",
+                "min_date": dt.date(2024, 1, 1),
+                "max_date": dt.date(2025, 12, 31),
+            },
+            {
+                "dataset_track": "ONYX_EU_SYNTHETIC",
+                "currency_code": "EUR",
+                "provenance_class": "SYNTHETIC",
+                "country_code": "IT",
+                "city_cluster": "Naples",
+                "store_name": "Naples HealthPoint #120",
+                "clean_uom": "ONYX_UNIT",
+                "temp_band": "4. Warm (27-30C)",
+                "rain_regime": "1. Dry (0 mm)",
+                "humidity_band": "1. Low (<60%)",
+                "min_date": dt.date(2024, 1, 1),
+                "max_date": dt.date(2025, 12, 31),
+            },
+        ]
+        if track_mode == "irpd":
+            return _finish(pd.DataFrame(irpd_rows))
+        if track_mode == "serbia":
+            return _finish(pd.DataFrame(serbia_rows))
+        if track_mode == "all":
+            return _finish(pd.DataFrame([*onyx_rows, *irpd_rows, *serbia_rows]))
+        return _finish(pd.DataFrame(onyx_rows))
     if kind == "filter_options":
         if track_mode == "irpd":
             return _finish(pd.DataFrame(
@@ -1100,7 +1201,15 @@ def test_pages_handle_empty_query_results_gracefully(page_rel: str, monkeypatch:
 
     def _empty_except_meta(sql: str, params: tuple = ()) -> pd.DataFrame:
         low = sql.lower()
-        if any(k in low for k in ("sync_release_state", "group by dataset_track\n", "cross join store_list sl")):
+        if any(
+            k in low
+            for k in (
+                "sync_release_state",
+                "group by dataset_track\n",
+                "group by 1, 2, 3, 4, 5, 6, 7",
+                "cross join store_list sl",
+            )
+        ):
             return _mock_query_df(sql, params, track_mode="onyx")
         return pd.DataFrame()
 
@@ -1201,6 +1310,7 @@ def test_mock_classifier_covers_all_sql_builders() -> None:
     samples = [
         ("release_state", queries.sql_release_state("quick_gold_md01")[0]),
         ("available_tracks", queries.sql_available_tracks("quick_gold_md01")[0]),
+        ("filter_taxonomy", queries.sql_filter_taxonomy("quick_gold_md01", "ONYX_EU_SYNTHETIC")[0]),
         ("filter_options", queries.sql_filter_options("quick_gold_md01", "ONYX_EU_SYNTHETIC", ())[0]),
         ("exec_kpis", queries.sql_exec_kpis("quick_gold_md01", f)[0]),
         ("uom_breakdown", queries.sql_uom_breakdown("quick_gold_md01", f)[0]),
@@ -1797,6 +1907,337 @@ def test_page5_forecast_interactions_switch_atc_horizon_and_drawer(monkeypatch: 
         assert not at.exception, f"Open drawer failed: {[e.value for e in at.exception]}"
         md_drawer = "\n".join(m.value for m in at.markdown)
         assert "ⓘ Giải thích · Dự Báo Nhu Cầu (ML)" in md_drawer
+
+
+# ---------------------------------------------------------------------------
+# 8. End-to-End Filter Cascade, Track Switch & Cross-Page Linkage Suite
+# ---------------------------------------------------------------------------
+
+def test_cascading_options_prune_stale_children_without_empty_dropdown() -> None:
+    tax_df = pd.DataFrame(
+        [
+            {
+                "country_code": "DE",
+                "city_cluster": "Berlin",
+                "store_name": "Berlin HealthPoint #014",
+                "clean_uom": "ONYX_UNIT",
+                "temp_band": "1. Cold (<10C)",
+                "rain_regime": "1. Dry (0 mm)",
+                "humidity_band": "2. Normal (60-80%)",
+                "min_date": dt.date(2024, 1, 1),
+                "max_date": dt.date(2025, 12, 31),
+            },
+            {
+                "country_code": "FR",
+                "city_cluster": "Paris",
+                "store_name": "Paris HealthPoint #013",
+                "clean_uom": "ONYX_UNIT",
+                "temp_band": "2. Cool (10-20C)",
+                "rain_regime": "2. Light (0-5 mm)",
+                "humidity_band": "3. High (>80%)",
+                "min_date": dt.date(2024, 2, 1),
+                "max_date": dt.date(2025, 11, 30),
+            },
+            {
+                "country_code": "FR",
+                "city_cluster": "Lyon",
+                "store_name": "Lyon HealthPoint #022",
+                "clean_uom": "ONYX_UNIT",
+                "temp_band": "3. Mild (20-27C)",
+                "rain_regime": "1. Dry (0 mm)",
+                "humidity_band": "2. Normal (60-80%)",
+                "min_date": dt.date(2024, 1, 1),
+                "max_date": dt.date(2025, 12, 31),
+            },
+        ]
+    )
+    res = filter_comp.resolve_cascading_options(
+        tax_df,
+        countries=("FR",),
+        city_clusters=("Berlin",),
+        stores=("Berlin HealthPoint #014",),
+        uoms=("ONYX_UNIT",),
+        temp_bands=("1. Cold (<10C)",),
+    )
+    assert res["pruned_countries"] == ["FR"]
+    assert res["pruned_clusters"] == []
+    assert res["pruned_stores"] == []
+    assert res["pruned_temps"] == []
+    assert res["clusters_avail"] == ["Lyon", "Paris"]
+    assert res["stores_avail"] == ["Lyon HealthPoint #022", "Paris HealthPoint #013"]
+
+    opt_sql, opt_params = queries.sql_filter_options("quick_gold_md01", "ONYX_EU_SYNTHETIC", ("DE",), ("Berlin",))
+    assert opt_sql.lower().count("dataset_track = %s") == 4
+    assert opt_params[0] == "ONYX_EU_SYNTHETIC"
+
+
+def test_unified_country_switch_clamps_custom_dates_and_serbia_uom_stays_valid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("QUICK_NEON_DATABASE_URL", "postgresql://user:pass@localhost:5432/neondb")
+    monkeypatch.setenv("QUICK_NEON_SCHEMA", "quick_gold_md01")
+    db.get_db_settings.cache_clear()
+
+    with patch("db.run_query_df", side_effect=lambda s, p=(): _mock_query_df(s, p, track_mode="all")):
+        at = AppTest.from_file(str(STREAMLIT_DIR / "pages/04_san_pham_atc.py"), default_timeout=20)
+        at.session_state["p4_compare_mode"] = "custom"
+        at.session_state["p4_custom_a"] = (dt.date(2025, 11, 1), dt.date(2025, 12, 31))
+        at.session_state["p4_custom_b"] = (dt.date(2025, 9, 1), dt.date(2025, 10, 31))
+        at.run()
+        assert not at.exception
+        at.multiselect(key="f_countries").select("DE").run()
+        assert not at.exception
+
+        # Switch DE -> RS directly in unified mode: custom dates clamp cleanly and SIM_PHARMA_SALES_UNIT appears
+        at.multiselect(key="f_countries").unselect("DE").select("RS").run()
+        assert not at.exception, f"Country switch to RS crashed: {[e.value for e in at.exception]}"
+        assert list(at.multiselect(key="f_uoms").options) == ["SIM_PHARMA_SALES_UNIT"]
+        at.multiselect(key="f_uoms").select("SIM_PHARMA_SALES_UNIT").run()
+        assert not at.exception
+        assert list(at.session_state["f_countries"]) == ["RS"]
+
+
+def test_global_time_grain_and_compare_mode_propagate_to_pages(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("QUICK_NEON_DATABASE_URL", "postgresql://user:pass@localhost:5432/neondb")
+    monkeypatch.setenv("QUICK_NEON_SCHEMA", "quick_gold_md01")
+    db.get_db_settings.cache_clear()
+
+    with patch("db.run_query_df", side_effect=lambda s, p=(): _mock_query_df(s, p, track_mode="onyx")):
+        at1 = AppTest.from_file(str(STREAMLIT_DIR / "pages/01_tong_quan.py"), default_timeout=20)
+        at1.run()
+        assert at1.session_state["p1_series_grain"] == "month"
+        at1.selectbox(key="f_time_grain").select("week").run()
+        assert not at1.exception
+        assert at1.session_state["p1_series_grain"] == "week"
+
+    with patch("db.run_query_df", side_effect=lambda s, p=(): _mock_query_df(s, p, track_mode="onyx")):
+        at2 = AppTest.from_file(str(STREAMLIT_DIR / "pages/02_thoi_tiet_dia_diem.py"), default_timeout=20)
+        at2.run()
+        assert at2.session_state["p2_series_grain"] == "month"
+        at2.selectbox(key="f_time_grain").select("quarter").run()
+        assert not at2.exception
+        assert at2.session_state["p2_series_grain"] == "quarter"
+
+    with patch("db.run_query_df", side_effect=lambda s, p=(): _mock_query_df(s, p, track_mode="onyx")):
+        at4 = AppTest.from_file(str(STREAMLIT_DIR / "pages/04_san_pham_atc.py"), default_timeout=20)
+        at4.run()
+        assert at4.session_state["p4_compare_mode"] == "latest_full_month"
+        at4.selectbox(key="f_compare_mode").select("half_split").run()
+        assert not at4.exception
+        assert at4.session_state["p4_compare_mode"] == "half_split"
+
+
+def test_page2_weather_filters_narrow_not_overwrite_global_temp_and_cascade_irpd(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("QUICK_NEON_DATABASE_URL", "postgresql://user:pass@localhost:5432/neondb")
+    monkeypatch.setenv("QUICK_NEON_SCHEMA", "quick_gold_md01")
+    db.get_db_settings.cache_clear()
+
+    with patch("db.run_query_df", side_effect=lambda s, p=(): _mock_query_df(s, p, track_mode="irpd")):
+        at = AppTest.from_file(str(STREAMLIT_DIR / "pages/02_thoi_tiet_dia_diem.py"), default_timeout=20)
+        at.session_state["f_track"] = "IRPD_ID_OBSERVED"
+        at.run()
+        assert not at.exception
+        temp_widget = at.multiselect(key="p2_temp_bands")
+        assert list(temp_widget.options) == [
+            config.temp_label("3. Mild (20-27C)"),
+            config.temp_label("4. Warm (27-30C)"),
+            config.temp_label("5. Hot (>=30C)"),
+        ]
+
+        # Select global temperature filter -> Page 2 narrows to subset instead of showing contradicting bands
+        at.multiselect(key="f_temp_bands").select("5. Hot (>=30C)").run()
+        assert not at.exception
+        assert list(at.multiselect(key="p2_temp_bands").options) == [config.temp_label("5. Hot (>=30C)")]
+
+
+def test_page3_local_cluster_filter_propagates_to_all_queries(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("QUICK_NEON_DATABASE_URL", "postgresql://user:pass@localhost:5432/neondb")
+    monkeypatch.setenv("QUICK_NEON_SCHEMA", "quick_gold_md01")
+    db.get_db_settings.cache_clear()
+
+    captured: dict[str, list[tuple]] = {}
+
+    def _capture(sql: str, params: tuple = ()) -> pd.DataFrame:
+        kind = _classify_sql(sql)
+        captured.setdefault(kind, []).append(params)
+        return _mock_query_df(sql, params, track_mode="onyx")
+
+    with patch("db.run_query_df", side_effect=_capture):
+        at = AppTest.from_file(str(STREAMLIT_DIR / "pages/03_cua_hang_loi_nhuan.py"), default_timeout=20)
+        at.run()
+        assert not at.exception
+        captured.clear()
+        at.multiselect(key="p3_map_clusters").select("Berlin").run()
+        assert not at.exception
+        for kind in (
+            "dim_variance_store",
+            "eu_store_matrix",
+            "sales_by_country",
+            "eu_promo_breakdown",
+            "eu_brand_margin",
+            "store_perf_table",
+        ):
+            assert kind in captured, f"Missing query {kind}"
+            assert any(["Berlin"] in p for p in captured[kind]), f"Cluster filter missing from {kind}: {captured[kind]}"
+
+
+def test_page1_mix_search_does_not_break_selected_products_and_1country_driver_defaults_product(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("QUICK_NEON_DATABASE_URL", "postgresql://user:pass@localhost:5432/neondb")
+    monkeypatch.setenv("QUICK_NEON_SCHEMA", "quick_gold_md01")
+    db.get_db_settings.cache_clear()
+
+    with patch("db.run_query_df", side_effect=lambda s, p=(): _mock_query_df(s, p, track_mode="onyx")):
+        at = AppTest.from_file(str(STREAMLIT_DIR / "pages/01_tong_quan.py"), default_timeout=20)
+        at.session_state["p1_selected_products"] = ["PainLess Throat Spray"]
+        at.session_state["p1_mix_search"] = "AntiBioX"
+        at.run()
+        assert not at.exception
+        assert list(at.session_state["p1_selected_products"]) == ["PainLess Throat Spray"]
+
+        # Filtering to 1 country removes "country" from driver_options
+        at.multiselect(key="f_countries").select("DE").run()
+        assert not at.exception
+        assert "country" not in list(at.radio(key="p1_driver_dim").options)
+
+
+def test_page5_top_bar_hides_unrelated_global_chips(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("QUICK_NEON_DATABASE_URL", "postgresql://user:pass@localhost:5432/neondb")
+    monkeypatch.setenv("QUICK_NEON_SCHEMA", "quick_gold_md01")
+    db.get_db_settings.cache_clear()
+    forecast_data.load_forecast_bundle.clear()
+
+    with patch("db.run_query_df", side_effect=lambda s, p=(): _mock_query_df(s, p, track_mode="onyx")):
+        at = AppTest.from_file(str(STREAMLIT_DIR / "pages/05_du_bao_nhu_cau.py"), default_timeout=20)
+        at.session_state["f_countries"] = ["DE"]
+        at.session_state["f_city_clusters"] = ["Berlin"]
+        at.run()
+        assert not at.exception
+        md_all = "\n".join(m.value for m in at.markdown)
+        assert "Đức (DE)" not in md_all
+        assert "Nhà thuốc 5631 (RS)" in md_all
+
+
+def test_unified_mode_shows_all_10_countries_including_serbia_and_normalizes_vnd(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("QUICK_NEON_DATABASE_URL", "postgresql://user:pass@localhost:5432/neondb")
+    monkeypatch.setenv("QUICK_NEON_SCHEMA", "quick_gold_md01")
+    db.get_db_settings.cache_clear()
+
+    seen_sqls: list[str] = []
+
+    def _side(sql: str, params: tuple = ()) -> pd.DataFrame:
+        seen_sqls.append(sql)
+        return _mock_query_df(sql, params, track_mode="all")
+
+    with patch("db.run_query_df", side_effect=_side):
+        at = AppTest.from_file(str(STREAMLIT_DIR / "pages/03_cua_hang_loi_nhuan.py"), default_timeout=20)
+        at.run()
+        assert not at.exception
+        ctry_opts = list(at.multiselect(key="f_countries").options)
+        assert config.country_label("RS") in ctry_opts
+        assert config.country_label("ID") in ctry_opts
+        assert config.country_label("DE") in ctry_opts
+        assert at.session_state["f_track"] is None
+        scope_meta = at.session_state["_track_bounds"]["scope_meta"]
+        assert scope_meta.normalize_currency_to_vnd is True
+        assert any("WHEN 'EUR' THEN 27500.0 WHEN 'IDR' THEN 1.60" in s for s in seen_sqls)
+
+
+def test_date_range_auto_expands_back_when_clearing_country_so_serbia_stays_visible(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("QUICK_NEON_DATABASE_URL", "postgresql://user:pass@localhost:5432/neondb")
+    monkeypatch.setenv("QUICK_NEON_SCHEMA", "quick_gold_md01")
+    db.get_db_settings.cache_clear()
+
+    with patch("db.run_query_df", side_effect=lambda s, p=(): _mock_query_df(s, p, track_mode="all")):
+        at = AppTest.from_file(str(STREAMLIT_DIR / "pages/01_tong_quan.py"), default_timeout=20)
+        at.run()
+        assert at.session_state["f_date_range"] == (dt.date(2014, 1, 2), dt.date(2025, 12, 31))
+
+        # Select DE -> narrows to 2024-01-01..2025-12-31
+        at.multiselect(key="f_countries").select("DE").run()
+        assert at.session_state["f_date_range"] == (dt.date(2024, 1, 1), dt.date(2025, 12, 31))
+
+        # Clear DE -> auto-expands back to full 2014-01-02..2025-12-31 so Serbia isn't dropped
+        at.multiselect(key="f_countries").unselect("DE").run()
+        assert at.session_state["f_date_range"] == (dt.date(2014, 1, 2), dt.date(2025, 12, 31))
+
+
+def test_street_map_keeps_serbia_visible_when_revenue_or_margin_is_null(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    map_df = pd.DataFrame(
+        [
+            {
+                "store_code": "ONYX:PH0014",
+                "store_name": "Berlin HealthPoint #014",
+                "city_cluster": "Berlin",
+                "country_code": "DE",
+                "map_lat": 52.52,
+                "map_lon": 13.405,
+                "sold_qty": 5100.0,
+                "line_amount": 95100.0 * 27500.0,
+                "margin_amount": 27674.0 * 27500.0,
+                "weighted_margin_pct": 29.10,
+                "line_count": 720,
+                "active_store_days": 720,
+                "avg_temp_mean": 11.4,
+                "avg_precip_sum": 2.1,
+            },
+            {
+                "store_code": "RS:01",
+                "store_name": "Neven Farma (simulated) - Niš",
+                "city_cluster": "Neven Farma (simulated) - Niš",
+                "country_code": "RS",
+                "map_lat": 43.322,
+                "map_lon": 21.899,
+                "sold_qty": 1275900.0,
+                "line_amount": None,
+                "margin_amount": None,
+                "weighted_margin_pct": None,
+                "line_count": 25534,
+                "active_store_days": 2080,
+                "avg_temp_mean": 13.1,
+                "avg_precip_sum": 1.9,
+            },
+        ]
+    )
+    rendered_figs: list[object] = []
+    monkeypatch.setattr(ui.st, "plotly_chart", lambda fig, **kwargs: rendered_figs.append(fig))
+    ui.render_street_map(
+        map_df,
+        mode="store",
+        map_engine="maplibre",
+        size_col="line_amount",
+        color_col="weighted_margin_pct",
+        palette=config.PALETTES["pharmaflow"],
+        ccy_label="₫",
+        to_vnd=True,
+    )
+    assert len(rendered_figs) == 1
+    all_lats = [float(lat) for tr in rendered_figs[0].data for lat in tr.lat]
+    assert any(abs(lat - 43.322) < 1e-3 for lat in all_lats)
+    assert any(abs(lat - 52.52) < 1e-3 for lat in all_lats)
+
+
+def test_no_raw_eur_plus_idr_mixing_when_multi_currency() -> None:
+    scope = config.resolve_scope_meta(
+        ("ONYX_EU_SYNTHETIC", "IRPD_ID_OBSERVED"),
+        ("EUR", "IDR"),
+        ("SYNTHETIC", "OBSERVED"),
+    )
+    assert scope.is_multi_currency is True
+    assert scope.normalize_currency_to_vnd is True
+    assert scope.disp_ccy == "₫"
+    assert config.fmt_currency(1000.0, scope.currency_code, to_vnd=scope.to_vnd) == "1.00K ₫"
+
+
 
 
 

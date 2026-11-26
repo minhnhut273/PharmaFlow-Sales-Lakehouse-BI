@@ -26,7 +26,7 @@ def validate_schema(name: str) -> str:
 class FilterState:
     """Shared cross-page filter state; page-2 weather controls stay isolated to Page 2."""
 
-    dataset_track: str | None = DEFAULT_TRACK
+    dataset_track: str | None = None
     countries: tuple[str, ...] = field(default_factory=tuple)
     city_clusters: tuple[str, ...] = field(default_factory=tuple)
     stores: tuple[str, ...] = field(default_factory=tuple)
@@ -37,11 +37,25 @@ class FilterState:
     compare_mode: str = "latest_full_month"
     time_grain: str = "month"
     display_vnd: bool = False
+    normalize_currency_to_vnd: bool = False
     # Optional page-2-only weather filters (only injected via dataclasses.replace on Page 2)
     rain_regimes: tuple[str, ...] = field(default_factory=tuple)
     humidity_bands: tuple[str, ...] = field(default_factory=tuple)
     heatmap_temp_band: str | None = None
     heatmap_rain_regime: str | None = None
+
+
+def _money_expr(col: str, filters: FilterState, alias: str = "") -> str:
+    """Return SQL monetary expression normalized to VND when active slice spans multiple currencies."""
+    p = f"{alias}." if alias else ""
+    if getattr(filters, "normalize_currency_to_vnd", False):
+        return (
+            f"(CASE UPPER(COALESCE({p}currency_code, '')) "
+            f"WHEN 'EUR' THEN 27500.0 "
+            f"WHEN 'IDR' THEN 1.60 "
+            f"ELSE 1.0 END * {p}{col})"
+        )
+    return f"{p}{col}"
 
 
 def build_where_clause(
@@ -58,10 +72,10 @@ def build_where_clause(
 ) -> tuple[str, tuple[Any, ...]]:
     """Build parameterized SQL WHERE clause against bi_sales_weather_enriched.
 
-    When ``override_track`` equals ``filters.dataset_track``, active country, store,
-    UOM, weather, and date filters are preserved. When overriding to a *different*
-    track (or ignoring track altogether), incompatible track-specific filters are
-    excluded cleanly so cross-track panels stay consistent and explicit.
+    When ``override_track`` equals ``filters.dataset_track`` (or ``filters.dataset_track``
+    is ``None`` in unified mode), active country, store, UOM, weather, and date filters are
+    preserved. When overriding from one explicit track to a *different* track (or ignoring
+    track altogether), incompatible track-specific filters are excluded cleanly.
     """
     prefix = f"{alias}." if alias else ""
     clauses: list[str] = []
@@ -73,7 +87,7 @@ def build_where_clause(
         params.append(effective_track)
 
     same_track_scope = (not ignore_track) and (
-        override_track is None or override_track == filters.dataset_track
+        override_track is None or filters.dataset_track is None or override_track == filters.dataset_track
     )
 
     if same_track_scope:
@@ -141,19 +155,52 @@ def sql_release_state(schema: str) -> tuple[str, tuple[Any, ...]]:
     return sql, ()
 
 
+def sql_filter_taxonomy(
+    schema: str,
+    dataset_track: str | None = None,
+) -> tuple[str, tuple[Any, ...]]:
+    """Return distinct dimension combinations + track/currency metadata + date bounds for fast cascading."""
+    s = validate_schema(schema)
+    where_sql = "WHERE dataset_track = %s" if dataset_track else ""
+    params: tuple[Any, ...] = (dataset_track,) if dataset_track else ()
+    sql = f"""
+    SELECT
+      dataset_track,
+      currency_code,
+      provenance_class,
+      country_code,
+      SPLIT_PART(store_name, ' HealthPoint', 1) AS city_cluster,
+      store_name,
+      clean_uom,
+      temp_band,
+      rain_regime,
+      humidity_band,
+      MIN(local_date) AS min_date,
+      MAX(local_date) AS max_date
+    FROM "{s}"."bi_sales_weather_enriched"
+    {where_sql}
+    GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+    """.strip()
+    return sql, params
+
+
 def sql_filter_options(
     schema: str,
     dataset_track: str | None,
     countries: Sequence[str] = (),
     city_clusters: Sequence[str] = (),
 ) -> tuple[str, tuple[Any, ...]]:
-    """Return track date/UOM bounds alongside unified cross-track country/cluster/store options."""
+    """Return track-scoped date/UOM bounds alongside country/cluster/store options."""
     s = validate_schema(schema)
-    base_where = "WHERE dataset_track = %s" if dataset_track else ""
-    base_params: list[Any] = [dataset_track] if dataset_track else []
+    base_clauses: list[str] = []
+    base_params: list[Any] = []
+    if dataset_track:
+        base_clauses.append("dataset_track = %s")
+        base_params.append(dataset_track)
+    base_where = ("WHERE " + " AND ".join(base_clauses)) if base_clauses else ""
 
-    cluster_clauses: list[str] = []
-    cluster_params: list[Any] = []
+    cluster_clauses: list[str] = list(base_clauses)
+    cluster_params: list[Any] = list(base_params)
     if countries:
         cluster_clauses.append("country_code = ANY(%s)")
         cluster_params.append(list(countries))
@@ -178,6 +225,7 @@ def sql_filter_options(
     country_list AS (
       SELECT ARRAY_REMOVE(ARRAY_AGG(DISTINCT country_code ORDER BY country_code), NULL) AS countries
       FROM "{s}"."bi_sales_weather_enriched"
+      {base_where}
     ),
     cluster_list AS (
       SELECT ARRAY_REMOVE(ARRAY_AGG(DISTINCT SPLIT_PART(store_name, ' HealthPoint', 1) ORDER BY SPLIT_PART(store_name, ' HealthPoint', 1)), NULL) AS clusters
@@ -195,7 +243,7 @@ def sql_filter_options(
     CROSS JOIN cluster_list cl
     CROSS JOIN store_list sl
     """.strip()
-    return sql, tuple([*base_params, *cluster_params, *store_params])
+    return sql, tuple([*base_params, *base_params, *cluster_params, *store_params])
 
 
 def sql_available_tracks(schema: str) -> tuple[str, tuple[Any, ...]]:
@@ -222,25 +270,28 @@ def sql_exec_kpis(
     """Headline KPIs with null-safe weighted margin & weighted unit price (no non-additive order_count)."""
     s = validate_schema(schema)
     where_sql, params = build_where_clause(filters, date_override=date_override)
+    rev_e = _money_expr("line_amount", filters)
+    mrg_e = _money_expr("margin_amount", filters)
+    up_e = _money_expr("avg_unit_price", filters)
     sql = f"""
     SELECT
-      SUM(line_amount)::double precision AS total_revenue,
+      SUM({rev_e})::double precision AS total_revenue,
       SUM(sold_qty)::double precision AS total_sold_qty,
       COALESCE(SUM(line_count), 0)::bigint AS total_line_count,
       COUNT(DISTINCT (store_id, local_date))::bigint AS active_store_days,
       COUNT(DISTINCT store_id)::bigint AS active_stores,
       ARRAY_REMOVE(ARRAY_AGG(DISTINCT clean_uom ORDER BY clean_uom), NULL) AS distinct_uoms,
-      SUM(margin_amount)::double precision AS total_margin,
+      SUM({mrg_e})::double precision AS total_margin,
       (
-        SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN margin_amount END)
-        / NULLIF(SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN line_amount END), 0)
+        SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN {mrg_e} END)
+        / NULLIF(SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN {rev_e} END), 0)
       )::double precision AS weighted_margin_pct,
       AVG(margin_pct)::double precision AS row_avg_margin_pct,
       (
-        SUM(CASE WHEN line_amount IS NOT NULL AND sold_qty > 0 THEN line_amount END)
+        SUM(CASE WHEN line_amount IS NOT NULL AND sold_qty > 0 THEN {rev_e} END)
         / NULLIF(SUM(CASE WHEN line_amount IS NOT NULL AND sold_qty > 0 THEN sold_qty END), 0)
       )::double precision AS weighted_unit_price,
-      AVG(avg_unit_price)::double precision AS row_avg_unit_price,
+      AVG({up_e})::double precision AS row_avg_unit_price,
       MIN(currency_code) AS currency_code,
       MIN(provenance_class) AS provenance_class,
       COUNT(line_amount) AS rev_rows,
@@ -255,6 +306,7 @@ def sql_exec_kpis(
 def sql_uom_breakdown(schema: str, filters: FilterState) -> tuple[str, tuple[Any, ...]]:
     s = validate_schema(schema)
     where_sql, params = build_where_clause(filters)
+    rev_e = _money_expr("line_amount", filters)
     sql = f"""
     SELECT
       COALESCE(clean_uom, 'Chưa rõ') AS clean_uom,
@@ -262,15 +314,15 @@ def sql_uom_breakdown(schema: str, filters: FilterState) -> tuple[str, tuple[Any
       COALESCE(SUM(line_count), 0)::bigint AS line_count,
       COUNT(DISTINCT (store_id, local_date))::bigint AS active_store_days,
       SUM(sold_qty)::double precision AS sold_qty,
-      SUM(line_amount)::double precision AS line_amount,
+      SUM({rev_e})::double precision AS line_amount,
       (
-        SUM(CASE WHEN line_amount IS NOT NULL AND sold_qty > 0 THEN line_amount END)
+        SUM(CASE WHEN line_amount IS NOT NULL AND sold_qty > 0 THEN {rev_e} END)
         / NULLIF(SUM(CASE WHEN line_amount IS NOT NULL AND sold_qty > 0 THEN sold_qty END), 0)
       )::double precision AS weighted_unit_price
     FROM "{s}"."bi_sales_weather_enriched"
     {where_sql}
     GROUP BY COALESCE(clean_uom, 'Chưa rõ')
-    ORDER BY COALESCE(SUM(line_amount), SUM(sold_qty)) DESC NULLS LAST
+    ORDER BY COALESCE(SUM({rev_e}), SUM(sold_qty)) DESC NULLS LAST
     """.strip()
     return sql, params
 
@@ -279,12 +331,14 @@ def sql_monthly_sales_trend(schema: str, filters: FilterState) -> tuple[str, tup
     """Aggregate monthly sales strictly inside the exact same FilterState scope as KPIs."""
     s = validate_schema(schema)
     where_sql, params = build_where_clause(filters)
+    rev_e = _money_expr("line_amount", filters)
+    mrg_e = _money_expr("margin_amount", filters)
     sql = f"""
     SELECT
       year_month,
       SUM(sold_qty)::double precision AS sold_qty,
-      SUM(line_amount)::double precision AS line_amount,
-      SUM(margin_amount)::double precision AS margin_amount,
+      SUM({rev_e})::double precision AS line_amount,
+      SUM({mrg_e})::double precision AS margin_amount,
       COALESCE(SUM(line_count), 0)::bigint AS line_count,
       COUNT(DISTINCT local_date)::int AS active_days,
       COUNT(DISTINCT (store_id, local_date))::bigint AS active_store_days,
@@ -415,34 +469,37 @@ def sql_dimension_variance(
         limit_sql = "\n    LIMIT %s"
         limit_params.append(int(limit))
 
+    rev_e = _money_expr("line_amount", filters)
+    mrg_e = _money_expr("margin_amount", filters)
+
     sql = f"""
     SELECT
       {select_dims},
       {nonnull_expr},
       COALESCE(SUM(CASE WHEN local_date BETWEEN %s AND %s THEN sold_qty END), 0)::double precision AS cur_qty,
       COALESCE(SUM(CASE WHEN local_date BETWEEN %s AND %s THEN sold_qty END), 0)::double precision AS prev_qty,
-      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN line_amount END)::double precision AS cur_rev,
-      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN line_amount END)::double precision AS prev_rev,
-      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN margin_amount END)::double precision AS cur_mrg,
-      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN margin_amount END)::double precision AS prev_mrg,
+      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN {rev_e} END)::double precision AS cur_rev,
+      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN {rev_e} END)::double precision AS prev_rev,
+      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN {mrg_e} END)::double precision AS cur_mrg,
+      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN {mrg_e} END)::double precision AS prev_mrg,
       COALESCE(SUM(CASE WHEN local_date BETWEEN %s AND %s THEN line_count END), 0)::bigint AS cur_lines,
       COALESCE(SUM(CASE WHEN local_date BETWEEN %s AND %s THEN line_count END), 0)::bigint AS prev_lines,
       COUNT(DISTINCT CASE WHEN local_date BETWEEN %s AND %s THEN (store_id, local_date) END)::bigint AS cur_store_days,
       COUNT(DISTINCT CASE WHEN local_date BETWEEN %s AND %s THEN (store_id, local_date) END)::bigint AS prev_store_days,
       (
-        SUM(CASE WHEN local_date BETWEEN %s AND %s AND margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN margin_amount END)
-        / NULLIF(SUM(CASE WHEN local_date BETWEEN %s AND %s AND margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN line_amount END), 0)
+        SUM(CASE WHEN local_date BETWEEN %s AND %s AND margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN {mrg_e} END)
+        / NULLIF(SUM(CASE WHEN local_date BETWEEN %s AND %s AND margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN {rev_e} END), 0)
         * 100.0
       )::double precision AS cur_weighted_margin_pct,
       (
-        SUM(CASE WHEN local_date BETWEEN %s AND %s AND margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN margin_amount END)
-        / NULLIF(SUM(CASE WHEN local_date BETWEEN %s AND %s AND margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN line_amount END), 0)
+        SUM(CASE WHEN local_date BETWEEN %s AND %s AND margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN {mrg_e} END)
+        / NULLIF(SUM(CASE WHEN local_date BETWEEN %s AND %s AND margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN {rev_e} END), 0)
         * 100.0
       )::double precision AS prev_weighted_margin_pct
     FROM "{s}"."bi_sales_weather_enriched"
     {where_sql}
     GROUP BY {group_dims}
-    ORDER BY COALESCE(SUM(ABS(line_amount)), SUM(ABS(sold_qty))) DESC NULLS LAST,
+    ORDER BY COALESCE(SUM(ABS({rev_e})), SUM(ABS(sold_qty))) DESC NULLS LAST,
     SUM(sold_qty) DESC{limit_sql}
     """.strip()
 
@@ -461,17 +518,18 @@ def sql_dimension_variance(
 def sql_sales_by_country(schema: str, filters: FilterState) -> tuple[str, tuple[Any, ...]]:
     s = validate_schema(schema)
     where_sql, params = build_where_clause(filters)
+    rev_e = _money_expr("line_amount", filters)
     sql = f"""
     SELECT
       country_code,
       SUM(sold_qty)::double precision AS sold_qty,
-      SUM(line_amount)::double precision AS line_amount,
+      SUM({rev_e})::double precision AS line_amount,
       COALESCE(SUM(line_count), 0)::bigint AS line_count,
       COUNT(DISTINCT (store_id, local_date))::bigint AS active_store_days
     FROM "{s}"."bi_sales_weather_enriched"
     {where_sql}
     GROUP BY country_code
-    ORDER BY COALESCE(SUM(line_amount), SUM(sold_qty)) DESC NULLS LAST
+    ORDER BY COALESCE(SUM({rev_e}), SUM(sold_qty)) DESC NULLS LAST
     """.strip()
     return sql, params
 
@@ -479,12 +537,14 @@ def sql_sales_by_country(schema: str, filters: FilterState) -> tuple[str, tuple[
 def sql_top_brands(schema: str, filters: FilterState, *, limit: int = 15) -> tuple[str, tuple[Any, ...]]:
     s = validate_schema(schema)
     where_sql, params = build_where_clause(filters, extra_conditions=("brand_name IS NOT NULL",))
+    rev_e = _money_expr("line_amount", filters)
+    mrg_e = _money_expr("margin_amount", filters)
     sql = f"""
     SELECT
       brand_name,
       SUM(sold_qty)::double precision AS sold_qty,
-      SUM(line_amount)::double precision AS line_amount,
-      SUM(margin_amount)::double precision AS margin_amount,
+      SUM({rev_e})::double precision AS line_amount,
+      SUM({mrg_e})::double precision AS margin_amount,
       COALESCE(SUM(line_count), 0)::bigint AS line_count
     FROM "{s}"."bi_sales_weather_enriched"
     {where_sql}
@@ -536,13 +596,14 @@ def sql_weather_kpis(schema: str, filters: FilterState) -> tuple[str, tuple[Any,
     """Compute store-day normalized KPIs and store-day unweighted weather averages."""
     s = validate_schema(schema)
     where_sql, params = build_where_clause(filters)
+    rev_e = _money_expr("line_amount", filters)
     sql = f"""
     WITH filtered AS (
       SELECT
         store_id,
         local_date,
         sold_qty,
-        line_amount,
+        {rev_e} AS line_amount,
         line_count,
         temp_mean,
         apparent_temp_mean,
@@ -613,6 +674,7 @@ def sql_temp_rain_heatmap(schema: str, filters: FilterState) -> tuple[str, tuple
     """Aggregate by temp_band x rain_regime with normalized store-day rate & sample sizes."""
     s = validate_schema(schema)
     where_sql, params = build_where_clause(filters, ignore_weather_cell=True)
+    rev_e = _money_expr("line_amount", filters)
     sql = f"""
     SELECT
       temp_band,
@@ -622,9 +684,9 @@ def sql_temp_rain_heatmap(schema: str, filters: FilterState) -> tuple[str, tuple
       COUNT(DISTINCT local_date)::bigint AS active_days,
       COUNT(DISTINCT store_id)::bigint AS distinct_stores,
       SUM(sold_qty)::double precision AS sold_qty,
-      SUM(line_amount)::double precision AS line_amount,
+      SUM({rev_e})::double precision AS line_amount,
       (SUM(sold_qty) / NULLIF(COUNT(DISTINCT (store_id, local_date)), 0))::double precision AS qty_per_store_day,
-      (SUM(line_amount) / NULLIF(COUNT(DISTINCT (store_id, local_date)), 0))::double precision AS rev_per_store_day
+      (SUM({rev_e}) / NULLIF(COUNT(DISTINCT (store_id, local_date)), 0))::double precision AS rev_per_store_day
     FROM "{s}"."bi_sales_weather_enriched"
     {where_sql}
     GROUP BY temp_band, rain_regime
@@ -635,15 +697,16 @@ def sql_temp_rain_heatmap(schema: str, filters: FilterState) -> tuple[str, tuple
 def sql_humidity_weekend(schema: str, filters: FilterState) -> tuple[str, tuple[Any, ...]]:
     s = validate_schema(schema)
     where_sql, params = build_where_clause(filters)
+    rev_e = _money_expr("line_amount", filters)
     sql = f"""
     SELECT
       humidity_band,
       is_weekend,
       COUNT(DISTINCT (store_id, local_date))::bigint AS active_store_days,
       SUM(sold_qty)::double precision AS sold_qty,
-      SUM(line_amount)::double precision AS line_amount,
+      SUM({rev_e})::double precision AS line_amount,
       (SUM(sold_qty) / NULLIF(COUNT(DISTINCT (store_id, local_date)), 0))::double precision AS qty_per_store_day,
-      (SUM(line_amount) / NULLIF(COUNT(DISTINCT (store_id, local_date)), 0))::double precision AS rev_per_store_day
+      (SUM({rev_e}) / NULLIF(COUNT(DISTINCT (store_id, local_date)), 0))::double precision AS rev_per_store_day
     FROM "{s}"."bi_sales_weather_enriched"
     {where_sql}
     GROUP BY humidity_band, is_weekend
@@ -656,9 +719,10 @@ def sql_daily_temp_scatter(schema: str, filters: FilterState) -> tuple[str, tupl
     """Daily store-day temp_mean vs normalized sales rate & raw sales colored by rain_regime."""
     s = validate_schema(schema)
     where_sql, params = build_where_clause(filters, extra_conditions=("temp_mean IS NOT NULL",))
+    rev_e = _money_expr("line_amount", filters)
     sql = f"""
     WITH filtered AS (
-      SELECT store_id, local_date, rain_regime, temp_mean, sold_qty, line_amount, line_count
+      SELECT store_id, local_date, rain_regime, temp_mean, sold_qty, {rev_e} AS line_amount, line_count
       FROM "{s}"."bi_sales_weather_enriched"
       {where_sql}
     ),
@@ -695,11 +759,12 @@ def sql_monthly_weather_seasonality(schema: str, filters: FilterState) -> tuple[
     """Monthly store-day weather averages vs normalized sales rate per active store-day."""
     s = validate_schema(schema)
     where_sql, params = build_where_clause(filters)
+    rev_e = _money_expr("line_amount", filters)
     sql = f"""
     WITH filtered AS (
       SELECT
         year_month, store_id, local_date,
-        sold_qty, line_amount, line_count,
+        sold_qty, {rev_e} AS line_amount, line_count,
         temp_mean, apparent_temp_mean, precip_sum, humidity_mean
       FROM "{s}"."bi_sales_weather_enriched"
       {where_sql}
@@ -753,6 +818,7 @@ def sql_daily_weather_table(
 ) -> tuple[str, tuple[Any, ...]]:
     s = validate_schema(schema)
     where_sql, params = build_where_clause(filters)
+    rev_e = _money_expr("line_amount", filters)
     if by_store_uom:
         sql = f"""
         SELECT
@@ -768,7 +834,7 @@ def sql_daily_weather_table(
           AVG(temp_mean)::double precision AS temp_mean,
           AVG(precip_sum)::double precision AS precip_sum,
           AVG(humidity_mean)::double precision AS humidity_mean,
-          SUM(line_amount)::double precision AS line_amount
+          SUM({rev_e})::double precision AS line_amount
         FROM "{s}"."bi_sales_weather_enriched"
         {where_sql}
         GROUP BY local_date, store_name, temp_band, rain_regime, humidity_band, is_weekend, clean_uom
@@ -779,7 +845,7 @@ def sql_daily_weather_table(
         sql = f"""
         WITH filtered AS (
           SELECT
-            local_date, store_id, sold_qty, line_count, line_amount,
+            local_date, store_id, sold_qty, line_count, {rev_e} AS line_amount,
             temp_mean, precip_sum, humidity_mean
           FROM "{s}"."bi_sales_weather_enriched"
           {where_sql}
@@ -828,7 +894,9 @@ def sql_top_products_by_rain(
 ) -> tuple[str, tuple[Any, ...]]:
     s = validate_schema(schema)
     where_sql, params = build_where_clause(filters, extra_conditions=("product_name IS NOT NULL",))
-    order_expr = "SUM(line_amount)" if rank_by_revenue else "SUM(sold_qty)"
+    rev_e = _money_expr("line_amount", filters)
+    m_rev_e = _money_expr("line_amount", filters, alias="m")
+    order_expr = f"SUM({rev_e})" if rank_by_revenue else "SUM(sold_qty)"
     m_where_sql, m_params = build_where_clause(filters, alias="m", extra_conditions=("m.product_name IS NOT NULL",))
     sql = f"""
     WITH top_products AS (
@@ -844,7 +912,7 @@ def sql_top_products_by_rain(
       m.rain_regime,
       COUNT(DISTINCT (m.store_id, m.local_date))::bigint AS active_store_days,
       SUM(m.sold_qty)::double precision AS sold_qty,
-      SUM(m.line_amount)::double precision AS line_amount,
+      SUM({m_rev_e})::double precision AS line_amount,
       tp.total_metric
     FROM "{s}"."bi_sales_weather_enriched" m
     INNER JOIN top_products tp ON m.product_name = tp.product_name
@@ -858,6 +926,7 @@ def sql_top_products_by_rain(
 def sql_weekday_by_rain(schema: str, filters: FilterState) -> tuple[str, tuple[Any, ...]]:
     s = validate_schema(schema)
     where_sql, params = build_where_clause(filters)
+    rev_e = _money_expr("line_amount", filters)
     sql = f"""
     SELECT
       day_of_week_num,
@@ -865,9 +934,9 @@ def sql_weekday_by_rain(schema: str, filters: FilterState) -> tuple[str, tuple[A
       rain_regime,
       COUNT(DISTINCT (store_id, local_date))::bigint AS active_store_days,
       SUM(sold_qty)::double precision AS sold_qty,
-      SUM(line_amount)::double precision AS line_amount,
+      SUM({rev_e})::double precision AS line_amount,
       (SUM(sold_qty) / NULLIF(COUNT(DISTINCT (store_id, local_date)), 0))::double precision AS qty_per_store_day,
-      (SUM(line_amount) / NULLIF(COUNT(DISTINCT (store_id, local_date)), 0))::double precision AS rev_per_store_day
+      (SUM({rev_e}) / NULLIF(COUNT(DISTINCT (store_id, local_date)), 0))::double precision AS rev_per_store_day
     FROM "{s}"."bi_sales_weather_enriched"
     {where_sql}
     GROUP BY day_of_week_num, day_of_week, rain_regime
@@ -995,6 +1064,8 @@ def sql_store_performance_table(
         like = f"%{cleaned_search}%"
         extra_params.extend([like, like, like])
     where_sql, params = build_where_clause(filters, extra_conditions=extra)
+    rev_e = _money_expr("line_amount", filters)
+    mrg_e = _money_expr("margin_amount", filters)
     sql = f"""
     SELECT
       store_code,
@@ -1004,18 +1075,18 @@ def sql_store_performance_table(
       SUM(sold_qty)::double precision AS sold_qty,
       COALESCE(SUM(line_count), 0)::bigint AS line_count,
       COUNT(DISTINCT (store_id, local_date))::bigint AS active_store_days,
-      SUM(line_amount)::double precision AS line_amount,
-      SUM(margin_amount)::double precision AS margin_amount,
+      SUM({rev_e})::double precision AS line_amount,
+      SUM({mrg_e})::double precision AS margin_amount,
       (
-        SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN margin_amount END)
-        / NULLIF(SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN line_amount END), 0)
+        SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN {mrg_e} END)
+        / NULLIF(SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN {rev_e} END), 0)
         * 100.0
       )::double precision AS weighted_margin_pct,
       (AVG(margin_pct) * 100.0)::double precision AS row_avg_margin_pct
     FROM "{s}"."bi_sales_weather_enriched"
     {where_sql}
     GROUP BY store_code, store_name, country_code, source
-    ORDER BY COALESCE(SUM(line_amount), SUM(sold_qty)) DESC NULLS LAST
+    ORDER BY COALESCE(SUM({rev_e}), SUM(sold_qty)) DESC NULLS LAST
     """.strip()
     return sql, (*params, *extra_params)
 
@@ -1070,6 +1141,8 @@ def sql_product_detail_table(
         like = f"%{cleaned_search}%"
         extra_params.extend([like, like, like])
     where_sql, params = build_where_clause(filters, extra_conditions=extra)
+    rev_e = _money_expr("line_amount", filters)
+    mrg_e = _money_expr("margin_amount", filters)
     sql = f"""
     SELECT
       product_name,
@@ -1078,20 +1151,20 @@ def sql_product_detail_table(
       COALESCE(SUM(line_count), 0)::bigint AS line_count,
       COUNT(DISTINCT (store_id, local_date))::bigint AS active_store_days,
       SUM(sold_qty)::double precision AS sold_qty,
-      SUM(line_amount)::double precision AS line_amount,
+      SUM({rev_e})::double precision AS line_amount,
       (
-        SUM(CASE WHEN line_amount IS NOT NULL AND sold_qty > 0 THEN line_amount END)
+        SUM(CASE WHEN line_amount IS NOT NULL AND sold_qty > 0 THEN {rev_e} END)
         / NULLIF(SUM(CASE WHEN line_amount IS NOT NULL AND sold_qty > 0 THEN sold_qty END), 0)
       )::double precision AS weighted_unit_price,
       (
-        SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN margin_amount END)
-        / NULLIF(SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN line_amount END), 0)
+        SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN {mrg_e} END)
+        / NULLIF(SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN {rev_e} END), 0)
         * 100.0
       )::double precision AS weighted_margin_pct
     FROM "{s}"."bi_sales_weather_enriched"
     {where_sql}
     GROUP BY product_name, clean_uom, dataset_track
-    ORDER BY COALESCE(SUM(line_amount), SUM(sold_qty)) DESC NULLS LAST
+    ORDER BY COALESCE(SUM({rev_e}), SUM(sold_qty)) DESC NULLS LAST
     LIMIT %s
     """.strip()
     return sql, (*params, *extra_params, int(limit))
@@ -1109,14 +1182,15 @@ def sql_brand_product_treemap(
     if use_revenue:
         extra.append("line_amount IS NOT NULL")
     where_sql, params = build_where_clause(filters, extra_conditions=extra)
-    order_col = "SUM(line_amount)" if use_revenue else "SUM(sold_qty)"
+    rev_e = _money_expr("line_amount", filters)
+    order_col = f"SUM({rev_e})" if use_revenue else "SUM(sold_qty)"
     sql = f"""
     SELECT
       brand_name,
       product_name,
       clean_uom,
       SUM(sold_qty)::double precision AS sold_qty,
-      SUM(line_amount)::double precision AS line_amount
+      SUM({rev_e})::double precision AS line_amount
     FROM "{s}"."bi_sales_weather_enriched"
     {where_sql}
     GROUP BY brand_name, product_name, clean_uom
@@ -1135,10 +1209,11 @@ def sql_unit_price_distribution(
     """Compute exact mart-row (product x store x day) unit-price histogram inside PostgreSQL via WIDTH_BUCKET."""
     s = validate_schema(schema)
     where_sql, params = build_where_clause(filters, extra_conditions=("avg_unit_price IS NOT NULL",))
+    up_e = _money_expr("avg_unit_price", filters)
     n_bins = max(5, int(bins))
     sql = f"""
     WITH filtered AS (
-      SELECT avg_unit_price, dataset_track
+      SELECT {up_e}::double precision AS avg_unit_price, dataset_track
       FROM "{s}"."bi_sales_weather_enriched"
       {where_sql}
     ),
@@ -1310,15 +1385,17 @@ def sql_store_product_mix(
         extra_params.extend([like, like, like])
 
     where_sql, where_params = build_where_clause(filters, extra_conditions=extra)
+    rev_e = _money_expr("line_amount", filters)
+    mrg_e = _money_expr("margin_amount", filters)
 
     has_cmp = bool(cur_start and cur_end and prev_start and prev_end)
     cmp_params: list[Any] = []
     if has_cmp:
-        cmp_select = """
+        cmp_select = f"""
       COALESCE(SUM(CASE WHEN local_date BETWEEN %s AND %s THEN sold_qty END), 0)::double precision AS cur_qty,
       COALESCE(SUM(CASE WHEN local_date BETWEEN %s AND %s THEN sold_qty END), 0)::double precision AS prev_qty,
-      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN line_amount END)::double precision AS cur_rev,
-      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN line_amount END)::double precision AS prev_rev
+      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN {rev_e} END)::double precision AS cur_rev,
+      SUM(CASE WHEN local_date BETWEEN %s AND %s THEN {rev_e} END)::double precision AS prev_rev
         """.strip()
         cmp_params = [cur_start, cur_end, prev_start, prev_end, cur_start, cur_end, prev_start, prev_end]
     else:
@@ -1335,17 +1412,17 @@ def sql_store_product_mix(
       COALESCE(NULLIF(TRIM(clean_uom), ''), 'Chưa xác định') AS clean_uom,
       MAX(brand_name) AS brand_name,
       SUM(sold_qty)::double precision AS sold_qty,
-      SUM(line_amount)::double precision AS line_amount,
-      SUM(margin_amount)::double precision AS margin_amount,
+      SUM({rev_e})::double precision AS line_amount,
+      SUM({mrg_e})::double precision AS margin_amount,
       COALESCE(SUM(line_count), 0)::bigint AS line_count,
       COUNT(DISTINCT (store_id, local_date))::bigint AS active_store_days,
       (
-        SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN margin_amount END)
-        / NULLIF(SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN line_amount END), 0)
+        SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN {mrg_e} END)
+        / NULLIF(SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN {rev_e} END), 0)
         * 100.0
       )::double precision AS weighted_margin_pct,
       (
-        SUM(CASE WHEN line_amount IS NOT NULL AND sold_qty IS NOT NULL THEN line_amount END)
+        SUM(CASE WHEN line_amount IS NOT NULL AND sold_qty IS NOT NULL THEN {rev_e} END)
         / NULLIF(SUM(CASE WHEN line_amount IS NOT NULL AND sold_qty IS NOT NULL THEN sold_qty END), 0)
       )::double precision AS weighted_unit_price,
       {cmp_select}
@@ -1354,7 +1431,7 @@ def sql_store_product_mix(
     GROUP BY
       COALESCE(NULLIF(TRIM(product_name), ''), 'Chưa xác định'),
       COALESCE(NULLIF(TRIM(clean_uom), ''), 'Chưa xác định')
-    ORDER BY COALESCE(SUM(line_amount), SUM(sold_qty)) DESC NULLS LAST, SUM(sold_qty) DESC
+    ORDER BY COALESCE(SUM({rev_e}), SUM(sold_qty)) DESC NULLS LAST, SUM(sold_qty) DESC
     """.strip()
     return sql, tuple([*cmp_params, *where_params, *extra_params])
 
@@ -1394,13 +1471,15 @@ def sql_time_series_by_grain(
         group_series = ""
 
     where_sql, where_params = build_where_clause(filters, extra_conditions=extra)
+    rev_e = _money_expr("line_amount", filters)
+    mrg_e = _money_expr("margin_amount", filters)
     sql = f"""
     SELECT
       DATE_TRUNC('{clean_grain}', local_date)::date AS period_date,
       {select_series},
       SUM(sold_qty)::double precision AS sold_qty,
-      SUM(line_amount)::double precision AS line_amount,
-      SUM(margin_amount)::double precision AS margin_amount,
+      SUM({rev_e})::double precision AS line_amount,
+      SUM({mrg_e})::double precision AS margin_amount,
       COALESCE(SUM(line_count), 0)::bigint AS line_count,
       COUNT(DISTINCT (store_id, local_date))::bigint AS active_store_days,
       AVG(temp_mean)::double precision AS avg_temp_mean,
@@ -1428,6 +1507,8 @@ def sql_store_map_points(
         override_track=EU_STORE_MATRIX_TRACK if force_onyx else None,
         extra_conditions=("latitude IS NOT NULL", "longitude IS NOT NULL"),
     )
+    rev_e = _money_expr("line_amount", filters)
+    mrg_e = _money_expr("margin_amount", filters)
     sql = f"""
     SELECT
       store_code,
@@ -1440,11 +1521,11 @@ def sql_store_map_points(
       AVG(latitude)::double precision AS map_lat,
       AVG(longitude)::double precision AS map_lon,
       SUM(sold_qty)::double precision AS sold_qty,
-      SUM(line_amount)::double precision AS line_amount,
-      SUM(margin_amount)::double precision AS margin_amount,
+      SUM({rev_e})::double precision AS line_amount,
+      SUM({mrg_e})::double precision AS margin_amount,
       (
-        SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN margin_amount END)
-        / NULLIF(SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN line_amount END), 0)
+        SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN {mrg_e} END)
+        / NULLIF(SUM(CASE WHEN margin_amount IS NOT NULL AND line_amount IS NOT NULL THEN {rev_e} END), 0)
         * 100.0
       )::double precision AS weighted_margin_pct,
       COALESCE(SUM(line_count), 0)::bigint AS line_count,
@@ -1454,6 +1535,6 @@ def sql_store_map_points(
     FROM "{s}"."bi_sales_weather_enriched"
     {where_sql}
     GROUP BY store_code, store_name, country_code
-    ORDER BY COALESCE(SUM(line_amount), SUM(sold_qty)) DESC NULLS LAST
+    ORDER BY COALESCE(SUM({rev_e}), SUM(sold_qty)) DESC NULLS LAST
     """.strip()
     return sql, params

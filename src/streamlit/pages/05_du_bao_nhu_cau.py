@@ -383,11 +383,19 @@ def render_page(filters: Any) -> None:
         default_atc = atc_choices[0]
 
     local_tags = [
+        "Nhà thuốc 5631 (RS)",
+        "2014–2019",
         f"ATC: {default_atc}",
         f"{st.session_state.get('p5_horizon', 'Theo Tuần (52W)')}",
         "DATA → FORECAST",
     ]
-    render_top_action_bar(filters, page_key="p5", local_tags=local_tags, show_compare_jump=False)
+    render_top_action_bar(
+        filters,
+        page_key="p5",
+        local_tags=local_tags,
+        show_compare_jump=False,
+        show_global_chips=False,
+    )
     _render_visible_scope_banner(palette)
 
     main_col, drawer_col = open_page_layout_columns()

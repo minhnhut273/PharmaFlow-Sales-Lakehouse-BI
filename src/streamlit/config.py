@@ -348,6 +348,7 @@ VND_REFERENCE_RATES: dict[str, float] = {
 PROVENANCE_VI: dict[str, str] = {
     "OBSERVED": "Thực tế (OBSERVED)",
     "SYNTHETIC": "Mô phỏng (SYNTHETIC)",
+    "MIXED": "Hỗn hợp (Thực tế & Mô phỏng)",
     "UNVERIFIED": "Chưa xác minh (UNVERIFIED)",
 }
 
@@ -394,9 +395,117 @@ RAIN_REGIME_VI_TO_RAW = {v: k for k, v in RAIN_REGIME_VI.items()}
 
 def track_label(track: str | None) -> str:
     if not track:
-        return "Chưa xác định"
+        return "Toàn mạng lưới (Tất cả nguồn)"
     meta = TRACK_META.get(track)
     return meta.label_vi if meta else str(track)
+
+
+@dataclass(frozen=True)
+class ScopeMeta:
+    active_tracks: tuple[str, ...]
+    active_currencies: tuple[str, ...]
+    currency_code: str | None
+    disp_ccy: str | None
+    ccy_mult: float
+    to_vnd: bool
+    normalize_currency_to_vnd: bool
+    has_revenue: bool
+    has_margin: bool
+    has_promo: bool
+    has_manufacturer: bool
+    provenance_class: str
+    label_vi: str
+    short_vi: str
+    is_multi_currency: bool
+    single_track_id: str | None
+
+
+def resolve_scope_meta(
+    active_tracks: tuple[str, ...] | list[str] = (),
+    active_currencies: tuple[str, ...] | list[str] = (),
+    active_provenances: tuple[str, ...] | list[str] = (),
+    *,
+    display_vnd: bool = False,
+    fallback_track: str | None = None,
+) -> ScopeMeta:
+    """Resolve currency, metric capabilities, and provenance dynamically for unified or single-track slices."""
+    tracks = tuple(dict.fromkeys(str(t) for t in active_tracks if t))
+    if not tracks and fallback_track and fallback_track in TRACK_META:
+        tracks = (fallback_track,)
+
+    currencies = tuple(dict.fromkeys(str(c).upper() for c in active_currencies if c and str(c).upper() != "N/A"))
+    provs = tuple(dict.fromkeys(str(p).upper() for p in active_provenances if p))
+
+    if not currencies and len(tracks) == 1 and tracks[0] in TRACK_META:
+        fb_ccy = TRACK_META[tracks[0]].currency_code
+        if fb_ccy:
+            currencies = (fb_ccy,)
+    if not provs and tracks:
+        provs = tuple(dict.fromkeys(TRACK_META[t].provenance_class for t in tracks if t in TRACK_META))
+
+    metas = [TRACK_META[t] for t in tracks if t in TRACK_META]
+    has_revenue = bool(currencies) or any(m.has_revenue for m in metas)
+    has_margin = any(m.has_margin for m in metas)
+    has_promo = any(m.has_promo for m in metas)
+    has_manufacturer = any(m.has_manufacturer for m in metas)
+    is_multi_currency = len(currencies) > 1
+
+    if is_multi_currency:
+        currency_code: str | None = "₫"
+        disp_ccy: str | None = "₫"
+        ccy_mult = 1.0
+        to_vnd = True
+        normalize_currency_to_vnd = True
+    elif len(currencies) == 1:
+        currency_code = currencies[0]
+        to_vnd = bool(display_vnd)
+        disp_ccy = currency_display_unit(currency_code, to_vnd=to_vnd)
+        ccy_mult = currency_multiplier(currency_code, to_vnd=to_vnd)
+        normalize_currency_to_vnd = False
+    else:
+        currency_code = None
+        disp_ccy = None
+        ccy_mult = 1.0
+        to_vnd = False
+        normalize_currency_to_vnd = False
+        has_revenue = False
+
+    if len(provs) == 1:
+        provenance_class = provs[0]
+    elif len(provs) > 1:
+        provenance_class = "MIXED"
+    else:
+        provenance_class = "SYNTHETIC"
+
+    single_track_id = tracks[0] if len(tracks) == 1 else None
+    if single_track_id and single_track_id in TRACK_META:
+        label_vi = TRACK_META[single_track_id].label_vi
+        short_vi = TRACK_META[single_track_id].short_vi
+    elif is_multi_currency:
+        label_vi = "Toàn mạng lưới (Đa nguồn · Quy đổi VNĐ)"
+        short_vi = "Toàn mạng lưới (VNĐ)"
+    else:
+        label_vi = "Toàn mạng lưới (Đa nguồn)"
+        short_vi = "Toàn mạng lưới"
+
+    return ScopeMeta(
+        active_tracks=tracks,
+        active_currencies=currencies,
+        currency_code=currency_code,
+        disp_ccy=disp_ccy,
+        ccy_mult=ccy_mult,
+        to_vnd=to_vnd,
+        normalize_currency_to_vnd=normalize_currency_to_vnd,
+        has_revenue=has_revenue,
+        has_margin=has_margin,
+        has_promo=has_promo,
+        has_manufacturer=has_manufacturer,
+        provenance_class=provenance_class,
+        label_vi=label_vi,
+        short_vi=short_vi,
+        is_multi_currency=is_multi_currency,
+        single_track_id=single_track_id,
+    )
 
 
 def country_label(code: str | None) -> str:
@@ -539,9 +648,12 @@ def fmt_currency(
     if to_vnd:
         if not currency_code:
             return "—"
-        rate = vnd_rate if vnd_rate is not None else currency_multiplier(currency_code, to_vnd=True)
-        v = v * rate
-        ccy_out = "₫"
+        if str(currency_code).upper() in ("₫", "VND"):
+            ccy_out = "₫"
+        else:
+            rate = vnd_rate if vnd_rate is not None else currency_multiplier(currency_code, to_vnd=True)
+            v = v * rate
+            ccy_out = "₫"
     else:
         ccy_out = currency_code
     num = fmt_compact(v, decimals=2) if compact else f"{v:,.2f}"

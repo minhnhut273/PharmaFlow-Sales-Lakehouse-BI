@@ -790,7 +790,7 @@ def resolve_matrix_source_meta(
     else:
         label_vi = f"{resolved_track} — {prov_vi}"
 
-    matches = resolved_track == active_track
+    matches = (active_track is None) or (resolved_track == active_track)
     if matches:
         scope_note = "Áp dụng đầy đủ bộ lọc ngày, quốc gia, cửa hàng, ĐVT và nhiệt độ của thanh bên."
     else:

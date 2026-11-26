@@ -18,15 +18,15 @@ from analytics import (
     evaluate_uom_compatibility,
     resolve_comparison_periods,
 )
-from components.filters import get_current_filters, get_track_bounds, set_global_uoms
+from components.filters import get_current_filters, get_track_bounds, set_global_uoms, sync_local_from_global
 from config import (
-    TRACK_META,
     atc_label,
     country_label,
     currency_display_unit,
     currency_multiplier,
     fmt_compact,
     fmt_currency,
+    resolve_scope_meta,
     safe_round,
     track_label,
     vnd_rate_note,
@@ -86,6 +86,24 @@ def _parse_date_range(val: object, fallback: tuple[date, date]) -> tuple[date, d
     return fallback
 
 
+def _sanitize_custom_range(
+    state_key: str,
+    default_range: tuple[date, date],
+    min_d: date | None,
+    max_d: date | None,
+) -> None:
+    raw = st.session_state.get(state_key)
+    if not isinstance(raw, (tuple, list)) or len(raw) != 2 or not all(isinstance(x, date) for x in raw):
+        st.session_state[state_key] = default_range
+        return
+    s, e = min(raw[0], raw[1]), max(raw[0], raw[1])
+    if min_d is not None and s < min_d:
+        s = min_d
+    if max_d is not None and e > max_d:
+        e = max_d
+    st.session_state[state_key] = (s, e) if s <= e else default_range
+
+
 def _pct_delta(cur: object, prev: object) -> tuple[str | None, str]:
     c_val = float(cur) if cur is not None and pd.notna(cur) else None
     p_val = float(prev) if prev is not None and pd.notna(prev) else None
@@ -99,18 +117,26 @@ def _pct_delta(cur: object, prev: object) -> tuple[str | None, str]:
 def render_page(filters: FilterState) -> None:
     schema = db.get_active_schema()
     palette = get_active_palette()
-    meta = TRACK_META.get(filters.dataset_track or "")
-    ccy = meta.currency_code if meta else None
-    has_rev = bool(meta.has_revenue) if meta else False
-    prov_class = meta.provenance_class if meta else "SYNTHETIC"
-    to_vnd = bool(filters.display_vnd)
-    mult = currency_multiplier(ccy, to_vnd)
-    disp_ccy = currency_display_unit(ccy, to_vnd)
-
     bounds = get_track_bounds()
     track_min_date = bounds.get("min_date")
     track_max_date = bounds.get("max_date")
     uoms_avail = bounds.get("uoms_avail") or ()
+
+    scope = bounds.get("scope_meta")
+    if scope is None:
+        scope = resolve_scope_meta(
+            bounds.get("active_tracks") or (),
+            bounds.get("active_currencies") or (),
+            bounds.get("active_provenances") or (),
+            display_vnd=bool(filters.display_vnd),
+            fallback_track=filters.dataset_track,
+        )
+    ccy = scope.currency_code
+    has_rev = scope.has_revenue
+    prov_class = scope.provenance_class
+    to_vnd = scope.to_vnd
+    mult = scope.ccy_mult
+    disp_ccy = scope.disp_ccy
 
     render_page_header(
         "So Sánh Kỳ & Danh Mục",
@@ -141,9 +167,12 @@ def render_page(filters: FilterState) -> None:
         "custom": "Tùy chọn Kỳ A / B",
     }
     mode_labels = {**COMPARE_MODE_LABELS, "custom": "Tùy chọn Kỳ A / B"}
-    default_mode = filters.compare_mode if filters.compare_mode in COMPARE_MODE_ORDER else "latest_full_month"
-    if st.session_state.get("p4_compare_mode") not in mode_options:
-        st.session_state["p4_compare_mode"] = default_mode
+    sync_local_from_global(
+        filters.compare_mode,
+        "p4_compare_mode",
+        "_p4_synced_compare_mode",
+        mode_options,
+    )
 
     with st.container(border=True):
         sel_mode = st.radio(
@@ -161,8 +190,8 @@ def render_page(filters: FilterState) -> None:
             def_b_end = _clamp_date(max(anchor_start, def_a_start - timedelta(days=1)), track_min_date, track_max_date)
             def_b_start = _clamp_date(max(anchor_start, def_b_end - timedelta(days=29)), track_min_date, track_max_date)
 
-            st.session_state.setdefault("p4_custom_a", (def_a_start, def_a_end))
-            st.session_state.setdefault("p4_custom_b", (def_b_start, def_b_end))
+            _sanitize_custom_range("p4_custom_a", (def_a_start, def_a_end), track_min_date, track_max_date)
+            _sanitize_custom_range("p4_custom_b", (def_b_start, def_b_end), track_min_date, track_max_date)
 
             dc1, dc2 = st.columns(2)
             with dc1:
@@ -590,7 +619,7 @@ def render_page(filters: FilterState) -> None:
                             st.plotly_chart(fig_hs, width="stretch", theme=None, config=plotly_config())
 
         with tab_mfg:
-            is_irpd_selected = filters.dataset_track == "IRPD_ID_OBSERVED"
+            is_irpd_selected = (filters.dataset_track is None) or (filters.dataset_track == "IRPD_ID_OBSERVED")
             irpd_mult = currency_multiplier("IDR", to_vnd)
             irpd_ccy = currency_display_unit("IDR", to_vnd) or "IDR"
             with st.container(border=True):
@@ -668,6 +697,25 @@ def render_page(filters: FilterState) -> None:
                     value=False,
                     key="p4_atc_apply_date",
                 )
+                atc_min_d: date | None = None
+                atc_max_d: date | None = None
+                if not atc_meta_df.empty and pd.notna(atc_meta_df.iloc[0].get("min_ym")) and pd.notna(atc_meta_df.iloc[0].get("max_ym")):
+                    atc_min_d = pd.to_datetime(atc_meta_df.iloc[0]["min_ym"]).date()
+                    atc_max_d = pd.to_datetime(atc_meta_df.iloc[0]["max_ym"]).date()
+
+                if (
+                    apply_date_to_atc
+                    and atc_min_d is not None
+                    and atc_max_d is not None
+                    and filters.date_start is not None
+                    and filters.date_end is not None
+                    and (filters.date_end.replace(day=1) < atc_min_d or filters.date_start.replace(day=1) > atc_max_d)
+                ):
+                    st.warning(
+                        f"Khoảng ngày Sidebar ({filters.date_start:%d/%m/%Y}–{filters.date_end:%d/%m/%Y}) không giao với giai đoạn quan sát ATC ({atc_span}). Hãy tắt công tắc trên hoặc chuyển sang nguồn Serbia RS.",
+                        icon="⚠️",
+                    )
+
                 atc_filters = filters if apply_date_to_atc else FilterState()
                 atc_filter_txt = (
                     f"Đang lọc ngày ({filters.date_start:%d/%m/%Y}–{filters.date_end:%d/%m/%Y}); bỏ qua Quốc gia/Cửa hàng/ĐVT của nguồn chính"

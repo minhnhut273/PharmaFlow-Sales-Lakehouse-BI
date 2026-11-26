@@ -3,26 +3,29 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
+from typing import Any, Sequence
 
+import pandas as pd
 import streamlit as st
 
 from analytics import COMPARE_MODE_LABELS, COMPARE_MODE_ORDER, evaluate_uom_compatibility
 from config import (
     DEFAULT_PALETTE_KEY,
     DEFAULT_TRACK,
+    HUMIDITY_BAND_ORDER,
     PALETTES,
+    RAIN_REGIME_ORDER,
     TEMP_BAND_ORDER,
     TIME_GRAIN_ORDER,
     TRACK_META,
     country_label,
+    resolve_scope_meta,
     temp_label,
     time_grain_label,
-    track_label,
     vnd_rate_note,
 )
 import db
-from queries import FilterState, sql_available_tracks, sql_filter_options, sql_release_state
+from queries import FilterState, sql_filter_taxonomy, sql_release_state
 from ui import get_active_palette, inject_theme_css
 
 _PAGE_LOCAL_KEYS: tuple[str, ...] = (
@@ -34,8 +37,10 @@ _PAGE_LOCAL_KEYS: tuple[str, ...] = (
     "p1_mix_top_n",
     "p1_mix_search",
     "p1_selected_products",
+    "p1_series_grain",
     "p1_series_metric",
     "p1_series_ma",
+    "_p1_synced_grain",
     "p2_temp_bands",
     "p2_rain_regimes",
     "p2_humidity_bands",
@@ -46,15 +51,23 @@ _PAGE_LOCAL_KEYS: tuple[str, ...] = (
     "p2_daily_store_uom",
     "p2_selected_products",
     "p2_series_grain",
+    "p2_map_mode",
+    "p2_map_color",
+    "_p2_synced_grain",
     "p3_store_search",
     "p3_map_mode",
     "p3_map_engine",
     "p3_map_size",
     "p3_map_color",
     "p3_map_clusters",
+    "p3_map_force_eu",
     "p4_product_search",
     "p4_atc_apply_date",
     "p4_from_jump",
+    "p4_compare_mode",
+    "p4_custom_a",
+    "p4_custom_b",
+    "_p4_synced_compare_mode",
     "p5_atc",
     "p5_horizon",
     "p5_show_cqr",
@@ -65,9 +78,165 @@ _PAGE_LOCAL_KEYS: tuple[str, ...] = (
 )
 
 
+def _to_date(val: Any, fallback: date) -> date:
+    if isinstance(val, date) and not hasattr(val, "hour"):
+        return val
+    if hasattr(val, "date"):
+        try:
+            return val.date()
+        except Exception:
+            pass
+    try:
+        return pd.to_datetime(val).date()
+    except Exception:
+        return fallback
+
+
+def _ordered_available(raw_vals: set[str], canonical_order: Sequence[str]) -> list[str]:
+    return [item for item in canonical_order if item != "Unknown" and item in raw_vals]
+
+
+def resolve_cascading_options(
+    taxonomy_df: pd.DataFrame,
+    *,
+    countries: Sequence[str] = (),
+    city_clusters: Sequence[str] = (),
+    stores: Sequence[str] = (),
+    uoms: Sequence[str] = (),
+    temp_bands: Sequence[str] = (),
+) -> dict[str, Any]:
+    """Compute strict top-down cascading options and prune stale child selections."""
+    fallback_min = date(2014, 1, 1)
+    fallback_max = date(2025, 12, 31)
+    fallback_temps = [b for b in TEMP_BAND_ORDER if b != "Unknown"]
+    fallback_rains = [r for r in RAIN_REGIME_ORDER if r != "Unknown"]
+    fallback_hums = [h for h in HUMIDITY_BAND_ORDER if h != "Unknown"]
+
+    if taxonomy_df is None or taxonomy_df.empty:
+        return {
+            "track_min_date": fallback_min,
+            "track_max_date": fallback_max,
+            "min_date": fallback_min,
+            "max_date": fallback_max,
+            "countries_avail": [],
+            "clusters_avail": [],
+            "stores_avail": [],
+            "uoms_avail": [],
+            "temp_bands_avail": fallback_temps,
+            "rain_regimes_avail": fallback_rains,
+            "humidity_bands_avail": fallback_hums,
+            "active_tracks": (),
+            "active_currencies": (),
+            "active_provenances": (),
+            "pruned_countries": [],
+            "pruned_clusters": [],
+            "pruned_stores": [],
+            "pruned_uoms": [],
+            "pruned_temps": [],
+        }
+
+    df = taxonomy_df.copy()
+    track_min_date = _to_date(df["min_date"].dropna().min(), fallback_min) if "min_date" in df else fallback_min
+    track_max_date = _to_date(df["max_date"].dropna().max(), fallback_max) if "max_date" in df else fallback_max
+
+    countries_avail = sorted(df["country_code"].dropna().astype(str).unique().tolist())
+    valid_countries = set(countries_avail)
+    pruned_countries = [str(c) for c in countries if str(c) in valid_countries]
+    df_c = df[df["country_code"].astype(str).isin(pruned_countries)] if pruned_countries else df
+
+    clusters_avail = sorted(df_c["city_cluster"].dropna().astype(str).unique().tolist())
+    valid_clusters = set(clusters_avail)
+    pruned_clusters = [str(c) for c in city_clusters if str(c) in valid_clusters]
+    df_cl = df_c[df_c["city_cluster"].astype(str).isin(pruned_clusters)] if pruned_clusters else df_c
+
+    stores_avail = sorted(df_cl["store_name"].dropna().astype(str).unique().tolist())
+    valid_stores = set(stores_avail)
+    pruned_stores = [str(s) for s in stores if str(s) in valid_stores]
+    df_s = df_cl[df_cl["store_name"].astype(str).isin(pruned_stores)] if pruned_stores else df_cl
+
+    uoms_avail = sorted(df_s["clean_uom"].dropna().astype(str).unique().tolist())
+    valid_uoms = set(uoms_avail)
+    pruned_uoms = [str(u) for u in uoms if str(u) in valid_uoms]
+    df_u = df_s[df_s["clean_uom"].astype(str).isin(pruned_uoms)] if pruned_uoms else df_s
+    if df_u.empty:
+        df_u = df_s
+
+    min_date = _to_date(df_u["min_date"].dropna().min(), track_min_date) if "min_date" in df_u else track_min_date
+    max_date = _to_date(df_u["max_date"].dropna().max(), track_max_date) if "max_date" in df_u else track_max_date
+
+    raw_temps = set(df_u["temp_band"].dropna().astype(str)) if "temp_band" in df_u else set()
+    temp_bands_avail = _ordered_available(raw_temps, TEMP_BAND_ORDER) or fallback_temps
+    valid_temps = set(temp_bands_avail)
+    pruned_temps = [str(t) for t in temp_bands if str(t) in valid_temps]
+    df_t = df_u[df_u["temp_band"].astype(str).isin(pruned_temps)] if pruned_temps else df_u
+    if df_t.empty:
+        df_t = df_u
+
+    raw_rains = set(df_t["rain_regime"].dropna().astype(str)) if "rain_regime" in df_t else set()
+    rain_regimes_avail = _ordered_available(raw_rains, RAIN_REGIME_ORDER) or fallback_rains
+    raw_hums = set(df_t["humidity_band"].dropna().astype(str)) if "humidity_band" in df_t else set()
+    humidity_bands_avail = _ordered_available(raw_hums, HUMIDITY_BAND_ORDER) or fallback_hums
+
+    active_tracks = (
+        tuple(sorted(df_u["dataset_track"].dropna().astype(str).unique().tolist()))
+        if "dataset_track" in df_u
+        else ()
+    )
+    active_currencies = (
+        tuple(sorted(df_u["currency_code"].dropna().astype(str).unique().tolist()))
+        if "currency_code" in df_u
+        else ()
+    )
+    active_provenances = (
+        tuple(sorted(df_u["provenance_class"].dropna().astype(str).unique().tolist()))
+        if "provenance_class" in df_u
+        else ()
+    )
+
+    return {
+        "track_min_date": track_min_date,
+        "track_max_date": track_max_date,
+        "min_date": min_date,
+        "max_date": max_date,
+        "countries_avail": countries_avail,
+        "clusters_avail": clusters_avail,
+        "stores_avail": stores_avail,
+        "uoms_avail": uoms_avail,
+        "temp_bands_avail": temp_bands_avail,
+        "rain_regimes_avail": rain_regimes_avail,
+        "humidity_bands_avail": humidity_bands_avail,
+        "active_tracks": active_tracks,
+        "active_currencies": active_currencies,
+        "active_provenances": active_provenances,
+        "pruned_countries": pruned_countries,
+        "pruned_clusters": pruned_clusters,
+        "pruned_stores": pruned_stores,
+        "pruned_uoms": pruned_uoms,
+        "pruned_temps": pruned_temps,
+    }
+
+
+def sync_local_from_global(
+    global_val: str,
+    local_key: str,
+    tracker_key: str,
+    valid_options: Sequence[str],
+) -> str:
+    """Propagate global sidebar control changes to a page-local control cleanly."""
+    fallback = global_val if global_val in valid_options else valid_options[0]
+    prev_synced = st.session_state.get(tracker_key)
+    cur_local = st.session_state.get(local_key)
+    if prev_synced is not None and prev_synced != global_val:
+        st.session_state[local_key] = fallback
+    elif cur_local not in valid_options:
+        st.session_state[local_key] = fallback
+    st.session_state[tracker_key] = global_val
+    return str(st.session_state[local_key])
+
+
 def _ensure_defaults() -> None:
     st.session_state.setdefault("palette_key", DEFAULT_PALETTE_KEY)
-    st.session_state.setdefault("f_track", DEFAULT_TRACK)
+    st.session_state.setdefault("f_track", None)
     st.session_state.setdefault("f_countries", [])
     st.session_state.setdefault("f_city_clusters", [])
     st.session_state.setdefault("f_stores", [])
@@ -80,7 +249,7 @@ def _ensure_defaults() -> None:
 
 def reset_all_filters() -> None:
     """Clear every global and page-local filter key cleanly."""
-    st.session_state["f_track"] = DEFAULT_TRACK
+    st.session_state["f_track"] = None
     st.session_state["f_countries"] = []
     st.session_state["f_city_clusters"] = []
     st.session_state["f_stores"] = []
@@ -91,6 +260,7 @@ def reset_all_filters() -> None:
     st.session_state["f_display_vnd"] = False
     st.session_state.pop("f_date_range", None)
     st.session_state.pop("f_track_prev", None)
+    st.session_state.pop("_prev_scope_date_bounds", None)
     st.session_state.pop("_track_bounds", None)
     for key in _PAGE_LOCAL_KEYS:
         st.session_state.pop(key, None)
@@ -101,7 +271,7 @@ def set_global_uoms(uoms: list[str]) -> None:
     st.session_state["f_uoms"] = list(uoms)
 
 
-def _prune_selection(state_key: str, valid_options: list[str]) -> list[str]:
+def _prune_selection(state_key: str, valid_options: Sequence[str]) -> list[str]:
     valid_set = set(valid_options)
     current = list(st.session_state.get(state_key, []))
     pruned = [v for v in current if v in valid_set]
@@ -110,20 +280,21 @@ def _prune_selection(state_key: str, valid_options: list[str]) -> list[str]:
     return pruned
 
 
+prune_selection = _prune_selection
+
+
 def get_track_bounds() -> dict[str, Any]:
     return dict(st.session_state.get("_track_bounds") or {})
 
 
 def render_sidebar_and_get_filters() -> FilterState:
-    """Render shared sidebar palette switcher + cascading global filters."""
+    """Render shared sidebar palette switcher + unified cascading global filters across all datasets."""
     _ensure_defaults()
 
     try:
         schema = db.get_active_schema()
         release_sql, release_params = sql_release_state(schema)
         release_df = db.run_query_df(release_sql, release_params)
-        tracks_sql, tracks_params = sql_available_tracks(schema)
-        tracks_df = db.run_query_df(tracks_sql, tracks_params)
     except db.MissingDatabaseConfigError as exc:
         inject_theme_css(get_active_palette())
         st.error(str(exc))
@@ -161,127 +332,122 @@ def render_sidebar_and_get_filters() -> FilterState:
 
         st.markdown("#### Bộ lọc")
 
-        raw_tracks = (
-            tracks_df["dataset_track"].dropna().tolist()
-            if not tracks_df.empty
-            else list(TRACK_META.keys())
-        )
-        preferred_order = list(TRACK_META.keys())
-        track_options = [t for t in preferred_order if t in raw_tracks] + [
-            t for t in raw_tracks if t not in preferred_order
-        ]
-
-        # Automatically resolve dataset track from active Country / Cluster / Store / UOM filters
-        cur_countries = tuple(st.session_state.get("f_countries", ()))
-        cur_clusters = tuple(st.session_state.get("f_city_clusters", ()))
-        cur_stores = tuple(st.session_state.get("f_stores", ()))
-        cur_uoms = tuple(st.session_state.get("f_uoms", ()))
-        place_text = " ".join(str(x) for x in (*cur_clusters, *cur_stores)).lower()
-
-        from_filter = True
-        if (
-            "ID" in cur_countries
-            or any(kw in place_text for kw in ("irpd", "apotek", "k24"))
-            or any(str(u) not in ("ONYX_UNIT", "ATC_DEFINED_DAILY_DOSE_X10") for u in cur_uoms)
-        ):
-            selected_track = "IRPD_ID_OBSERVED"
-        elif (
-            "RS" in cur_countries
-            or "belgrade" in place_text
-            or "ATC_DEFINED_DAILY_DOSE_X10" in cur_uoms
-        ):
-            selected_track = "SERBIA_RS_SYNTHETIC"
-        elif cur_countries or "healthpoint" in place_text or "ONYX_UNIT" in cur_uoms or cur_clusters or cur_stores:
-            selected_track = "ONYX_EU_SYNTHETIC"
-        else:
-            from_filter = False
-            explicit_track = st.session_state.get("f_track")
-            prev_track_val = st.session_state.get("f_track_prev")
-            if (
-                explicit_track in track_options
-                and (prev_track_val is None or not st.session_state.get("_track_from_filter", False))
-            ):
-                selected_track = str(explicit_track)
-            else:
-                selected_track = track_options[0] if track_options else DEFAULT_TRACK
-
-        if selected_track not in track_options and track_options:
-            selected_track = track_options[0]
-        st.session_state["f_track"] = selected_track
-        st.session_state["_track_from_filter"] = from_filter
+        selected_track: str | None = st.session_state.get("f_track")
+        if selected_track is not None and not str(selected_track).strip():
+            selected_track = None
 
         prev_track = st.session_state.get("f_track_prev")
         track_switched = prev_track is not None and prev_track != selected_track
         if track_switched:
+            st.session_state["f_countries"] = []
+            st.session_state["f_city_clusters"] = []
+            st.session_state["f_stores"] = []
+            st.session_state["f_uoms"] = []
+            st.session_state["f_temp_bands"] = []
+            st.session_state.pop("f_date_range", None)
+            st.session_state.pop("_prev_scope_date_bounds", None)
             for key in _PAGE_LOCAL_KEYS:
                 st.session_state.pop(key, None)
 
-        opts_sql, opts_params = sql_filter_options(schema, selected_track, cur_countries, cur_clusters)
-        opts_df = db.run_query_df(opts_sql, opts_params)
+        tax_sql, tax_params = sql_filter_taxonomy(schema, selected_track)
+        taxonomy_df = db.run_query_df(tax_sql, tax_params)
 
-        countries_avail: list[str] = []
-        clusters_avail: list[str] = []
-        uoms_avail: list[str] = []
-        stores_avail: list[str] = []
-        min_date = date(2014, 1, 1)
-        max_date = date(2025, 12, 31)
+        casc = resolve_cascading_options(
+            taxonomy_df,
+            countries=st.session_state.get("f_countries", ()),
+            city_clusters=st.session_state.get("f_city_clusters", ()),
+            stores=st.session_state.get("f_stores", ()),
+            uoms=st.session_state.get("f_uoms", ()),
+            temp_bands=st.session_state.get("f_temp_bands", ()),
+        )
 
-        if not opts_df.empty:
-            opt_row = opts_df.iloc[0]
-            if opt_row.get("min_date") is not None:
-                min_date = opt_row["min_date"]
-            if opt_row.get("max_date") is not None:
-                max_date = opt_row["max_date"]
-            countries_avail = list(opt_row.get("countries") or [])
-            clusters_avail = list(opt_row.get("clusters") or [])
-            uoms_avail = list(opt_row.get("uoms") or [])
-            stores_avail = list(opt_row.get("stores") or [])
+        countries_avail: list[str] = casc["countries_avail"]
+        clusters_avail: list[str] = casc["clusters_avail"]
+        stores_avail: list[str] = casc["stores_avail"]
+        uoms_avail: list[str] = casc["uoms_avail"]
+        temp_bands_avail: list[str] = casc["temp_bands_avail"]
+        min_date: date = casc["min_date"]
+        max_date: date = casc["max_date"]
+        track_min_date: date = casc["track_min_date"]
+        track_max_date: date = casc["track_max_date"]
 
-        if track_switched:
-            st.session_state["f_date_range"] = (min_date, max_date)
-        st.session_state["f_track_prev"] = selected_track
+        st.session_state["f_countries"] = casc["pruned_countries"]
+        st.session_state["f_city_clusters"] = casc["pruned_clusters"]
+        st.session_state["f_stores"] = casc["pruned_stores"]
+        st.session_state["f_uoms"] = casc["pruned_uoms"]
+        st.session_state["f_temp_bands"] = casc["pruned_temps"]
 
-        _prune_selection("f_countries", countries_avail)
-        _prune_selection("f_city_clusters", clusters_avail)
-        _prune_selection("f_uoms", uoms_avail)
-        _prune_selection("f_stores", stores_avail)
-
+        prev_scope_bounds = st.session_state.get("_prev_scope_date_bounds")
         cur_date_range = st.session_state.get("f_date_range")
-        if (
+        if track_switched or cur_date_range is None:
+            st.session_state["f_date_range"] = (min_date, max_date)
+        elif (
             not isinstance(cur_date_range, (tuple, list))
             or len(cur_date_range) != 2
-            or cur_date_range[0] < min_date
-            or cur_date_range[1] > max_date
+            or not isinstance(cur_date_range[0], date)
+            or not isinstance(cur_date_range[1], date)
         ):
             st.session_state["f_date_range"] = (min_date, max_date)
+        elif (
+            prev_scope_bounds is not None
+            and (cur_date_range[0], cur_date_range[1]) == tuple(prev_scope_bounds)
+            and (min_date, max_date) != tuple(prev_scope_bounds)
+        ):
+            # User had the full previous scope range selected -> auto-follow new scope bounds (incl. expanding back!)
+            st.session_state["f_date_range"] = (min_date, max_date)
+        else:
+            d0, d1 = cur_date_range[0], cur_date_range[1]
+            if d0 < min_date or d1 > max_date or d0 > d1:
+                clamped_0 = max(d0, min_date)
+                clamped_1 = min(d1, max_date)
+                st.session_state["f_date_range"] = (
+                    (clamped_0, clamped_1) if clamped_0 <= clamped_1 else (min_date, max_date)
+                )
+
+        st.session_state["_prev_scope_date_bounds"] = (min_date, max_date)
+        st.session_state["f_track_prev"] = selected_track
 
         selected_countries = st.multiselect(
             "Quốc gia",
             options=countries_avail,
             format_func=country_label,
-            placeholder="Tất cả quốc gia",
+            placeholder="Tất cả quốc gia" if len(countries_avail) != 1 else country_label(countries_avail[0]),
             key="f_countries",
         )
         selected_clusters = st.multiselect(
             "Cụm cửa hàng",
             options=clusters_avail,
-            placeholder="Tất cả cụm cửa hàng",
+            placeholder="Tất cả cụm cửa hàng" if len(clusters_avail) != 1 else clusters_avail[0],
             key="f_city_clusters",
         )
         selected_stores = st.multiselect(
             "Cửa hàng",
             options=stores_avail,
-            placeholder="Tất cả cửa hàng",
+            placeholder="Tất cả cửa hàng" if len(stores_avail) != 1 else stores_avail[0],
             key="f_stores",
         )
         selected_uoms = st.multiselect(
             "Đơn vị tính",
             options=uoms_avail,
-            placeholder="Tất cả đơn vị",
+            placeholder="Tất cả đơn vị" if len(uoms_avail) != 1 else uoms_avail[0],
             key="f_uoms",
         )
 
-        uom_guard = evaluate_uom_compatibility(selected_track, selected_uoms, uoms_avail)
+        # Recompute effective scope metadata from current multiselect selections
+        scope_casc = resolve_cascading_options(
+            taxonomy_df,
+            countries=selected_countries,
+            city_clusters=selected_clusters,
+            stores=selected_stores,
+            uoms=selected_uoms,
+            temp_bands=st.session_state.get("f_temp_bands", ()),
+        )
+        active_tracks = scope_casc["active_tracks"]
+        active_currencies = scope_casc["active_currencies"]
+        active_provenances = scope_casc["active_provenances"]
+
+        uom_track_hint = active_tracks[0] if len(active_tracks) == 1 else selected_track
+        uom_guard = evaluate_uom_compatibility(uom_track_hint, selected_uoms, uoms_avail)
         if uom_guard.is_multi_uom_blocked:
             st.warning(
                 f"Đang gồm **{uom_guard.uom_count} ĐVT** chưa có hệ số quy đổi chung — chọn **1 ĐVT** để so sản lượng.",
@@ -307,17 +473,38 @@ def render_sidebar_and_get_filters() -> FilterState:
             key="f_time_grain",
         )
 
-        track_meta = TRACK_META.get(selected_track or "")
-        track_ccy = track_meta.currency_code if track_meta else None
-        if track_ccy:
-            display_vnd = st.toggle(
-                f"Quy đổi VNĐ (₫ từ {track_ccy})",
-                key="f_display_vnd",
-                help=vnd_rate_note(track_ccy, True) or "Quy đổi tham chiếu sang Đồng Việt Nam.",
+        pre_scope = resolve_scope_meta(
+            active_tracks,
+            active_currencies,
+            active_provenances,
+            display_vnd=bool(st.session_state.get("f_display_vnd", False)),
+            fallback_track=selected_track,
+        )
+        if pre_scope.is_multi_currency:
+            st.caption(
+                f"Đa tiền tệ ({' + '.join(active_currencies)}) → tự động quy đổi tham chiếu về **VNĐ (₫)**."
             )
+            display_vnd = True
+            normalize_vnd = True
+        elif pre_scope.currency_code:
+            display_vnd = st.toggle(
+                f"Quy đổi VNĐ (₫ từ {pre_scope.currency_code})",
+                key="f_display_vnd",
+                help=vnd_rate_note(pre_scope.currency_code, True) or "Quy đổi tham chiếu sang Đồng Việt Nam.",
+            )
+            normalize_vnd = False
         else:
             st.session_state["f_display_vnd"] = False
             display_vnd = False
+            normalize_vnd = False
+
+        scope_meta = resolve_scope_meta(
+            active_tracks,
+            active_currencies,
+            active_provenances,
+            display_vnd=display_vnd,
+            fallback_track=selected_track,
+        )
 
         with st.expander("Tùy chọn thêm", expanded=False):
             selected_palette_key = st.selectbox(
@@ -328,7 +515,7 @@ def render_sidebar_and_get_filters() -> FilterState:
             )
             selected_temps = st.multiselect(
                 "Mức nhiệt độ",
-                options=[b for b in TEMP_BAND_ORDER if b != "Unknown"],
+                options=temp_bands_avail,
                 format_func=temp_label,
                 placeholder="Tất cả mức nhiệt độ",
                 key="f_temp_bands",
@@ -351,12 +538,22 @@ def render_sidebar_and_get_filters() -> FilterState:
                 st.rerun()
 
     st.session_state["_track_bounds"] = {
-        "min_date": min_date,
-        "max_date": max_date,
+        "min_date": track_min_date,
+        "max_date": track_max_date,
+        "scope_min_date": min_date,
+        "scope_max_date": max_date,
         "uoms_avail": tuple(uoms_avail),
         "countries_avail": tuple(countries_avail),
         "clusters_avail": tuple(clusters_avail),
         "stores_avail": tuple(stores_avail),
+        "temp_bands_avail": tuple(temp_bands_avail),
+        "rain_regimes_avail": tuple(casc["rain_regimes_avail"]),
+        "humidity_bands_avail": tuple(casc["humidity_bands_avail"]),
+        "active_tracks": active_tracks,
+        "active_currencies": active_currencies,
+        "active_provenances": active_provenances,
+        "scope_meta": scope_meta,
+        "taxonomy_df": taxonomy_df,
     }
 
     inject_theme_css(palette)
@@ -373,6 +570,7 @@ def render_sidebar_and_get_filters() -> FilterState:
         compare_mode=str(compare_mode),
         time_grain=str(selected_grain),
         display_vnd=bool(display_vnd),
+        normalize_currency_to_vnd=bool(normalize_vnd),
     )
 
 

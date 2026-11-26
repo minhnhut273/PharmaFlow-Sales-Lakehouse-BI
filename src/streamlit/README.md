@@ -27,26 +27,34 @@
 
 ## 3. Cài đặt & Chạy nhanh trong 3 bước
 
-### Bước 1 — Clone repo, tạo môi trường ảo & cài 6 thư viện nhẹ
+### Bước 1 — Chuẩn bị môi trường ảo & 6 thư viện nhẹ
 
-```bash
-git clone https://github.com/minhnhut273/PharmaFlow-Sales-Lakehouse-BI.git
-cd PharmaFlow-Sales-Lakehouse-BI
-python -m venv .venv
-```
-
-Cài đúng 6 gói Streamlit bằng file [`src/streamlit/requirements.txt`](requirements.txt):
-
-- **Windows (PowerShell):**
+- **Nếu máy bạn đã có sẵn `venv` / `conda` (hoặc `.venv` dùng chung ở thư mục cha):**
+  Bỏ qua `python -m venv .venv` — chỉ cần kích hoạt môi trường hiện có (hoặc trỏ thẳng tới `pip` của nó) và đồng bộ 6 gói trong [`src/streamlit/requirements.txt`](requirements.txt):
   ```powershell
-  .\.venv\Scripts\pip.exe install -r src\streamlit\requirements.txt
-  ```
-- **macOS / Linux:**
-  ```bash
-  ./.venv/bin/pip install -r src/streamlit/requirements.txt
+  # Kích hoạt venv/conda sẵn có (hoặc dùng thẳng đường dẫn <path-to-venv>\Scripts\pip.exe)
+  pip install -r src/streamlit/requirements.txt
   ```
 
-*(Lưu ý: Trên Windows không cần chạy `Activate.ps1` — gọi thẳng `.venv\Scripts\pip.exe` và `.venv\Scripts\streamlit.exe` để tránh lỗi ExecutionPolicy.)*
+- **Nếu chưa có môi trường ảo (tạo mới trong repo):**
+  ```bash
+  git clone https://github.com/minhnhut273/PharmaFlow-Sales-Lakehouse-BI.git
+  cd PharmaFlow-Sales-Lakehouse-BI
+  python -m venv .venv
+  ```
+
+  Cài đúng 6 gói Streamlit bằng file [`src/streamlit/requirements.txt`](requirements.txt):
+
+  - **Windows (PowerShell):**
+    ```powershell
+    .\.venv\Scripts\pip.exe install -r src\streamlit\requirements.txt
+    ```
+  - **macOS / Linux:**
+    ```bash
+    ./.venv/bin/pip install -r src/streamlit/requirements.txt
+    ```
+
+*(Lưu ý: Trên Windows không cần chạy `Activate.ps1` — có thể gọi thẳng `.venv\Scripts\pip.exe` và `.venv\Scripts\streamlit.exe` để tránh lỗi ExecutionPolicy.)*
 
 ### Bước 2 — Tạo file `.env` (chỉ 2 dòng)
 
@@ -63,11 +71,15 @@ QUICK_NEON_SCHEMA=quick_gold_md01
 
 ### Bước 3 — Khởi chạy Dashboard
 
-- **Windows (PowerShell):**
+- **Dùng `venv` / `conda` đã có sẵn (đã kích hoạt ở Bước 1):**
+  ```bash
+  streamlit run src/streamlit/app.py --server.port 8501
+  ```
+- **Dùng `.venv` cục bộ — Windows (PowerShell):**
   ```powershell
   .\.venv\Scripts\streamlit.exe run src\streamlit\app.py --server.port 8501
   ```
-- **macOS / Linux:**
+- **Dùng `.venv` cục bộ — macOS / Linux:**
   ```bash
   ./.venv/bin/streamlit run src/streamlit/app.py --server.port 8501
   ```
@@ -81,10 +93,10 @@ Sau khi chạy, mở trình duyệt tại **`http://localhost:8501`**.
 - **Thanh điều hướng & Bộ lọc phân tầng (Sidebar trái):**
   - Chuyển qua lại giữa 5 trang (`Cửa Hàng & Mặt Hàng`, `Cụm CH & Bản Đồ`, `Thời Tiết & Mùa Vụ`, `So Sánh Kỳ & Danh Mục`, `Dự Báo Nhu Cầu (ML)`); bộ lọc toàn cục giữ xuyên suốt cho Trang 1–4, còn Trang 5 dùng bộ chọn cục bộ độc lập cho 8 nhóm ATC (`store_id = 5631 · OBSERVED`).
   - Chọn **Bảng màu giao diện** gồm 7 preset (`PharmaFlow Xanh Ngọc`, `AWS Quick Tím Chàm`, `Đại Dương Hiện Đại`, `Hổ Phách Ấm`, `Ant Enterprise`, `Shadcn Minimal`, `Clean Analytics`).
-  - Lọc phân tầng theo **Nhóm dữ liệu (`Track`) → Quốc gia → Cửa hàng → Đơn vị tính (`UOM`) → Khoảng ngày bán → Mức nhiệt độ**.
+  - Lọc phân tầng thống nhất toàn mạng lưới 10 quốc gia theo **Quốc gia → Cụm cửa hàng → Cửa hàng → Đơn vị tính (`UOM`) → Khoảng thời gian → Độ mịn thời gian** (cùng **Mức nhiệt độ** và bảng màu trong phần *Tùy chọn thêm*).
   - Có nút **Đặt lại toàn bộ bộ lọc** ở cuối sidebar.
 - **Nguyên tắc toàn vẹn dữ liệu & Giới hạn Data Contract:**
-  - **Không trộn tiền tệ & Đa ĐVT:** Tách biệt `EUR` (`ONYX_EU_SYNTHETIC`), `IDR` (`IRPD_ID_OBSERVED`) và nguồn không tiền tệ (`SERBIA_RS_SYNTHETIC`). Vì cột `base_qty` hiện `NULL` (thiếu hệ số quy đổi ĐVT), app khóa cộng gộp sản lượng & đơn giá bình quân khi đang gộp nhiều ĐVT (`IRPD`), cho phép chọn 1 ĐVT hoặc đối chiếu qua doanh thu/bảng tách ĐVT.
+  - **Chuẩn hóa tiền tệ & Đa ĐVT:** Khi phạm vi lọc chỉ gồm 1 loại tiền tệ (`EUR` ở EU hoặc `IDR` ở Indonesia), app giữ nguyên tiền tệ gốc kèm tùy chọn quy đổi sang **VNĐ (`₫`)**; khi phạm vi gộp cả nhiều loại tiền tệ (`EUR + IDR`), hệ thống tự động quy đổi tham chiếu về **VNĐ (`₫`)** ngay trong SQL để không cộng trộn thô hai đơn vị tiền khác nhau; riêng Serbia (`RS`) không có doanh thu tiền tệ (`NULL`) vẫn hiển thị sản lượng (`SIM_PHARMA_SALES_UNIT`) và vị trí bản đồ bình thường. Vì cột `base_qty` hiện `NULL` (thiếu hệ số quy đổi ĐVT), app khóa cộng gộp sản lượng & đơn giá bình quân khi đang gộp nhiều ĐVT (`IRPD` hoặc đa quốc gia), cho phép chọn 1 ĐVT hoặc đối chiếu qua doanh thu/bảng tách ĐVT.
   - **Số đơn hàng (Distinct Order):** Gold mirror đang ở grain `Sản phẩm × Cửa hàng × Ngày` (`SUM(order_count)` sẽ cộng trùng đơn nhiều mặt hàng), nên KPI hiển thị **`Chưa khả dụng`** và thay bằng chỉ số cộng được chính xác là **`Số dòng POS` (`SUM(line_count)`)** và **`CH-ngày có bán`**.
   - **Biên LN & Đơn giá gia quyền:** Dùng `SUM(margin)/SUM(revenue)` và `SUM(revenue)/SUM(qty)` làm KPI điều hành; trung bình theo dòng mart chỉ giữ làm thông tin phụ. Phân biệt rõ `0`, `Không có dữ liệu` và `Nguồn không hỗ trợ`.
   - **Phạm vi Sales BI & Thời tiết:** Gold mart chỉ chứa ngày có bán (`sold_qty > 0`, không gồm ngày bán = 0); mẫu từ nguồn `SYNTHETIC` được gắn nhãn mô phỏng và không suy diễn nhân quả hay đề xuất tồn kho/điều chuyển (thuộc module Distribution/Inventory).

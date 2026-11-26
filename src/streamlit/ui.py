@@ -550,6 +550,8 @@ def render_page_header(
         prov_txt = provenance_label(meta.provenance_class)
         ccy = meta.currency_code or "Không tiền tệ"
         hidden_pills.extend([prov_txt, meta.short_vi, f"Tiền tệ: {ccy}"])
+    elif dataset_track is None:
+        hidden_pills.append("Toàn mạng lưới (Tất cả nguồn)")
 
     for text, _kind in extra_pills:
         hidden_pills.append(str(text))
@@ -584,44 +586,49 @@ def render_active_filter_bar(
     *,
     compare_window: Any = None,
     local_tags: Sequence[str] = (),
+    show_global_chips: bool = True,
 ) -> None:
     """Render ultra-short active filter chips visually, keeping full scope metadata screen-reader-only."""
     visible_chips: list[str] = []
-    hidden_chips: list[str] = [f"Nguồn: {track_label(filters.dataset_track)}"]
-
-    if filters.date_start and filters.date_end:
-        visible_chips.append(f"{filters.date_start:%d/%m/%y}–{filters.date_end:%d/%m/%y}")
-        hidden_chips.append(f"Ngày: {filters.date_start:%d/%m/%Y}–{filters.date_end:%d/%m/%Y}")
-    if getattr(filters, "time_grain", None):
-        hidden_chips.append(f"Độ mịn: {time_grain_label(filters.time_grain)}")
-    if filters.countries:
-        ctry_txt = ", ".join(country_label(c) for c in filters.countries[:2])
-        if len(filters.countries) > 2:
-            ctry_txt += f" (+{len(filters.countries) - 2})"
-        visible_chips.append(ctry_txt)
-        hidden_chips.append(f"Quốc gia: {ctry_txt}")
-    if getattr(filters, "city_clusters", None):
-        cl_txt = ", ".join(filters.city_clusters[:2])
-        if len(filters.city_clusters) > 2:
-            cl_txt += f" (+{len(filters.city_clusters) - 2})"
-        visible_chips.append(f"Cụm: {cl_txt}")
-    if filters.stores:
-        st_txt = ", ".join(filters.stores[:2])
-        if len(filters.stores) > 2:
-            st_txt += f" (+{len(filters.stores) - 2})"
-        visible_chips.append(st_txt)
-    if filters.clean_uoms:
-        uom_txt = f"ĐVT: {', '.join(filters.clean_uoms[:2])}{'...' if len(filters.clean_uoms) > 2 else ''}"
-        visible_chips.append(uom_txt)
+    hidden_chips: list[str] = []
+    if show_global_chips:
+        hidden_chips.append(f"Nguồn: {track_label(filters.dataset_track)}")
+        if filters.date_start and filters.date_end:
+            visible_chips.append(f"{filters.date_start:%d/%m/%y}–{filters.date_end:%d/%m/%y}")
+            hidden_chips.append(f"Ngày: {filters.date_start:%d/%m/%Y}–{filters.date_end:%d/%m/%Y}")
+        if getattr(filters, "time_grain", None):
+            hidden_chips.append(f"Độ mịn: {time_grain_label(filters.time_grain)}")
+        if filters.countries:
+            ctry_txt = ", ".join(country_label(c) for c in filters.countries[:2])
+            if len(filters.countries) > 2:
+                ctry_txt += f" (+{len(filters.countries) - 2})"
+            visible_chips.append(ctry_txt)
+            hidden_chips.append(f"Quốc gia: {ctry_txt}")
+        if getattr(filters, "city_clusters", None):
+            cl_txt = ", ".join(filters.city_clusters[:2])
+            if len(filters.city_clusters) > 2:
+                cl_txt += f" (+{len(filters.city_clusters) - 2})"
+            visible_chips.append(f"Cụm: {cl_txt}")
+        if filters.stores:
+            st_txt = ", ".join(filters.stores[:2])
+            if len(filters.stores) > 2:
+                st_txt += f" (+{len(filters.stores) - 2})"
+            visible_chips.append(st_txt)
+        if filters.clean_uoms:
+            uom_txt = f"ĐVT: {', '.join(filters.clean_uoms[:2])}{'...' if len(filters.clean_uoms) > 2 else ''}"
+            visible_chips.append(uom_txt)
+        else:
+            hidden_chips.append("ĐVT: Tất cả")
+        if filters.temp_bands:
+            t_txt = ", ".join(temp_label(t) for t in filters.temp_bands[:2])
+            visible_chips.append(t_txt)
+        meta = TRACK_META.get(filters.dataset_track or "")
+        if getattr(filters, "display_vnd", False) and meta and meta.currency_code:
+            visible_chips.append("VNĐ (₫)")
+            hidden_chips.append(f"Tiền tệ: VNĐ (₫ · {vnd_rate_note(meta.currency_code, True)})")
     else:
-        hidden_chips.append("ĐVT: Tất cả")
-    if filters.temp_bands:
-        t_txt = ", ".join(temp_label(t) for t in filters.temp_bands[:2])
-        visible_chips.append(t_txt)
-    meta = TRACK_META.get(filters.dataset_track or "")
-    if getattr(filters, "display_vnd", False) and meta and meta.currency_code:
-        visible_chips.append("VNĐ (₫)")
-        hidden_chips.append(f"Tiền tệ: VNĐ (₫ · {vnd_rate_note(meta.currency_code, True)})")
+        hidden_chips.append("Phạm vi độc lập (Sidebar chỉ dùng cho Trang 1–4)")
+
     if compare_window is not None and getattr(compare_window, "valid", False):
         visible_chips.append(f"{compare_window.cur_label} vs {compare_window.prev_label}")
 
@@ -665,6 +672,7 @@ def render_top_action_bar(
     compare_window: Any = None,
     local_tags: Sequence[str] = (),
     show_compare_jump: bool = True,
+    show_global_chips: bool = True,
 ) -> None:
     """Render concise active filter strip alongside Compare Jump & Right-Side Explanation Drawer controls."""
     col_bar, col_cmp, col_info = st.columns(
@@ -672,7 +680,12 @@ def render_top_action_bar(
         gap="small",
     )
     with col_bar:
-        render_active_filter_bar(filters, compare_window=compare_window, local_tags=local_tags)
+        render_active_filter_bar(
+            filters,
+            compare_window=compare_window,
+            local_tags=local_tags,
+            show_global_chips=show_global_chips,
+        )
     if show_compare_jump:
         with col_cmp:
             if st.button(
@@ -1072,10 +1085,13 @@ def render_street_map(
         if "margin_amount" in plot_df.columns:
             plot_df["margin_amount"] = pd.to_numeric(plot_df["margin_amount"], errors="coerce") * mult
 
-    size_series = pd.to_numeric(plot_df.get(size_col), errors="coerce").fillna(0.0).clip(lower=0.0)
-    if float(size_series.max()) <= 0:
-        size_series = pd.to_numeric(plot_df.get("sold_qty"), errors="coerce").fillna(1.0).clip(lower=1.0)
-    plot_df["_size_val"] = size_series
+    raw_size = pd.to_numeric(plot_df.get(size_col), errors="coerce")
+    pos_max = float(raw_size.dropna().max()) if raw_size.notna().any() else 0.0
+    if pos_max <= 0:
+        raw_size = pd.to_numeric(plot_df.get("sold_qty"), errors="coerce")
+        pos_max = float(raw_size.dropna().max()) if raw_size.notna().any() else 1.0
+    size_floor = max(pos_max * 0.14, 1.0)
+    plot_df["_size_val"] = raw_size.fillna(size_floor).clip(lower=size_floor * 0.5)
 
     if color_col in plot_df.columns and pd.to_numeric(plot_df[color_col], errors="coerce").notna().any():
         plot_df["_color_val"] = pd.to_numeric(plot_df[color_col], errors="coerce")
@@ -1095,8 +1111,12 @@ def render_street_map(
         zoom = 6.2
     elif max_span < 10.0:
         zoom = 4.6
-    else:
+    elif max_span < 22.0:
         zoom = 3.8
+    elif max_span < 50.0:
+        zoom = 3.2
+    else:
+        zoom = 1.8
     center_lat = float(plot_df["map_lat"].mean())
     center_lon = float(plot_df["map_lon"].mean())
 
@@ -1113,18 +1133,23 @@ def render_street_map(
     if map_engine == "pydeck" and pdk is not None:
         max_s = max(float(plot_df["_size_val"].max()), 1.0)
         plot_df["_elev"] = (plot_df["_size_val"] / max_s) * (120_000.0 if zoom < 7 else 8_000.0)
-        plot_df["_radius"] = 22_000 if zoom < 5.5 else (6_000 if zoom < 8.5 else 700)
+        plot_df["_radius"] = 28_000 if zoom < 3.0 else (22_000 if zoom < 5.5 else (6_000 if zoom < 8.5 else 700))
 
         min_c = float(plot_df["_color_val"].min()) if plot_df["_color_val"].notna().any() else 0.0
         max_c = float(plot_df["_color_val"].max()) if plot_df["_color_val"].notna().any() else 1.0
         span_c = max(max_c - min_c, 1e-6)
         r_vals, g_vals, b_vals = [], [], []
-        for cv in plot_df["_color_val"].fillna(min_c):
-            t = max(0.0, min(1.0, (float(cv) - min_c) / span_c))
-            # Smooth emerald-to-blue gradient
-            r_vals.append(int(217 * (1.0 - t) + 8 * t))
-            g_vals.append(int(119 * (1.0 - t) + 123 * t))
-            b_vals.append(int(6 * (1.0 - t) + 113 * t))
+        for cv in plot_df["_color_val"]:
+            if pd.isna(cv):
+                r_vals.append(100)
+                g_vals.append(116)
+                b_vals.append(139)
+            else:
+                t = max(0.0, min(1.0, (float(cv) - min_c) / span_c))
+                # Smooth emerald-to-blue gradient
+                r_vals.append(int(217 * (1.0 - t) + 8 * t))
+                g_vals.append(int(119 * (1.0 - t) + 123 * t))
+                b_vals.append(int(6 * (1.0 - t) + 113 * t))
         plot_df["_r"] = r_vals
         plot_df["_g"] = g_vals
         plot_df["_b"] = b_vals
@@ -1205,15 +1230,21 @@ def render_street_map(
         "line_amount": f"Doanh thu ({disp_ccy})" if disp_ccy else "Doanh thu",
         "sold_qty": "Sản lượng",
     }
+    has_color_mask = plot_df[actual_color_col].notna()
+    valid_df = plot_df[has_color_mask].copy()
+    missing_df = plot_df[~has_color_mask].copy()
+
+    base_df = valid_df if not valid_df.empty else plot_df
     fig_map = px.scatter_map(
-        plot_df,
+        base_df,
         lat="map_lat",
         lon="map_lon",
         size="_size_val",
-        color=actual_color_col,
+        color=actual_color_col if not valid_df.empty else None,
         hover_name="display_name",
         custom_data=["country_vi", "rev_fmt", "qty_fmt", "mrg_fmt", "temp_fmt", "rain_fmt", "store_count"],
         color_continuous_scale=list(palette.continuous_scale),
+        color_discrete_sequence=["#64748b"] if valid_df.empty else None,
         size_max=28 if mode == "cluster" else 20,
         zoom=zoom,
         center=dict(lat=center_lat, lon=center_lon),
@@ -1229,11 +1260,35 @@ def render_street_map(
             "Nhiệt độ TB: %{customdata[4]} · Mưa TB: %{customdata[5]}<extra></extra>"
         )
     )
+    if not valid_df.empty and not missing_df.empty:
+        fig_map.add_trace(
+            go.Scattermap(
+                lat=missing_df["map_lat"],
+                lon=missing_df["map_lon"],
+                mode="markers",
+                name="Chưa có chỉ số màu (RS / ID)",
+                text=missing_df["display_name"],
+                customdata=missing_df[["country_vi", "rev_fmt", "qty_fmt", "mrg_fmt", "temp_fmt", "rain_fmt", "store_count"]].to_numpy(),
+                marker=dict(size=14, color="#64748b", opacity=0.92),
+                hovertemplate=(
+                    "<b>%{text}</b> (%{customdata[0]})<br>"
+                    "Số cửa hàng: %{customdata[6]}<br>"
+                    "Doanh thu: %{customdata[1]}<br>"
+                    "Sản lượng: %{customdata[2]}<br>"
+                    "Tỷ suất LN: %{customdata[3]}<br>"
+                    "Nhiệt độ TB: %{customdata[4]} · Mưa TB: %{customdata[5]}<extra></extra>"
+                ),
+            )
+        )
+        fig_map.update_layout(
+            legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0),
+        )
     fig_map.update_coloraxes(colorbar_title_text=color_title_map.get(color_col, "Giá trị"))
     fig_map.update_layout(
         height=height,
         margin=dict(l=0, r=0, t=0, b=0),
         paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family=palette.font_family, size=12, color=palette.ink),
+        map=dict(center=dict(lat=center_lat, lon=center_lon), zoom=zoom),
     )
     st.plotly_chart(fig_map, width="stretch", theme=None, config={"displayModeBar": True, "scrollZoom": True, "responsive": True})

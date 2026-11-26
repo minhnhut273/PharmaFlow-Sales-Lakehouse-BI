@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -15,14 +17,13 @@ from analytics import (
     resolve_comparison_periods,
     resolve_matrix_source_meta,
 )
-from components.filters import get_current_filters, get_track_bounds
+from components.filters import get_current_filters, get_track_bounds, prune_selection
 from config import (
-    TRACK_META,
     country_label,
     currency_display_unit,
     currency_multiplier,
     fmt_compact,
-    fmt_pct,
+    resolve_scope_meta,
     safe_round,
     track_label,
 )
@@ -36,6 +37,7 @@ from queries import (
     sql_eu_promo_breakdown,
     sql_eu_store_matrix,
     sql_monthly_sales_trend,
+    sql_sales_by_country,
     sql_store_map_points,
     sql_store_performance_table,
 )
@@ -62,24 +64,33 @@ from ui import (
 def render_page(filters: FilterState) -> None:
     schema = db.get_active_schema()
     palette = get_active_palette()
-    meta = TRACK_META.get(filters.dataset_track or "")
-    ccy = meta.currency_code if meta else None
-    has_rev = bool(meta.has_revenue) if meta else False
-    prov_class = meta.provenance_class if meta else "SYNTHETIC"
-
-    to_vnd = bool(filters.display_vnd and ccy)
-    disp_ccy = currency_display_unit(ccy, to_vnd=to_vnd)
-    ccy_mult = currency_multiplier(ccy, to_vnd=to_vnd)
-
     bounds = get_track_bounds()
     track_min_date = bounds.get("min_date")
     track_max_date = bounds.get("max_date")
     uoms_avail = bounds.get("uoms_avail") or ()
 
-    is_onyx_selected = filters.dataset_track == EU_STORE_MATRIX_TRACK
+    scope = bounds.get("scope_meta")
+    if scope is None:
+        scope = resolve_scope_meta(
+            bounds.get("active_tracks") or (),
+            bounds.get("active_currencies") or (),
+            bounds.get("active_provenances") or (),
+            display_vnd=bool(filters.display_vnd),
+            fallback_track=filters.dataset_track,
+        )
+    ccy = scope.currency_code
+    has_rev = scope.has_revenue
+    prov_class = scope.provenance_class
+    to_vnd = scope.to_vnd
+    disp_ccy = scope.disp_ccy
+    ccy_mult = scope.ccy_mult
+
+    is_unified = filters.dataset_track is None
+    is_onyx_only = scope.single_track_id == EU_STORE_MATRIX_TRACK
+    is_onyx_selected = is_onyx_only or (is_unified and scope.has_margin)
     eu_scope_text = (
         f"Nguồn: {track_label(EU_STORE_MATRIX_TRACK)} · Áp dụng đầy đủ bộ lọc khu vực/cụm/cửa hàng/ngày của thanh bên."
-        if is_onyx_selected
+        if (is_onyx_only or is_unified)
         else "Phần tham chiếu riêng: ONYX Châu Âu — Mô phỏng (EUR) · Không áp dụng bộ lọc nguồn đang chọn ở thanh bên."
     )
 
@@ -93,20 +104,86 @@ def render_page(filters: FilterState) -> None:
         ],
     )
 
-    m_sql, m_params = sql_monthly_sales_trend(schema, filters)
+    # Local Page 3 controls lifted above queries so cluster selection applies uniformly across all 7 panels
+    show_eu_network = False
+    if not is_unified and not is_onyx_only:
+        with st.container(border=True):
+            show_eu_network = st.toggle(
+                "Mạng lưới 120 CH EU",
+                value=False,
+                key="p3_map_force_eu",
+                help="Nguồn hiện tại chỉ có 1 cửa hàng; bật để xem toàn bộ 120 cửa hàng / 38 cụm tại châu Âu (mô phỏng).",
+            )
+    else:
+        st.session_state["p3_map_force_eu"] = False
+
+    map_sql, map_params = sql_store_map_points(schema, filters, force_onyx=show_eu_network)
+    raw_map_df = db.run_query_df(map_sql, map_params)
+
+    if not raw_map_df.empty and "city_cluster" in raw_map_df.columns:
+        p3_clusters_avail = sorted(raw_map_df["city_cluster"].dropna().astype(str).unique().tolist())
+    elif not show_eu_network:
+        p3_clusters_avail = (
+            list(filters.city_clusters)
+            if filters.city_clusters
+            else list(bounds.get("clusters_avail") or ())
+        )
+    else:
+        p3_clusters_avail = []
+
+    sel_map_clusters: list[str] = []
+    if len(p3_clusters_avail) > 1:
+        prune_selection("p3_map_clusters", p3_clusters_avail)
+        with st.container(border=True):
+            sel_map_clusters = st.multiselect(
+                "Lọc Cụm TP",
+                options=p3_clusters_avail,
+                placeholder=f"Tất cả ({len(p3_clusters_avail)} cụm · {len(raw_map_df)} CH)",
+                key="p3_map_clusters",
+            )
+    else:
+        st.session_state["p3_map_clusters"] = []
+
+    map_df = (
+        raw_map_df[raw_map_df["city_cluster"].astype(str).isin(sel_map_clusters)].copy()
+        if (sel_map_clusters and not raw_map_df.empty and "city_cluster" in raw_map_df.columns)
+        else raw_map_df
+    )
+    page_filters = (
+        replace(filters, city_clusters=tuple(sel_map_clusters))
+        if (sel_map_clusters and not show_eu_network)
+        else filters
+    )
+
+    m_sql, m_params = sql_monthly_sales_trend(schema, page_filters)
     m_df = db.run_query_df(m_sql, m_params)
     avail_months = m_df["year_month"].tolist() if not m_df.empty else []
     cmp_window = resolve_comparison_periods(
-        filters.date_start,
-        filters.date_end,
-        mode=filters.compare_mode,
+        page_filters.date_start,
+        page_filters.date_end,
+        mode=page_filters.compare_mode,
         available_months=avail_months,
         track_min_date=track_min_date,
         track_max_date=track_max_date,
     )
-    render_top_action_bar(filters, page_key="p3", compare_window=cmp_window, show_compare_jump=True)
 
-    uom_guard = evaluate_uom_compatibility(filters.dataset_track, filters.clean_uoms, uoms_avail)
+    local_tags: list[str] = []
+    if sel_map_clusters:
+        cl_short = ", ".join(sel_map_clusters[:2])
+        if len(sel_map_clusters) > 2:
+            cl_short += f" (+{len(sel_map_clusters) - 2})"
+        local_tags.append(f"Cụm EU: {cl_short}" if show_eu_network else f"Cụm trang: {cl_short}")
+
+    bar_filters = replace(filters, city_clusters=()) if (sel_map_clusters and not show_eu_network) else filters
+    render_top_action_bar(
+        bar_filters,
+        page_key="p3",
+        compare_window=cmp_window,
+        local_tags=local_tags,
+        show_compare_jump=True,
+    )
+
+    uom_guard = evaluate_uom_compatibility(page_filters.dataset_track, page_filters.clean_uoms, uoms_avail)
     use_rev_var = bool(has_rev)
     c_col = "cur_rev" if use_rev_var else "cur_qty"
     p_col = "prev_rev" if use_rev_var else "prev_qty"
@@ -117,7 +194,7 @@ def render_page(filters: FilterState) -> None:
     if cmp_window.valid and cmp_window.cur_start and cmp_window.prev_start:
         sv_sql, sv_params = sql_dimension_variance(
             schema,
-            filters,
+            page_filters,
             dim_kind="store",
             cur_start=cmp_window.cur_start,
             cur_end=cmp_window.cur_end,
@@ -138,11 +215,11 @@ def render_page(filters: FilterState) -> None:
                 - pd.to_numeric(store_var_df["prev_weighted_margin_pct"], errors="coerce")
             )
 
-    mx_sql, mx_params = sql_eu_store_matrix(schema, filters)
+    mx_sql, mx_params = sql_eu_store_matrix(schema, page_filters)
     mx_df = db.run_query_df(mx_sql, mx_params)
     matrix_meta = resolve_matrix_source_meta(
         mx_df,
-        active_track=filters.dataset_track,
+        active_track=page_filters.dataset_track,
         default_track=EU_STORE_MATRIX_TRACK,
     )
 
@@ -182,7 +259,7 @@ def render_page(filters: FilterState) -> None:
                 "",
                 info_tooltip="Bản đồ nền đường phố chi tiết (cuộn để zoom tới từng tuyến phố). Có thể gom theo Cụm thành phố hoặc soi từng nhà thuốc ở chế độ 2D Phố / 3D Cột.",
             )
-            mc1, mc2, mc3, mc4, mc5 = st.columns([2.2, 2.2, 2.0, 2.2, 3.4])
+            mc1, mc2, mc3, mc4 = st.columns([2.5, 2.5, 2.5, 2.5])
             with mc1:
                 map_mode = st.selectbox(
                     "Cấp độ",
@@ -208,9 +285,14 @@ def render_page(filters: FilterState) -> None:
                     key="p3_map_size",
                 )
             with mc4:
-                color_opts = ["weighted_margin_pct", "avg_temp_mean", "avg_precip_sum", "line_amount"] if is_onyx_selected else (
-                    ["avg_temp_mean", "avg_precip_sum", "line_amount"] if has_rev else ["avg_temp_mean", "avg_precip_sum", "sold_qty"]
-                )
+                if is_onyx_only:
+                    color_opts = ["weighted_margin_pct", "avg_temp_mean", "avg_precip_sum", "line_amount"]
+                elif is_onyx_selected:
+                    color_opts = ["avg_temp_mean", "avg_precip_sum", "weighted_margin_pct", "line_amount"]
+                elif has_rev:
+                    color_opts = ["avg_temp_mean", "avg_precip_sum", "line_amount"]
+                else:
+                    color_opts = ["avg_temp_mean", "avg_precip_sum", "sold_qty"]
                 if st.session_state.get("p3_map_color") not in color_opts:
                     st.session_state["p3_map_color"] = color_opts[0]
                 map_color = st.selectbox(
@@ -225,31 +307,6 @@ def render_page(filters: FilterState) -> None:
                     }.get(k, k),
                     key="p3_map_color",
                 )
-            with mc5:
-                show_eu_network = (
-                    st.toggle(
-                        "Mạng lưới 120 CH EU",
-                        value=False,
-                        key="p3_map_force_eu",
-                        help="Nguồn hiện tại chỉ có 1 cửa hàng; bật để xem toàn bộ 120 cửa hàng / 38 cụm tại châu Âu (mô phỏng).",
-                    )
-                    if not is_onyx_selected
-                    else False
-                )
-
-            map_sql, map_params = sql_store_map_points(schema, filters, force_onyx=show_eu_network)
-            map_df = db.run_query_df(map_sql, map_params)
-            if not map_df.empty and "city_cluster" in map_df.columns:
-                map_clusters_avail = sorted(map_df["city_cluster"].dropna().unique().tolist())
-                if len(map_clusters_avail) > 1:
-                    sel_map_clusters = st.multiselect(
-                        "Lọc Cụm TP",
-                        options=map_clusters_avail,
-                        placeholder=f"Tất cả ({len(map_clusters_avail)} cụm · {len(map_df)} CH)",
-                        key="p3_map_clusters",
-                    )
-                    if sel_map_clusters:
-                        map_df = map_df[map_df["city_cluster"].isin(sel_map_clusters)].copy()
 
             eff_map_ccy = "EUR" if show_eu_network else ccy
             render_street_map(
@@ -358,12 +415,14 @@ def render_page(filters: FilterState) -> None:
                         else "Lý do cần xem xét"
                     )
                     if is_onyx_selected and "weighted_margin_pct" in watchlist_df.columns:
-                        rev_col_w = f"Doanh thu ({disp_ccy})" if disp_ccy else "Doanh thu (EUR)"
+                        mx_w_ccy = currency_display_unit(matrix_meta.currency_code, to_vnd=filters.display_vnd) or matrix_meta.currency_code
+                        mx_w_mult = currency_multiplier(matrix_meta.currency_code, to_vnd=filters.display_vnd)
+                        rev_col_w = f"Doanh thu ({mx_w_ccy})" if mx_w_ccy else "Doanh thu (EUR)"
                         w_disp = pd.DataFrame(
                             {
                                 "Cửa hàng": watchlist_df["store_name"],
                                 "Quốc gia": watchlist_df["country_code"].map(country_label),
-                                rev_col_w: safe_round(pd.to_numeric(watchlist_df["line_amount"], errors="coerce") * ccy_mult, 0),
+                                rev_col_w: safe_round(pd.to_numeric(watchlist_df["line_amount"], errors="coerce") * mx_w_mult, 0),
                                 "Tỷ suất LN (%)": safe_round(watchlist_df["weighted_margin_pct"], 2),
                                 "Biến động kỳ (%)": safe_round(pd.to_numeric(watchlist_df["pct_change"], errors="coerce") * 100.0, 2),
                                 reason_col_lbl: watchlist_df["Lý do cần xem xét"],
@@ -498,30 +557,56 @@ def render_page(filters: FilterState) -> None:
                 render_scope_strip(eu_scope_text, kind="default" if is_onyx_selected else "warn")
                 g_left, g_right = st.columns([6.0, 6.0], gap="medium")
                 with g_left:
-                    render_chart_header(
-                        "Doanh Thu Theo Quốc Gia",
-                        info_tooltip="Tổng doanh thu thực bán theo từng quốc gia trong mạng lưới.",
-                    )
-                    c_sql, c_params = sql_eu_country_summary(schema, filters)
-                    c_df = db.run_query_df(c_sql, c_params)
-                    if c_df.empty:
-                        render_empty_state()
+                    if is_unified:
+                        c_sql, c_params = sql_sales_by_country(schema, page_filters)
+                        c_df = db.run_query_df(c_sql, c_params)
+                        use_rev_ctry = bool(has_rev and not c_df.empty and pd.to_numeric(c_df["line_amount"], errors="coerce").notna().any())
+                        ctry_hdr = "Doanh Thu Theo Quốc Gia" if use_rev_ctry else "Sản Lượng Theo Quốc Gia"
+                        ctry_y_lbl = f"Doanh thu ({disp_ccy})" if use_rev_ctry else "Sản lượng"
+                        render_chart_header(
+                            ctry_hdr,
+                            info_tooltip="Tổng hợp toàn bộ quốc gia trong phạm vi đang lọc (quy đổi VNĐ khi gồm nhiều tiền tệ).",
+                        )
+                        if c_df.empty:
+                            render_empty_state()
+                        else:
+                            c_df = c_df.copy()
+                            c_df["country_vi"] = c_df["country_code"].map(country_label)
+                            if use_rev_ctry:
+                                c_df["metric_disp"] = pd.to_numeric(c_df["line_amount"], errors="coerce").fillna(0.0) * ccy_mult
+                            else:
+                                c_df["metric_disp"] = pd.to_numeric(c_df["sold_qty"], errors="coerce").fillna(0.0)
+                            c_df = c_df.sort_values("metric_disp", ascending=False)
+                            fig_cbar = px.bar(c_df, x="country_vi", y="metric_disp", text_auto=".3s", color_discrete_sequence=[palette.primary])
+                            fig_cbar.update_traces(textposition="outside")
+                            style_plotly(fig_cbar, palette, height=320, show_legend=False, xaxis_title="Quốc gia", yaxis_title=ctry_y_lbl)
+                            polish_vertical_bar_headroom(fig_cbar, float(c_df["metric_disp"].max()))
+                            st.plotly_chart(fig_cbar, width="stretch", theme=None, config=plotly_config())
                     else:
-                        c_df = c_df.copy()
-                        c_df["country_vi"] = c_df["country_code"].map(country_label)
-                        c_df["rev_disp"] = pd.to_numeric(c_df["line_amount"], errors="coerce") * mx_mult
-                        c_df = c_df.sort_values("rev_disp", ascending=False)
-                        fig_cbar = px.bar(c_df, x="country_vi", y="rev_disp", text_auto=".3s", color_discrete_sequence=[palette.primary])
-                        fig_cbar.update_traces(textposition="outside")
-                        style_plotly(fig_cbar, palette, height=320, show_legend=False, xaxis_title="Quốc gia", yaxis_title=f"Doanh thu ({mx_disp_ccy})")
-                        polish_vertical_bar_headroom(fig_cbar, float(c_df["rev_disp"].max()))
-                        st.plotly_chart(fig_cbar, width="stretch", theme=None, config=plotly_config())
+                        render_chart_header(
+                            "Doanh Thu Theo Quốc Gia",
+                            info_tooltip="Tổng doanh thu thực bán theo từng quốc gia trong mạng lưới.",
+                        )
+                        c_sql, c_params = sql_eu_country_summary(schema, page_filters)
+                        c_df = db.run_query_df(c_sql, c_params)
+                        if c_df.empty:
+                            render_empty_state()
+                        else:
+                            c_df = c_df.copy()
+                            c_df["country_vi"] = c_df["country_code"].map(country_label)
+                            c_df["rev_disp"] = pd.to_numeric(c_df["line_amount"], errors="coerce") * mx_mult
+                            c_df = c_df.sort_values("rev_disp", ascending=False)
+                            fig_cbar = px.bar(c_df, x="country_vi", y="rev_disp", text_auto=".3s", color_discrete_sequence=[palette.primary])
+                            fig_cbar.update_traces(textposition="outside")
+                            style_plotly(fig_cbar, palette, height=320, show_legend=False, xaxis_title="Quốc gia", yaxis_title=f"Doanh thu ({mx_disp_ccy})")
+                            polish_vertical_bar_headroom(fig_cbar, float(c_df["rev_disp"].max()))
+                            st.plotly_chart(fig_cbar, width="stretch", theme=None, config=plotly_config())
                 with g_right:
                     render_chart_header(
                         "Tác Động Khuyến Mãi vs Giá Thường",
                         info_tooltip="Đối chiếu tỷ trọng sản lượng, tỷ trọng doanh thu và biên lợi nhuận gộp giữa hàng bán có khuyến mãi và hàng bán đúng giá niêm yết.",
                     )
-                    pr_sql, pr_params = sql_eu_promo_breakdown(schema, filters)
+                    pr_sql, pr_params = sql_eu_promo_breakdown(schema, page_filters)
                     pr_df = db.run_query_df(pr_sql, pr_params)
                     if pr_df.empty:
                         render_empty_state()
@@ -567,7 +652,7 @@ def render_page(filters: FilterState) -> None:
 
             with t_brand:
                 render_scope_strip(eu_scope_text, kind="default" if is_onyx_selected else "warn")
-                bm_sql, bm_params = sql_eu_brand_margin_and_profit(schema, filters)
+                bm_sql, bm_params = sql_eu_brand_margin_and_profit(schema, page_filters)
                 bm_df = db.run_query_df(bm_sql, bm_params)
                 if bm_df.empty:
                     render_empty_state()
@@ -583,7 +668,7 @@ def render_page(filters: FilterState) -> None:
 
             with t_tbl:
                 store_search = st.text_input("Tìm nhanh mã, tên cửa hàng hoặc quốc gia", placeholder="Ví dụ: Munich, Berlin, ONYX:PH0120...", key="p3_store_search")
-                st_sql, st_params = sql_store_performance_table(schema, filters, search_text=store_search)
+                st_sql, st_params = sql_store_performance_table(schema, page_filters, search_text=store_search)
                 st_df = db.run_query_df(st_sql, st_params)
                 if st_df.empty:
                     render_empty_state()

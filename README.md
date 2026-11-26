@@ -162,7 +162,7 @@ Toàn bộ pipeline đã được triển khai, chạy live trên **Databricks F
 │       └── test_sync_quick.py              # Unit tests tầng BI sync
 │
 └── tests/
-    ├── test_streamlit_dashboard.py         # ✅ Bộ 47 unit & AppTest kiểm thử toàn bộ 5 trang Dashboard Streamlit
+    ├── test_streamlit_dashboard.py         # ✅ Bộ 58 unit & AppTest kiểm thử toàn bộ 5 trang Dashboard Streamlit
     └── weather/                            # ✅ Bộ 142 unit tests kiểm thử hệ thống Weather Ingestion
 ```
 
@@ -175,7 +175,10 @@ Toàn bộ pipeline đã được triển khai, chạy live trên **Databricks F
 * **Người vận hành / phát triển toàn bộ Pipeline:** Cần thêm **AWS CLI v2** (`aws login` / SSO profile), **Terraform `1.16+`**, và **Databricks CLI (`v1.26+`)**.
 
 ### 2. Cài đặt môi trường ảo Python
-- **Cách 1 — Nhanh cho thành viên chỉ chạy Streamlit (khuyên dùng, chỉ cài 6 gói nhẹ):**
+
+> **Nếu bạn đã có sẵn môi trường ảo (`venv` / `.venv` dùng chung / `conda`):** Bỏ qua bước `python -m venv .venv`, chỉ cần kích hoạt môi trường hiện có (hoặc gọi thẳng `pip` của môi trường đó) rồi chạy `pip install -r src/streamlit/requirements.txt` (nếu chỉ dùng Dashboard) hoặc `pip install -r requirements.txt` (nếu chạy toàn bộ Pipeline) để đồng bộ các gói còn thiếu.
+
+- **Cách 1 — Nhanh cho thành viên chỉ chạy Streamlit (tạo `.venv` mới, chỉ cài 6 gói nhẹ):**
   ```powershell
   python -m venv .venv
   .\.venv\Scripts\pip.exe install -r src\streamlit\requirements.txt
@@ -186,6 +189,11 @@ Toàn bộ pipeline đã được triển khai, chạy live trên **Databricks F
   python -m venv .venv
   .\.venv\Scripts\pip.exe install -r requirements.txt
   # macOS/Linux: ./.venv/bin/pip install -r requirements.txt
+  ```
+- **Cách 3 — Dùng lại `venv` / `conda` đã có sẵn (không tạo `.venv` mới):**
+  ```powershell
+  # Kích hoạt venv hoặc conda sẵn có của bạn, rồi cài/cập nhật gói cần thiết:
+  pip install -r src\streamlit\requirements.txt   # hoặc: pip install -r requirements.txt
   ```
 
 ### 3. Hướng dẫn xin & cấu hình Credentials (`.env`)
@@ -224,7 +232,7 @@ Copy-Item .env.example .env
 # 2. Kiểm thử Weather Ingestion Engine (142 tests)
 .\.venv\Scripts\python.exe -B -m pytest tests\weather -v -p no:cacheprovider
 
-# 3. Kiểm thử BI Serving Sync Bridge (6 tests) & Dashboard Streamlit (47 tests)
+# 3. Kiểm thử BI Serving Sync Bridge (6 tests) & Dashboard Streamlit (58 tests)
 .\.venv\Scripts\python.exe -B -m pytest src\sync_quick\test_sync_quick.py tests\test_streamlit_dashboard.py -v -p no:cacheprovider
 
 # 4. Kiểm thử Contract nguồn dữ liệu Postgres & MongoDB
@@ -279,27 +287,34 @@ Sau khi đồng bộ xong, mở **Amazon QuickSight (AWS Quick)** → **New Data
 
 > 🌐 **Trải nghiệm trực tiếp (Live Demo — Streamlit Community Cloud):** https://pharmaflow-sales-lakehouse-bi-ut7zhiigkcrzqwvz93krzy.streamlit.app/
 
-Thành viên chỉ chạy giao diện BI làm nhanh theo 3 bước:
+Thành viên chỉ chạy giao diện BI chọn 1 trong 2 cách dưới đây (nhớ tạo file `.env` ở gốc repo hoặc `src/streamlit/.env` gồm `QUICK_NEON_DATABASE_URL` và `QUICK_NEON_SCHEMA=quick_gold_md01`):
 
-```bash
-git clone https://github.com/minhnhut273/PharmaFlow-Sales-Lakehouse-BI.git
-cd PharmaFlow-Sales-Lakehouse-BI
-python -m venv .venv
-```
+- **Trường hợp A — Đã có sẵn `venv` / `conda` (hoặc `.venv` dùng chung ở thư mục cha):** Không cần tạo lại `.venv`, chỉ kích hoạt môi trường sẵn có, cài bổ sung 6 gói nhẹ (nếu chưa có) rồi chạy:
+  ```powershell
+  # Kích hoạt venv/conda sẵn có của bạn (ví dụ: ..\.venv\Scripts\Activate.ps1 hoặc conda activate <env>)
+  pip install -r src/streamlit/requirements.txt
+  streamlit run src/streamlit/app.py --server.port 8501
+  ```
 
-1. **Cài 6 gói cần thiết & tạo file `.env`** ở gốc repo (hoặc `src/streamlit/.env`) gồm `QUICK_NEON_DATABASE_URL` và `QUICK_NEON_SCHEMA=quick_gold_md01`:
-   ```powershell
-   # Windows (PowerShell)
-   .\.venv\Scripts\pip.exe install -r src\streamlit\requirements.txt
-   .\.venv\Scripts\streamlit.exe run src\streamlit\app.py --server.port 8501
-   ```
-   ```bash
-   # macOS / Linux
-   ./.venv/bin/pip install -r src/streamlit/requirements.txt
-   ./.venv/bin/streamlit run src/streamlit/app.py --server.port 8501
-   ```
+- **Trường hợp B — Chưa có môi trường ảo (cài mới từ đầu):**
+  ```bash
+  git clone https://github.com/minhnhut273/PharmaFlow-Sales-Lakehouse-BI.git
+  cd PharmaFlow-Sales-Lakehouse-BI
+  python -m venv .venv
+  ```
+  1. **Cài 6 gói cần thiết & khởi chạy:**
+     ```powershell
+     # Windows (PowerShell)
+     .\.venv\Scripts\pip.exe install -r src\streamlit\requirements.txt
+     .\.venv\Scripts\streamlit.exe run src\streamlit\app.py --server.port 8501
+     ```
+     ```bash
+     # macOS / Linux
+     ./.venv/bin/pip install -r src/streamlit/requirements.txt
+     ./.venv/bin/streamlit run src/streamlit/app.py --server.port 8501
+     ```
 
-2. Truy cập `http://localhost:8501` để sử dụng 5 trang (**Cửa Hàng & Mặt Hàng**, **Cụm CH & Bản Đồ**, **Thời Tiết & Mùa Vụ**, **So Sánh Kỳ & Danh Mục**, **Dự Báo Nhu Cầu ML**), chuyển đổi 7 bảng màu giao diện, lọc đa yếu tố thời tiết, xem Fan Chart / TreeSHAP dự báo và tải CSV trực tiếp. Xem hướng dẫn sử dụng & xử lý lỗi chi tiết tại [src/streamlit/README.md](src/streamlit/README.md).
+Truy cập `http://localhost:8501` để sử dụng 5 trang (**Cửa Hàng & Mặt Hàng**, **Cụm CH & Bản Đồ**, **Thời Tiết & Mùa Vụ**, **So Sánh Kỳ & Danh Mục**, **Dự Báo Nhu Cầu ML**), chuyển đổi 7 bảng màu giao diện, lọc đa yếu tố thời tiết, xem Fan Chart / TreeSHAP dự báo và tải CSV trực tiếp. Xem hướng dẫn sử dụng & xử lý lỗi chi tiết tại [src/streamlit/README.md](src/streamlit/README.md).
 
 ### 6. Chạy Pipeline ML Dự báo Nhu cầu (5 Notebooks — 1 Luồng Thống nhất)
 * **Chỉ Notebook 01** cần `.env` với `QUICK_NEON_DATABASE_URL` + `QUICK_NEON_SCHEMA=quick_gold_md01` để trích dữ liệu Gold (`store_id = 5631`); **Notebooks `02 → 05`** chạy hoàn toàn **offline** từ các tệp `.parquet` trong `artifacts/forecasting/`.

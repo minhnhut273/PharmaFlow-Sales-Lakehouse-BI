@@ -15,13 +15,17 @@ from analytics import (
     evaluate_uom_compatibility,
     resolve_comparison_periods,
 )
-from components.filters import get_current_filters, get_track_bounds, set_global_uoms
+from components.filters import (
+    get_current_filters,
+    get_track_bounds,
+    prune_selection,
+    set_global_uoms,
+    sync_local_from_global,
+)
 from config import (
     TIME_GRAIN_ORDER,
     TRACK_META,
     country_label,
-    currency_display_unit,
-    currency_multiplier,
     fmt_compact,
     fmt_currency,
     fmt_delta,
@@ -29,6 +33,7 @@ from config import (
     fmt_metric_state,
     fmt_pct,
     provenance_label,
+    resolve_scope_meta,
     safe_round,
     time_grain_label,
     track_label,
@@ -87,20 +92,27 @@ def _format_money(
 def render_page(filters: FilterState) -> None:
     schema = db.get_active_schema()
     palette = get_active_palette()
-    meta = TRACK_META.get(filters.dataset_track or "")
-    ccy = meta.currency_code if meta else None
-    has_rev = bool(meta.has_revenue) if meta else False
-    has_margin = bool(meta.has_margin) if meta else False
-    prov_class = meta.provenance_class if meta else "SYNTHETIC"
-
-    to_vnd = bool(filters.display_vnd and ccy)
-    disp_ccy = currency_display_unit(ccy, to_vnd=to_vnd)
-    ccy_mult = currency_multiplier(ccy, to_vnd=to_vnd)
-
     bounds = get_track_bounds()
     track_min_date = bounds.get("min_date")
     track_max_date = bounds.get("max_date")
     uoms_avail = bounds.get("uoms_avail") or ()
+
+    scope = bounds.get("scope_meta")
+    if scope is None:
+        scope = resolve_scope_meta(
+            bounds.get("active_tracks") or (),
+            bounds.get("active_currencies") or (),
+            bounds.get("active_provenances") or (),
+            display_vnd=bool(filters.display_vnd),
+            fallback_track=filters.dataset_track,
+        )
+    ccy = scope.currency_code
+    has_rev = scope.has_revenue
+    has_margin = scope.has_margin
+    prov_class = scope.provenance_class
+    to_vnd = scope.to_vnd
+    disp_ccy = scope.disp_ccy
+    ccy_mult = scope.ccy_mult
 
     render_page_header(
         "Cửa Hàng & Mặt Hàng",
@@ -174,7 +186,8 @@ def render_page(filters: FilterState) -> None:
 
     # Pre-fetch driver variance for optional right-panel insights + reuse on Driver tab
     countries_avail = bounds.get("countries_avail") or ()
-    driver_options = (["country", "brand", "product"] if len(countries_avail) > 1 else ["product", "brand"])
+    active_countries = filters.countries if filters.countries else countries_avail
+    driver_options = (["country", "brand", "product"] if len(active_countries) > 1 else ["product", "brand"])
     default_driver = driver_options[0]
     if st.session_state.get("p1_driver_dim") not in driver_options:
         st.session_state["p1_driver_dim"] = default_driver
@@ -184,7 +197,7 @@ def render_page(filters: FilterState) -> None:
     default_dim_for_insight: str | None = None
     vd_raw = pd.DataFrame()
     if cmp_window.valid and cmp_window.cur_start and cmp_window.prev_start:
-        default_dim_for_insight = "country" if len(countries_avail) > 1 else "product"
+        default_dim_for_insight = "country" if len(active_countries) > 1 else "product"
         vd_sql, vd_params = sql_dimension_variance(
             schema,
             filters,
@@ -217,7 +230,7 @@ def render_page(filters: FilterState) -> None:
                 )
 
     insight_bullets = build_overview_insights(
-        meta_label=meta.short_vi if meta else str(filters.dataset_track),
+        meta_label=scope.short_vi,
         provenance_class=prov_class,
         window=cmp_window,
         metric_label="Doanh thu" if use_rev_driver else "Tổng sản lượng",
@@ -361,10 +374,15 @@ def render_page(filters: FilterState) -> None:
 
         c1, c2, c3, c4 = st.columns(4)
         with c1:
+            rev_sub = (
+                "Đa tiền tệ → Quy đổi VNĐ (₫)"
+                if scope.is_multi_currency
+                else (vnd_rate_note(ccy, to_vnd) or (f"{ccy} · {rev_rows:,} dòng" if has_rev and ccy else ""))
+            )
             render_kpi_card(
                 "Doanh Thu",
                 rev_display,
-                vnd_rate_note(ccy, to_vnd) or (f"{ccy} · {rev_rows:,} dòng" if has_rev and ccy else ""),
+                rev_sub,
                 tag=disp_ccy or "N/A",
                 accent=palette.primary,
                 period_label=agg_period_label,
@@ -479,9 +497,19 @@ def render_page(filters: FilterState) -> None:
                 cur_end=cmp_window.cur_end if cmp_window.valid else None,
                 prev_start=cmp_window.prev_start if cmp_window.valid else None,
                 prev_end=cmp_window.prev_end if cmp_window.valid else None,
-                search_text=mix_search,
+                search_text="",
             )
-            pm_df = db.run_query_df(pm_sql, pm_params)
+            pm_full_df = db.run_query_df(pm_sql, pm_params)
+            cleaned_mix_search = (mix_search or "").strip().lower()
+            if cleaned_mix_search and not pm_full_df.empty:
+                mask = (
+                    pm_full_df["product_name"].fillna("").astype(str).str.lower().str.contains(cleaned_mix_search, regex=False)
+                    | pm_full_df["brand_name"].fillna("").astype(str).str.lower().str.contains(cleaned_mix_search, regex=False)
+                    | pm_full_df["clean_uom"].fillna("").astype(str).str.lower().str.contains(cleaned_mix_search, regex=False)
+                )
+                pm_df = pm_full_df.loc[mask].copy()
+            else:
+                pm_df = pm_full_df
 
             if pm_df.empty:
                 render_empty_state()
@@ -600,7 +628,12 @@ def render_page(filters: FilterState) -> None:
                 "",
                 info_tooltip="Chọn 1 hoặc nhiều mặt hàng thuốc để xem đường biến động bán ra theo Ngày / Tuần / Tháng / Quý. Bỏ trống = xem tổng cửa hàng kèm % tăng trưởng.",
             )
-            avail_prod_names = pm_df["product_name"].dropna().drop_duplicates().tolist() if not pm_df.empty else []
+            avail_prod_names = (
+                pm_full_df["product_name"].dropna().drop_duplicates().tolist()
+                if not pm_full_df.empty
+                else []
+            )
+            prune_selection("p1_selected_products", avail_prod_names)
             scol1, scol2, scol3 = st.columns([5.2, 3.8, 3.0])
             with scol1:
                 sel_products = st.multiselect(
@@ -610,9 +643,12 @@ def render_page(filters: FilterState) -> None:
                     key="p1_selected_products",
                 )
             with scol2:
-                # Local grain defaults to global filter grain unless overridden
-                if st.session_state.get("p1_series_grain") not in TIME_GRAIN_ORDER:
-                    st.session_state["p1_series_grain"] = filters.time_grain if filters.time_grain in TIME_GRAIN_ORDER else "month"
+                sync_local_from_global(
+                    filters.time_grain,
+                    "p1_series_grain",
+                    "_p1_synced_grain",
+                    TIME_GRAIN_ORDER,
+                )
                 series_grain = st.segmented_control(
                     "Độ mịn",
                     options=list(TIME_GRAIN_ORDER),

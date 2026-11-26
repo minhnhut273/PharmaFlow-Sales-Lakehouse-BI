@@ -11,21 +11,25 @@ from plotly.subplots import make_subplots
 import streamlit as st
 
 from analytics import SMALL_SAMPLE_STORE_DAYS, build_weather_insights, evaluate_uom_compatibility
-from components.filters import get_current_filters, get_track_bounds, set_global_uoms
+from components.filters import (
+    get_current_filters,
+    get_track_bounds,
+    prune_selection,
+    set_global_uoms,
+    sync_local_from_global,
+)
 from config import (
     DOW_VI_BY_NUM,
     HUMIDITY_BAND_ORDER,
     RAIN_REGIME_ORDER,
     TEMP_BAND_ORDER,
     TIME_GRAIN_ORDER,
-    TRACK_META,
-    currency_display_unit,
-    currency_multiplier,
     fmt_compact,
     fmt_currency,
     fmt_int,
     humidity_label,
     rain_label,
+    resolve_scope_meta,
     safe_round,
     temp_label,
     time_grain_label,
@@ -76,16 +80,24 @@ def _clear_page2_filters() -> None:
 def render_page(global_filters: FilterState) -> None:
     schema = db.get_active_schema()
     palette = get_active_palette()
-    meta = TRACK_META.get(global_filters.dataset_track or "")
-    ccy = meta.currency_code if meta else None
-    has_rev = bool(meta.has_revenue) if meta else False
-    prov_class = meta.provenance_class if meta else "SYNTHETIC"
-    to_vnd = bool(global_filters.display_vnd)
-    mult = currency_multiplier(ccy, to_vnd)
-    disp_ccy = currency_display_unit(ccy, to_vnd)
-
     bounds = get_track_bounds()
     uoms_avail = bounds.get("uoms_avail") or ()
+
+    scope = bounds.get("scope_meta")
+    if scope is None:
+        scope = resolve_scope_meta(
+            bounds.get("active_tracks") or (),
+            bounds.get("active_currencies") or (),
+            bounds.get("active_provenances") or (),
+            display_vnd=bool(global_filters.display_vnd),
+            fallback_track=global_filters.dataset_track,
+        )
+    ccy = scope.currency_code
+    has_rev = scope.has_revenue
+    prov_class = scope.provenance_class
+    to_vnd = scope.to_vnd
+    mult = scope.ccy_mult
+    disp_ccy = scope.disp_ccy
 
     st.session_state.setdefault("p2_temp_bands", [])
     st.session_state.setdefault("p2_rain_regimes", [])
@@ -104,29 +116,85 @@ def render_page(global_filters: FilterState) -> None:
     uom_guard = evaluate_uom_compatibility(global_filters.dataset_track, global_filters.clean_uoms, uoms_avail)
     use_rev_instead_of_qty = bool(uom_guard.is_multi_uom_blocked and has_rev)
 
-    # Local Weather Filters (strictly isolated to Page 2 — non-overlapping Temp / Rain / Humidity / Metric)
+    # Derive cascading weather options from active track taxonomy & global filters
+    tax_df = bounds.get("taxonomy_df")
+    scoped_tax = pd.DataFrame()
+    if isinstance(tax_df, pd.DataFrame) and not tax_df.empty:
+        scoped_tax = tax_df.copy()
+        if global_filters.countries:
+            scoped_tax = scoped_tax[scoped_tax["country_code"].astype(str).isin(global_filters.countries)]
+        if global_filters.city_clusters:
+            scoped_tax = scoped_tax[scoped_tax["city_cluster"].astype(str).isin(global_filters.city_clusters)]
+        if global_filters.stores:
+            scoped_tax = scoped_tax[scoped_tax["store_name"].astype(str).isin(global_filters.stores)]
+        if global_filters.clean_uoms:
+            scoped_tax = scoped_tax[scoped_tax["clean_uom"].astype(str).isin(global_filters.clean_uoms)]
+
+    if not scoped_tax.empty and "temp_band" in scoped_tax:
+        raw_t = set(scoped_tax["temp_band"].dropna().astype(str))
+        temp_opts = [t for t in TEMP_BAND_ORDER if t != "Unknown" and t in raw_t]
+    else:
+        base_temps = list(bounds.get("temp_bands_avail") or ())
+        temp_opts = base_temps or [t for t in TEMP_BAND_ORDER if t != "Unknown"]
+    if global_filters.temp_bands:
+        g_temps = set(global_filters.temp_bands)
+        narrowed = [t for t in temp_opts if t in g_temps]
+        temp_opts = narrowed or [t for t in TEMP_BAND_ORDER if t != "Unknown" and t in g_temps]
+
+    prune_selection("p2_temp_bands", temp_opts)
+
+    # Local Weather Filters (isolated to Page 2, narrowing cleanly inside Sidebar scope)
     with st.container(border=True):
         wc1, wc2, wc3, wc4 = st.columns([3, 3, 3, 3])
         with wc1:
             temp_sel = st.multiselect(
                 "Nhiệt độ",
-                options=[t for t in TEMP_BAND_ORDER if t != "Unknown"],
+                options=temp_opts,
                 format_func=temp_label,
-                placeholder="Tất cả mức nhiệt độ",
+                placeholder="Theo bộ lọc chung" if global_filters.temp_bands else "Tất cả mức nhiệt độ",
                 key="p2_temp_bands",
             )
+
+        eff_temps = tuple(temp_sel) if temp_sel else global_filters.temp_bands
+        tax_after_temp = (
+            scoped_tax[scoped_tax["temp_band"].astype(str).isin(eff_temps)]
+            if (not scoped_tax.empty and eff_temps and "temp_band" in scoped_tax)
+            else scoped_tax
+        )
+        if not tax_after_temp.empty and "rain_regime" in tax_after_temp:
+            raw_r = set(tax_after_temp["rain_regime"].dropna().astype(str))
+            rain_opts = [r for r in RAIN_REGIME_ORDER if r != "Unknown" and r in raw_r]
+        else:
+            base_rains = list(bounds.get("rain_regimes_avail") or ())
+            rain_opts = base_rains or [r for r in RAIN_REGIME_ORDER if r != "Unknown"]
+        prune_selection("p2_rain_regimes", rain_opts)
+
         with wc2:
             rain_sel = st.multiselect(
                 "Mức mưa",
-                options=[r for r in RAIN_REGIME_ORDER if r != "Unknown"],
+                options=rain_opts,
                 format_func=rain_label,
                 placeholder="Tất cả mức mưa",
                 key="p2_rain_regimes",
             )
+
+        tax_after_rain = (
+            tax_after_temp[tax_after_temp["rain_regime"].astype(str).isin(rain_sel)]
+            if (not tax_after_temp.empty and rain_sel and "rain_regime" in tax_after_temp)
+            else tax_after_temp
+        )
+        if not tax_after_rain.empty and "humidity_band" in tax_after_rain:
+            raw_h = set(tax_after_rain["humidity_band"].dropna().astype(str))
+            hum_opts = [h for h in HUMIDITY_BAND_ORDER if h != "Unknown" and h in raw_h]
+        else:
+            base_hums = list(bounds.get("humidity_bands_avail") or ())
+            hum_opts = base_hums or [h for h in HUMIDITY_BAND_ORDER if h != "Unknown"]
+        prune_selection("p2_humidity_bands", hum_opts)
+
         with wc3:
             hum_sel = st.multiselect(
                 "Độ ẩm",
-                options=[h for h in HUMIDITY_BAND_ORDER if h != "Unknown"],
+                options=hum_opts,
                 format_func=humidity_label,
                 placeholder="Tất cả độ ẩm",
                 key="p2_humidity_bands",
@@ -150,7 +218,7 @@ def render_page(global_filters: FilterState) -> None:
 
     filters = replace(
         global_filters,
-        temp_bands=tuple(temp_sel) if temp_sel else global_filters.temp_bands,
+        temp_bands=eff_temps,
         rain_regimes=tuple(rain_sel),
         humidity_bands=tuple(hum_sel),
     )
@@ -166,8 +234,9 @@ def render_page(global_filters: FilterState) -> None:
     if hum_sel:
         local_tags.append(f"Độ ẩm: {', '.join(humidity_label(h) for h in hum_sel)}")
 
+    bar_filters = replace(global_filters, temp_bands=()) if temp_sel else global_filters
     render_top_action_bar(
-        global_filters,
+        bar_filters,
         page_key="p2",
         local_tags=local_tags,
         show_compare_jump=True,
@@ -186,7 +255,7 @@ def render_page(global_filters: FilterState) -> None:
                 ),
                 icon="⚠️",
             )
-            uom_sql, uom_params = sql_uom_breakdown(schema, global_filters)
+            uom_sql, uom_params = sql_uom_breakdown(schema, filters)
             uom_df = db.run_query_df(uom_sql, uom_params)
             top_uoms = uom_df["clean_uom"].dropna().head(5).tolist() if not uom_df.empty else []
             if top_uoms:
@@ -451,7 +520,12 @@ def render_page(global_filters: FilterState) -> None:
             )
             mix_sql, mix_params = sql_store_product_mix(schema, filters)
             mix_df = db.run_query_df(mix_sql, mix_params)
-            prod_choices = mix_df["product_name"].dropna().astype(str).head(40).tolist() if not mix_df.empty else []
+            prod_choices = (
+                mix_df["product_name"].dropna().drop_duplicates().astype(str).head(100).tolist()
+                if not mix_df.empty
+                else []
+            )
+            prune_selection("p2_selected_products", prod_choices)
 
             sc1, sc2, sc3 = st.columns([5, 3.2, 3.8])
             with sc1:
@@ -463,9 +537,12 @@ def render_page(global_filters: FilterState) -> None:
                     key="p2_selected_products",
                 )
             with sc2:
-                default_grain = global_filters.time_grain if global_filters.time_grain in TIME_GRAIN_ORDER else "month"
-                if st.session_state.get("p2_series_grain") not in TIME_GRAIN_ORDER:
-                    st.session_state["p2_series_grain"] = default_grain
+                sync_local_from_global(
+                    global_filters.time_grain,
+                    "p2_series_grain",
+                    "_p2_synced_grain",
+                    TIME_GRAIN_ORDER,
+                )
                 sel_grain = st.radio(
                     "Độ mịn",
                     options=list(TIME_GRAIN_ORDER),
