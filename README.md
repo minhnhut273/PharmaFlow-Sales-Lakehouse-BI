@@ -48,7 +48,7 @@ Dự án giải quyết bài toán tích hợp dữ liệu đa nguồn có cấu
 
 ## 🏗 Kiến trúc hệ thống (System Architecture)
 
-> 🖼️ Xem phiên bản vector độ phân giải vô hạn tại: [pharmaflow-sales-bi-architecture.svg](docs/images/pharmaflow-sales-bi-architecture.svg) *(sơ đồ 5 phân vùng: Upstream → AWS IaC → Databricks Medallion → BI Serving & Streamlit 5P → ML Demand Forecasting)*
+> 🖼️ Mở & chỉnh sửa file nguồn Draw.io trực tiếp tại: [pharmaflow-sales-bi-architecture.drawio](docs/images/pharmaflow-sales-bi-architecture.drawio) *(sơ đồ 5 phân vùng: Data Sources → AWS Cloud IaC → Databricks Medallion → BI Serving & Analytics → ML Forecasting & XAI)*
 
 <div align="center">
   <img src="docs/images/pharmaflow-sales-bi-architecture.png" alt="PharmaFlow Sales & Weather Data Lakehouse — End-to-End BI & ML Architecture" width="100%" />
